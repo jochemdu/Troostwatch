@@ -35,10 +35,26 @@ configuration file used by the `sync-multi` command. These are listed in
 `requirements.txt` for convenience.
 
 With the virtual environment activated you can invoke the CLI entry points via
-`python -m troostwatch.cli`. For example, to add a buyer:
+`python -m troostwatch.cli`. Below are some common commands:
 
 ```bash
+# Add a buyer
 python -m troostwatch.cli buyer add Jochem --name "Jochem" --notes "IS IT engineer"
+
+# Track a specific lot with an optional budget
+python -m troostwatch.cli positions add --db troostwatch.db Jochem A1-39499 1234 --budget 2500
+
+# View a summary of your exposure for a buyer
+python -m troostwatch.cli report buyer --db troostwatch.db Jochem
 ```
 
 There is also a `schema` directory containing the database schema and any migrations, a `scripts` directory for one‑off scripts such as `firstrun.py`, and a `tests` directory containing unit tests. The `examples` directory holds example configuration and data files to help new users get started.
+
+### New commands in version 0.4.0
+
+Starting with version 0.4.0, Troostwatch includes two new capabilities:
+
+- **positions** – manage which lots a buyer is tracking and specify a maximum budget. Positions link a buyer to a lot and can be toggled between active and inactive.
+- **report** – generate exposure summaries for a buyer, including counts of tracked lots and the minimum and maximum exposure based on current bids and budgets.
+
+See the examples above for usage.

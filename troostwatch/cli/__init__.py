@@ -14,5 +14,7 @@ This module aggregates the subcommands for the Troostwatch command line interfac
 from .buyer import buyer  # noqa: F401
 from .sync import sync  # noqa: F401
 from .sync_multi import sync_multi  # noqa: F401
+from .positions import positions  # noqa: F401
+from .report import report  # noqa: F401
 
-__all__ = ["buyer", "sync", "sync_multi"]
+__all__ = ["buyer", "sync", "sync_multi", "positions", "report"]

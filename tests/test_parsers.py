@@ -7,7 +7,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.parsers.lot_card import _parse_eur_to_float, _parse_nl_datetime, parse_lot_card
+from troostwatch.parsers.lot_card import (
+    _parse_eur_to_float,
+    _parse_nl_datetime,
+    parse_auction_page,
+    parse_lot_card,
+)
 from troostwatch.parsers.lot_detail import parse_lot_detail
 
 
@@ -33,6 +38,31 @@ FIXTURES = Path(__file__).parent / "snapshots"
 
 def load_fixture(folder: str, name: str) -> str:
     return (FIXTURES / folder / f"{name}.html").read_text(encoding="utf-8")
+
+
+def test_parse_auction_page_next_data_live_snapshot():
+    base_url = "https://www.troostwijkauctions.com"
+    fixtures = list(parse_auction_page(load_fixture("live_pages", "auction"), base_url=base_url))
+
+    assert len(fixtures) == 2
+
+    first, second = fixtures
+    assert first.auction_code == "A1-39500"
+    assert first.lot_code == "A1-39500-1801"
+    assert first.title == "Samsung WM75A Flip interactive display 75"
+    assert first.url == f"{base_url}/l/samsung-wm75a-flip-interactive-display-75-A1-39500-1801"
+    assert first.state == "running"
+    assert first.opens_at == "2025-11-14T15:00:00"
+    assert first.closing_time_current == "2025-12-02T18:56:00"
+    assert first.location_city == "Deurne"
+    assert first.location_country == "Netherlands"
+    assert first.bid_count == 24
+    assert first.price_eur == 190.0
+    assert first.is_price_opening_bid is False
+
+    assert second.lot_code == "A1-39500-1802"
+    assert second.price_eur == 70.0
+    assert second.bid_count == 12
 
 
 def test_parse_lot_cards_from_snapshots():
@@ -112,3 +142,19 @@ def test_parse_lot_details_from_snapshots():
     assert closed.total_example_price_eur == 10762.5
     assert closed.location_city == "Warsaw"
     assert closed.location_country == "Poland"
+
+
+def test_parse_lot_detail_live_snapshot():
+    base_url = "https://www.troostwijkauctions.com"
+    detail = parse_lot_detail(load_fixture("live_pages", "lot"), lot_code="ignored", base_url=base_url)
+
+    assert detail.lot_code == "A1-39500-1802"
+    assert detail.title == "Samsung VM55T-E smart signage led display 55"
+    assert detail.state == "running"
+    assert detail.opens_at is None
+    assert detail.closing_time_current is None
+    assert detail.bid_count is None
+    assert detail.current_bid_eur is None
+    assert detail.location_city == "Deurne"
+    assert detail.location_country == "Netherlands"
+    assert detail.url == "https://www.troostwijkauctions.com/l/samsung-vm55t-e-smart-signage-led-display-55-A1-39500-1802"

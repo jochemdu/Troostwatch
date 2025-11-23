@@ -10,13 +10,14 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 import re
-from datetime import datetime, timezone
 from typing import Optional
 
 from bs4 import BeautifulSoup
 
 # Import helper functions from lot_card for parsing monetary and percent values
 from .lot_card import (
+    _COUNTRY_CODES,
+    _epoch_to_iso,
     _parse_datetime_from_text,
     _parse_eur_to_float,
     _parse_nl_datetime,
@@ -66,22 +67,6 @@ def _strip_html_tags(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text)
 
 
-_COUNTRY_CODES = {
-    "de": "Germany",
-    "nl": "Netherlands",
-    "pl": "Poland",
-}
-
-
-def _epoch_to_iso(ts: int | float | None) -> Optional[str]:
-    if ts is None:
-        return None
-    try:
-        return datetime.fromtimestamp(ts, tz=timezone.utc).replace(tzinfo=None, second=0, microsecond=0).isoformat()
-    except Exception:
-        return None
-
-
 def _parse_amount_field(value: dict | None) -> Optional[float]:
     if not value:
         return None
@@ -118,7 +103,7 @@ def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> L
     title = lot.get("title") or _strip_html_tags(_parse_title_from_dom(soup))
     url = page_props.get("canonicalUrl") or _build_url(base_url, lot.get("urlSlug"), lot_code)
 
-    status = (lot.get("status") or "").lower()
+    status = (lot.get("status") or page_props.get("auction", {}).get("biddingStatus") or "").lower()
     if status.startswith("bidding_open"):
         state = "running"
     elif status.startswith("published"):

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import click
 import yaml
-from pathlib import Path
 
 from ..sync.sync import sync_auction_to_db
 
@@ -58,7 +57,20 @@ from ..sync.sync import sync_auction_to_db
     help="Delay in seconds between HTTP requests to avoid hammering the site.",
     show_default=True,
 )
-def sync_multi(db_path: str, auctions_file: str, max_pages: int | None, dry_run: bool, delay_seconds: float) -> None:
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Enable verbose logging for each auction sync run.",
+)
+def sync_multi(
+    db_path: str,
+    auctions_file: str,
+    max_pages: int | None,
+    dry_run: bool,
+    delay_seconds: float,
+    verbose: bool,
+) -> None:
     """Synchronize multiple auctions defined in a YAML file.
 
     The YAML file must contain a top‑level ``auctions`` list with objects
@@ -86,15 +98,22 @@ def sync_multi(db_path: str, auctions_file: str, max_pages: int | None, dry_run:
             continue
         click.echo(f"\n→ Syncing auction {code} from {url}...")
         try:
-            sync_auction_to_db(
+            result = sync_auction_to_db(
                 db_path=db_path,
                 auction_code=code,
                 auction_url=url,
                 max_pages=max_pages,
                 dry_run=dry_run,
                 delay_seconds=delay_seconds,
+                verbose=verbose,
             )
-            click.echo(f"✓ Finished syncing auction {code}.")
+            click.echo(
+                f"✓ Finished syncing auction {code}: pages={result.pages_scanned}, "
+                f"lots scanned={result.lots_scanned}, lots updated={result.lots_updated}, errors={result.error_count}"
+            )
+            if result.errors:
+                for err in result.errors:
+                    click.echo(f"    - {err}")
         except Exception as exc:
             click.echo(f"✗ Error syncing auction {code}: {exc}")
     click.echo("\nAll auctions processed.")

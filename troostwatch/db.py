@@ -71,6 +71,12 @@ CREATE TABLE IF NOT EXISTS sync_runs (
     started_at TEXT NOT NULL,
     finished_at TEXT,
     status TEXT,
+    pages_scanned INTEGER DEFAULT 0,
+    lots_scanned INTEGER DEFAULT 0,
+    lots_updated INTEGER DEFAULT 0,
+    error_count INTEGER DEFAULT 0,
+    max_pages INTEGER,
+    dry_run INTEGER,
     notes TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sync_runs_auction_code ON sync_runs (auction_code);

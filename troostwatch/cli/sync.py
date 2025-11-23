@@ -59,7 +59,13 @@ from ..sync.sync import sync_auction_to_db
     help="Delay in seconds between HTTP requests to avoid hammering the site.",
     show_default=True,
 )
-def sync(db_path: str, auction_code: str, auction_url: str, max_pages: int | None, dry_run: bool, delay_seconds: float) -> None:
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Enable verbose logging during the sync run.",
+)
+def sync(db_path: str, auction_code: str, auction_url: str, max_pages: int | None, dry_run: bool, delay_seconds: float, verbose: bool) -> None:
     """Synchronize an auction into a local database.
 
     This command downloads the auction listing page (and subsequent pages if
@@ -80,6 +86,7 @@ def sync(db_path: str, auction_code: str, auction_url: str, max_pages: int | Non
             max_pages=max_pages,
             dry_run=dry_run,
             delay_seconds=delay_seconds,
+            verbose=verbose,
         )
         click.echo("Sync complete.")
     except Exception as exc:

@@ -197,8 +197,8 @@ def get_connection(
     db_path: str | Path | None = None,
     *,
     timeout: float | None = None,
-    enable_wal: bool = True,
-    foreign_keys: bool = True,
+    enable_wal: bool | None = None,
+    foreign_keys: bool | None = None,
 ) -> Iterator[sqlite3.Connection]:
     """Yield a configured SQLite connection.
 
@@ -213,10 +213,15 @@ def get_connection(
     timeout_value = timeout if timeout is not None else get_default_timeout()
     conn = sqlite3.connect(resolved_db_path, timeout=timeout_value)
     try:
+        # Resolve pragma defaults from configuration when callers pass None.
+        cfg = _load_config()
+        db_cfg = cfg.get("db", {}) if isinstance(cfg, dict) else {}
+        resolved_enable_wal = enable_wal if enable_wal is not None else bool(db_cfg.get("enable_wal", True))
+        resolved_foreign_keys = foreign_keys if foreign_keys is not None else bool(db_cfg.get("foreign_keys", True))
         apply_pragmas(
             conn,
-            enable_wal=enable_wal,
-            foreign_keys=foreign_keys,
+            enable_wal=resolved_enable_wal,
+            foreign_keys=resolved_foreign_keys,
             busy_timeout_ms=int(timeout_value * 1000),
         )
         yield conn
@@ -235,7 +240,11 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     ensure_core_schema(conn)
     # Ensure we have a migrations table so we can record applied updates.
     conn.executescript(SCHEMA_MIGRATIONS_SQL)
-    # Ensure legacy databases get the expected columns on `lots`.
+    # Apply any SQL files from the `migrations/` directory in repository root.
+    _apply_migration_dir(conn)
+    # Ensure legacy databases get the expected columns on `lots` as a
+    # defensive fallback for older DBs or when the migration runner is
+    # unavailable for some reason.
     _ensure_lots_columns(conn)
     conn.executescript(SCHEMA_BUYERS_SQL)
     conn.executescript(SCHEMA_POSITIONS_SQL)
@@ -305,6 +314,37 @@ def _ensure_lots_columns(conn: sqlite3.Connection) -> None:
                 "INSERT INTO schema_migrations (name, applied_at, notes) VALUES (?, ?, ?)",
                 (migration_name, iso_utcnow(), ",".join(added_cols)),
             )
+
+
+def _apply_migration_dir(conn: sqlite3.Connection, migrations_dir: str | None = None) -> None:
+    """Apply SQL migration files from the repository `migrations/` directory.
+
+    Files are applied in lexical order. Each applied filename is recorded in
+    `schema_migrations` (name == filename) to ensure idempotence.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    migrations_path = Path(migrations_dir) if migrations_dir else (root / "migrations")
+    if not migrations_path.exists() or not migrations_path.is_dir():
+        return
+
+    for path in sorted(migrations_path.iterdir()):
+        if not path.is_file() or not path.name.lower().endswith(".sql"):
+            continue
+        name = path.name
+        cur = conn.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (name,))
+        if cur.fetchone() is not None:
+            continue
+        with open(path, "r", encoding="utf-8") as f:
+            sql = f.read()
+        if not sql.strip():
+            continue
+        conn.executescript(sql)
+        conn.execute(
+            "INSERT INTO schema_migrations (name, applied_at, notes) VALUES (?, ?, ?)",
+            (name, iso_utcnow(), f"applied from {path.relative_to(root)}"),
+        )
     # commit is left to the caller; callers of ensure_schema generally commit as needed
 
 

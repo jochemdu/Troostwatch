@@ -31,3 +31,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 
 - None.
+
+## [0.6.1] – 2025-11-23
+
+### Added
+
+- Registered the `view` subcommand with the CLI aggregator. Previously, running
+  `python -m troostwatch.cli view` resulted in an error because the command
+  was not exposed; it now prints a stub message to remind users that the live
+  viewer is not yet implemented.
+- Clarified the `README.md` to indicate that `view` is a placeholder and to
+  direct users toward the `report` and `debug` commands for inspecting
+  their data.
+
+### Changed
+
+- Bumped the package version to 0.6.1 to reflect these small fixes.

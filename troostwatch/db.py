@@ -246,11 +246,13 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     # defensive fallback for older DBs or when the migration runner is
     # unavailable for some reason.
     _ensure_lots_columns(conn)
+    _ensure_hash_columns(conn)
     conn.executescript(SCHEMA_BUYERS_SQL)
     conn.executescript(SCHEMA_POSITIONS_SQL)
     conn.executescript(SCHEMA_MY_BIDS_SQL)
     conn.executescript(SCHEMA_PRODUCT_LAYERS_SQL)
     conn.executescript(SCHEMA_SYNC_RUNS_SQL)
+    _ensure_hash_columns(conn)
 
 
 def ensure_core_schema(conn: sqlite3.Connection) -> None:
@@ -346,6 +348,21 @@ def _apply_migration_dir(conn: sqlite3.Connection, migrations_dir: str | None = 
             (name, iso_utcnow(), f"applied from {path.relative_to(root)}"),
         )
     # commit is left to the caller; callers of ensure_schema generally commit as needed
+def _ensure_hash_columns(conn: sqlite3.Connection) -> None:
+    """Add hash- and timestamp-related columns to the lots table if missing."""
+
+    required_columns = {
+        "listing_hash": "TEXT",
+        "detail_hash": "TEXT",
+        "last_seen_at": "TEXT",
+        "detail_last_seen_at": "TEXT",
+    }
+    cur = conn.execute("PRAGMA table_info(lots)")
+    existing = {row[1] for row in cur.fetchall()}
+    for column, sql_type in required_columns.items():
+        if column not in existing:
+            conn.execute(f"ALTER TABLE lots ADD COLUMN {column} {sql_type}")
+
 
 
 def run_migrations(conn: sqlite3.Connection, migrations: Iterable[str] | None = None) -> None:

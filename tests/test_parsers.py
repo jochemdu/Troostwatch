@@ -7,30 +7,26 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.parsers.lot_card import (
-    _parse_eur_to_float,
-    _parse_nl_datetime,
-    parse_auction_page,
-    parse_lot_card,
-)
+from troostwatch.parsers.lot_card import parse_auction_page, parse_lot_card
+from troostwatch.parsers.utils import parse_eur_to_float, parse_nl_datetime
 from troostwatch.parsers.lot_detail import parse_lot_detail
 
 
 def test_parse_eur_to_float():
     """Ensure that European formatted currency strings are converted to floats."""
-    assert _parse_eur_to_float("€ 1.234,56") == 1234.56
-    assert _parse_eur_to_float("€0,99") == 0.99
-    assert _parse_eur_to_float("1.000,00") == 1000.0
-    assert _parse_eur_to_float("") is None
-    assert _parse_eur_to_float("invalid") is None
+    assert parse_eur_to_float("€ 1.234,56") == 1234.56
+    assert parse_eur_to_float("€0,99") == 0.99
+    assert parse_eur_to_float("1.000,00") == 1000.0
+    assert parse_eur_to_float("") is None
+    assert parse_eur_to_float("invalid") is None
 
 
 def test_parse_nl_datetime():
     """Ensure Dutch date strings are parsed into ISO‑8601 strings."""
-    assert _parse_nl_datetime("03 dec 2023 20:20") == "2023-12-03T20:20:00"
-    assert _parse_nl_datetime("1 jan 2024 08:00") == "2024-01-01T08:00:00"
+    assert parse_nl_datetime("03 dec 2023 20:20") == "2023-12-03T20:20:00"
+    assert parse_nl_datetime("1 jan 2024 08:00") == "2024-01-01T08:00:00"
     # Invalid format returns None
-    assert _parse_nl_datetime("03/12/2023") is None
+    assert parse_nl_datetime("03/12/2023") is None
 
 
 FIXTURES = Path(__file__).parent / "snapshots"

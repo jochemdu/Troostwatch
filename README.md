@@ -6,7 +6,7 @@ It provides a set of tools to scrape Troostwijk auctions, store the data in a SQ
 
 ## Project structure
 
--The code is organised into a Python package `troostwatch` with several sub‑packages:
+- The code is organised into a Python package `troostwatch` with several sub‑packages:
 
     - `troostwatch/cli/` – entry points for all available commands including `buyer`, `sync`, `sync-multi`, `positions`, `report`, `debug` and `view`.  The `view` command is currently a placeholder and simply prints a stub message; for live database inspection, use the `report` and `debug` commands instead.
 - `troostwatch/parsers/` – HTML parsers for auction listing pages and lot detail pages.
@@ -31,8 +31,21 @@ pip install -r requirements.txt
 
 At minimum the CLI requires [Click](https://click.palletsprojects.com/) for
 defining commands and [PyYAML](https://pyyaml.org/) for reading the YAML
-configuration file used by the `sync-multi` command. These are listed in
+configuration file used by the `sync-multi` command. Parsing HTML responses relies
+on [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/), and the sync
+pipeline depends on both [aiohttp](https://docs.aiohttp.org/) and
+[requests](https://requests.readthedocs.io/) to support concurrent fetching with
+retries and rate limiting. For richer terminal output you can also install
+[Rich](https://rich.readthedocs.io/). All of these are listed in
+configuration file used by the `sync-multi` command. The sync pipeline also
+depends on [aiohttp](https://docs.aiohttp.org/) and [requests](https://requests.readthedocs.io/) to
+support concurrent fetching with retries and rate limiting. These are listed in
 `requirements.txt` for convenience.
+
+Listing pages and lot details are hashed to detect changes between sync runs.
+The `sync` and `sync-multi` CLI commands expose `--max-concurrent-requests`,
+`--throttle-per-host`, retry/backoff toggles and `--skip-unchanged-details`
+behaviour so you can tune performance while avoiding unnecessary requests.
 
 With the virtual environment activated you can invoke the CLI entry points via
 `python -m troostwatch.cli`. Below are some common commands:

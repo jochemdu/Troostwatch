@@ -21,6 +21,19 @@ CREATE TABLE IF NOT EXISTS buyers (
 );
 """
 
+SCHEMA_POSITIONS_SQL = """
+CREATE TABLE IF NOT EXISTS my_lot_positions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    buyer_id INTEGER NOT NULL,
+    lot_id INTEGER NOT NULL,
+    track_active INTEGER NOT NULL DEFAULT 1,
+    max_budget_total_eur REAL,
+    my_highest_bid_eur REAL,
+    FOREIGN KEY (buyer_id) REFERENCES buyers (id) ON DELETE CASCADE,
+    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE,
+    UNIQUE (buyer_id, lot_id)
+);
+"""
 # Relative path to the core schema used by sync operations. This includes
 # definitions for auctions and lots tables. We compute the path relative to
 # this file so it works regardless of the working directory from which
@@ -64,6 +77,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn: Open sqlite3.Connection.
     """
     conn.executescript(SCHEMA_BUYERS_SQL)
+    conn.executescript(SCHEMA_POSITIONS_SQL)
 
 
 def ensure_core_schema(conn: sqlite3.Connection) -> None:
@@ -132,4 +146,130 @@ def delete_buyer(conn: sqlite3.Connection, label: str) -> None:
     """
     ensure_schema(conn)
     conn.execute("DELETE FROM buyers WHERE label = ?", (label,))
+    conn.commit()
+
+# Position management helpers
+
+def _get_buyer_id(conn: sqlite3.Connection, label: str) -> Optional[int]:
+    """Return the row ID of a buyer given its label, or None if not found."""
+    ensure_schema(conn)
+    cur = conn.execute("SELECT id FROM buyers WHERE label = ?", (label,))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+def _get_lot_id(conn: sqlite3.Connection, lot_code: str, auction_code: Optional[str] = None) -> Optional[int]:
+    """Return the row ID of a lot given its lot code and optional auction code.
+
+    If multiple lots share the same lot code across auctions and an auction code
+    is not provided, the first matching lot ID is returned. None is returned if
+    no matching lot is found.
+    """
+    ensure_core_schema(conn)
+    query = "SELECT l.id FROM lots l JOIN auctions a ON l.auction_id = a.id WHERE l.lot_code = ?"
+    params: List = [lot_code]
+    if auction_code is not None:
+        query += " AND a.auction_code = ?"
+        params.append(auction_code)
+    cur = conn.execute(query, tuple(params))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+def add_position(
+    conn: sqlite3.Connection,
+    buyer_label: str,
+    lot_code: str,
+    auction_code: Optional[str] = None,
+    track_active: bool = True,
+    max_budget_total_eur: Optional[float] = None,
+    my_highest_bid_eur: Optional[float] = None,
+) -> None:
+    """Insert or update a lot position for the given buyer and lot.
+
+    Args:
+        conn: An open SQLite connection.
+        buyer_label: Label of the buyer who owns the position.
+        lot_code: The code of the lot to track.
+        auction_code: Optional auction code to disambiguate lots.
+        track_active: Whether this lot should be included in exposure calculations.
+        max_budget_total_eur: Optional maximum total budget for the lot.
+        my_highest_bid_eur: Optional highest bid placed by the buyer on this lot.
+    """
+    ensure_schema(conn)
+    buyer_id = _get_buyer_id(conn, buyer_label)
+    if buyer_id is None:
+        raise ValueError(f"Buyer with label '{buyer_label}' does not exist")
+    lot_id = _get_lot_id(conn, lot_code, auction_code)
+    if lot_id is None:
+        raise ValueError(f"Lot with code '{lot_code}' not found (auction: {auction_code})")
+    # Upsert logic: insert or replace existing record
+    conn.execute(
+        """
+        INSERT INTO my_lot_positions (buyer_id, lot_id, track_active, max_budget_total_eur, my_highest_bid_eur)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(buyer_id, lot_id) DO UPDATE SET
+            track_active = excluded.track_active,
+            max_budget_total_eur = excluded.max_budget_total_eur,
+            my_highest_bid_eur = excluded.my_highest_bid_eur
+        """,
+        (buyer_id, lot_id, 1 if track_active else 0, max_budget_total_eur, my_highest_bid_eur),
+    )
+    conn.commit()
+
+def list_positions(conn: sqlite3.Connection, buyer_label: Optional[str] = None) -> List[Dict[str, Optional[str]]]:
+    """Return a list of positions optionally filtered by buyer label.
+
+    Args:
+        conn: An open SQLite connection.
+        buyer_label: If provided, only positions for this buyer are returned.
+
+    Returns:
+        A list of dictionaries describing each position, including buyer label,
+        auction code, lot code, track_active flag and budget fields.
+    """
+    ensure_schema(conn)
+    ensure_core_schema(conn)
+    params: List = []
+    query = """
+        SELECT b.label AS buyer_label,
+               a.auction_code AS auction_code,
+               l.lot_code AS lot_code,
+               p.track_active,
+               p.max_budget_total_eur,
+               p.my_highest_bid_eur,
+               l.title AS lot_title,
+               l.state AS lot_state,
+               l.current_bid_eur
+        FROM my_lot_positions p
+        JOIN buyers b ON p.buyer_id = b.id
+        JOIN lots l ON p.lot_id = l.id
+        JOIN auctions a ON l.auction_id = a.id
+    """
+    if buyer_label:
+        query += " WHERE b.label = ?"
+        params.append(buyer_label)
+    query += " ORDER BY a.auction_code, l.lot_code"
+    cur = conn.execute(query, tuple(params))
+    columns = [c[0] for c in cur.description]
+    return [dict(zip(columns, row)) for row in cur.fetchall()]
+
+def delete_position(conn: sqlite3.Connection, buyer_label: str, lot_code: str, auction_code: Optional[str] = None) -> None:
+    """Remove a tracked position for a buyer and lot.
+
+    Args:
+        conn: An open SQLite connection.
+        buyer_label: The label of the buyer.
+        lot_code: The code of the lot.
+        auction_code: Optional auction code to disambiguate lots.
+    """
+    ensure_schema(conn)
+    buyer_id = _get_buyer_id(conn, buyer_label)
+    if buyer_id is None:
+        raise ValueError(f"Buyer with label '{buyer_label}' does not exist")
+    lot_id = _get_lot_id(conn, lot_code, auction_code)
+    if lot_id is None:
+        raise ValueError(f"Lot with code '{lot_code}' not found (auction: {auction_code})")
+    conn.execute(
+        "DELETE FROM my_lot_positions WHERE buyer_id = ? AND lot_id = ?",
+        (buyer_id, lot_id),
+    )
     conn.commit()

@@ -8,9 +8,10 @@ the actual HTML structure of the Troostwijk site.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import re
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Iterable, Optional
 
 from bs4 import BeautifulSoup
 
@@ -28,6 +29,12 @@ _MONTHS_NL = {
     "okt": 10,
     "nov": 11,
     "dec": 12,
+}
+
+_COUNTRY_CODES = {
+    "de": "Germany",
+    "nl": "Netherlands",
+    "pl": "Poland",
 }
 
 
@@ -68,6 +75,17 @@ def _parse_eur_to_float(text: str) -> Optional[float]:
         return None
 
 
+def _amount_from_cents_dict(amount: dict | None) -> Optional[float]:
+    """Convert a Troostwijk ``{"cents": 19000}`` amount dictionary to float euros."""
+
+    if not isinstance(amount, dict):
+        return None
+    cents = amount.get("cents")
+    if isinstance(cents, (int, float)):
+        return float(cents) / 100
+    return None
+
+
 def _parse_percent(text: str) -> Optional[float]:
     """Convert a percentage string like "21%" to a float 21.0.
 
@@ -79,6 +97,21 @@ def _parse_percent(text: str) -> Optional[float]:
     try:
         return float(cleaned)
     except ValueError:
+        return None
+
+
+def _epoch_to_iso(ts: int | float | None) -> Optional[str]:
+    """Convert epoch seconds to a naive ISO-8601 string."""
+
+    if ts is None:
+        return None
+    try:
+        return (
+            datetime.fromtimestamp(ts, tz=timezone.utc)
+            .replace(tzinfo=None, second=0, microsecond=0)
+            .isoformat()
+        )
+    except Exception:
         return None
 
 
@@ -194,3 +227,78 @@ def parse_lot_card(html: str, auction_code: str, base_url: str | None = None) ->
         price_eur=price_eur,
         is_price_opening_bid=is_price_opening_bid,
     )
+
+
+def _extract_next_data(html: str) -> dict:
+    """Load ``__NEXT_DATA__`` JSON from a page when present."""
+
+    try:
+        soup = BeautifulSoup(html, "html.parser")
+        script = soup.find("script", id="__NEXT_DATA__")
+        if not script:
+            return {}
+        payload = script.string or script.get_text()
+        return json.loads(payload)
+    except Exception:
+        return {}
+
+
+def parse_auction_page(html: str, base_url: str | None = None) -> Iterable[LotCardData]:
+    """Parse all lot cards from a full auction page via ``__NEXT_DATA__``.
+
+    This mirrors the live Troostwijk auction page structure (see
+    https://www.troostwijkauctions.com/a/goederen-opgekocht-uit-faillissement-max-ict-%282-2%29-A1-39500)
+    where lot metadata is shipped inside ``__NEXT_DATA__`` rather than in
+    standalone card markup. The parser yields :class:`LotCardData` instances
+    for each lot contained in the JSON payload.
+    """
+
+    data = _extract_next_data(html)
+    page_props = data.get("props", {}).get("pageProps", {})
+    auction = page_props.get("auction", {})
+    auction_code = auction.get("displayId")
+
+    results = page_props.get("lots", {}).get("results") or []
+    for lot in results:
+        display_id = lot.get("displayId") or ""
+        lot_auction_code = auction_code or "-".join(display_id.split("-")[:2])
+        url_slug = lot.get("urlSlug") or ""
+        url = url_slug
+        if base_url and url_slug:
+            url = f"{base_url.rstrip('/')}/l/{url_slug}"
+
+        bids = lot.get("bidsCount")
+        current_bid_amount = _amount_from_cents_dict(lot.get("currentBidAmount"))
+        is_price_opening_bid = None
+        if bids is not None:
+            is_price_opening_bid = bids == 0
+
+        status = (lot.get("biddingStatus") or "").lower()
+        if status.startswith("bidding_open"):
+            state = "running"
+        elif status.startswith("published"):
+            state = "scheduled"
+        elif status.startswith("bidding_closed"):
+            state = "closed"
+        else:
+            state = None
+
+        location = lot.get("location") or {}
+        city, country = _split_location("{city}, {countryCode}".format(**{**{"city": "", "countryCode": ""}, **location}))
+        country_code = (location.get("countryCode") or "").lower()
+        country = _COUNTRY_CODES.get(country_code, country)
+
+        yield LotCardData(
+            auction_code=lot_auction_code,
+            lot_code=display_id,
+            title=lot.get("title", ""),
+            url=url,
+            state=state,
+            opens_at=_epoch_to_iso(lot.get("startDate")),
+            closing_time_current=_epoch_to_iso(lot.get("endDate")),
+            location_city=city,
+            location_country=country,
+            bid_count=bids,
+            price_eur=current_bid_amount,
+            is_price_opening_bid=is_price_opening_bid,
+        )

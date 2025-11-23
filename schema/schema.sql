@@ -53,10 +53,16 @@ CREATE TABLE IF NOT EXISTS lots (
     bid_count INTEGER,
     opening_bid_eur REAL,
     current_bid_eur REAL,
+    current_bidder_label TEXT,
     current_bid_buyer_id INTEGER,
     buyer_fee_percent REAL,
+    buyer_fee_vat_percent REAL,
     vat_percent REAL,
     awarding_state TEXT,
+    total_example_price_eur REAL,
+    location_city TEXT,
+    location_country TEXT,
+    seller_allocation_note TEXT,
     FOREIGN KEY (auction_id) REFERENCES auctions (id) ON DELETE CASCADE,
     FOREIGN KEY (current_bid_buyer_id) REFERENCES buyers (id),
     UNIQUE (auction_id, lot_code)
@@ -135,12 +141,19 @@ CREATE INDEX IF NOT EXISTS idx_market_offers_buyer_id ON market_offers (buyer_id
 
 CREATE TABLE IF NOT EXISTS sync_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source TEXT,
-    started_at TEXT,
+    auction_code TEXT,
+    started_at TEXT NOT NULL,
     finished_at TEXT,
-    state TEXT,
+    status TEXT,
+    pages_scanned INTEGER DEFAULT 0,
+    lots_scanned INTEGER DEFAULT 0,
+    lots_updated INTEGER DEFAULT 0,
+    error_count INTEGER DEFAULT 0,
+    max_pages INTEGER,
+    dry_run INTEGER,
     notes TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_sync_runs_auction_code ON sync_runs (auction_code);
 
 -- Additional tables (buyers, my_lot_positions, my_bids, products, etc.)
 -- should be added here following the full specification of the project.

@@ -63,7 +63,12 @@ CREATE TABLE IF NOT EXISTS lots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_lots_auction_id ON lots (auction_id);
-CREATE INDEX IF NOT EXISTS idx_lots_current_bid_buyer_id ON lots (current_bid_buyer_id);
+-- The current_bid_buyer_id column was introduced after some databases were
+-- already created. Avoid creating the index unconditionally so older schemas
+-- without the column do not fail validation transactions. Apply a targeted
+-- migration to add the column before enabling this index on upgraded
+-- databases.
+-- CREATE INDEX IF NOT EXISTS idx_lots_current_bid_buyer_id ON lots (current_bid_buyer_id);
 
 -- Table storing the positions a buyer has on individual lots. Each record
 -- indicates that a buyer is actively tracking a specific lot and may place

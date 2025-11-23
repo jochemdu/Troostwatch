@@ -1,16 +1,19 @@
 """Database utilities for Troostwatch.
 
-This module provides placeholder functionality for connecting to a SQLite database.
-The actual project should implement helper functions to open connections,
-configure SQLite settings (foreign keys, journal mode) and perform migrations.
+This module centralises database access for the project. It handles loading
+default paths from :mod:`config.json`, opening SQLite connections with the
+required PRAGMAs, applying the core schema plus project specific tables and
+provides convenience helpers for snapshots/backups.
 """
 
 from __future__ import annotations
 
 import sqlite3
+import json
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator, Iterable, Optional, List, Dict
+from typing import Iterator, Iterable, Optional, List, Dict, Any
 
 SCHEMA_BUYERS_SQL = """
 CREATE TABLE IF NOT EXISTS buyers (
@@ -34,73 +37,228 @@ CREATE TABLE IF NOT EXISTS my_lot_positions (
     UNIQUE (buyer_id, lot_id)
 );
 """
+
+SCHEMA_MY_BIDS_SQL = """
+CREATE TABLE IF NOT EXISTS my_bids (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id INTEGER NOT NULL,
+    buyer_id INTEGER,
+    amount_eur REAL NOT NULL,
+    placed_at TEXT NOT NULL,
+    note TEXT,
+    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE,
+    FOREIGN KEY (buyer_id) REFERENCES buyers (id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_my_bids_lot_id ON my_bids (lot_id);
+"""
+
+SCHEMA_PRODUCT_LAYERS_SQL = """
+CREATE TABLE IF NOT EXISTS product_layers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id INTEGER NOT NULL,
+    layer INTEGER NOT NULL DEFAULT 0,
+    title TEXT,
+    value TEXT,
+    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_product_layers_lot_id ON product_layers (lot_id);
+"""
+
+SCHEMA_SYNC_RUNS_SQL = """
+CREATE TABLE IF NOT EXISTS sync_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    auction_code TEXT,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    status TEXT,
+    notes TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sync_runs_auction_code ON sync_runs (auction_code);
+"""
+
 # Relative path to the core schema used by sync operations. This includes
 # definitions for auctions and lots tables. We compute the path relative to
 # this file so it works regardless of the working directory from which
 # functions are invoked.
-from pathlib import Path as _Path
-_SCHEMA_FILE = (_Path(__file__).resolve().parents[2] / "schema" / "schema.sql").as_posix()
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_SCHEMA_FILE = _REPO_ROOT / "schema" / "schema.sql"
+_CONFIG_FILE = _REPO_ROOT / "config.json"
+
+DEFAULT_DB_TIMEOUT = 30.0
+
+
+def _load_config(config_path: Path | str | None = None) -> Dict[str, Any]:
+    """Load ``config.json`` if present and return it as a dictionary.
+
+    A missing config file is tolerated; defaults are returned instead. Paths
+    from the config are resolved relative to the repository root when they are
+    not absolute.
+    """
+
+    path = Path(config_path) if config_path is not None else _CONFIG_FILE
+    if not path.exists():
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def get_path_config(config_path: Path | str | None = None) -> Dict[str, Path]:
+    """Return resolved filesystem paths from the project configuration.
+
+    The configuration file is optional; sensible defaults (e.g. ``troostwatch.db``
+    in the repository root) are supplied when values are missing. All returned
+    paths are absolute :class:`pathlib.Path` objects.
+    """
+
+    cfg = _load_config(config_path)
+    root = Path(config_path).parent if config_path is not None else _CONFIG_FILE.parent
+    defaults = {
+        "db_path": root / "troostwatch.db",
+        "snapshots_root": root / "snapshots",
+        "lot_cards_dir": root / "snapshots" / "lot_cards",
+        "lot_details_dir": root / "snapshots" / "lot_details",
+    }
+    paths_cfg = cfg.get("paths", {}) if isinstance(cfg.get("paths", {}), dict) else {}
+    resolved: Dict[str, Path] = {}
+    for key, default_value in defaults.items():
+        raw_value = paths_cfg.get(key, default_value)
+        resolved_value = Path(raw_value)
+        if not resolved_value.is_absolute():
+            resolved_value = (root / resolved_value).resolve()
+        resolved[key] = resolved_value
+    return resolved
+
+
+def iso_utcnow() -> str:
+    """Return an ISO‑8601 timestamp in UTC with ``Z`` suffix."""
+
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def apply_pragmas(
+    conn: sqlite3.Connection,
+    *,
+    enable_wal: bool = True,
+    foreign_keys: bool = True,
+    busy_timeout_ms: int | None = None,
+) -> None:
+    """Apply SQLite PRAGMAs required by Troostwatch.
+
+    The defaults enable WAL for concurrency, enforce foreign keys and set an
+    optional ``busy_timeout`` to handle contention gracefully.
+    """
+
+    if enable_wal:
+        conn.execute("PRAGMA journal_mode=WAL;")
+    if foreign_keys:
+        conn.execute("PRAGMA foreign_keys=ON;")
+    if busy_timeout_ms is not None:
+        conn.execute(f"PRAGMA busy_timeout={int(busy_timeout_ms)};")
+
+
+def get_default_timeout(config_path: Path | str | None = None) -> float:
+    """Read the preferred database timeout from configuration."""
+
+    cfg = _load_config(config_path)
+    try:
+        return float(cfg.get("db_timeout_seconds", DEFAULT_DB_TIMEOUT))
+    except (TypeError, ValueError):
+        return DEFAULT_DB_TIMEOUT
 
 
 @contextmanager
-def get_connection(db_path: str) -> Iterator[sqlite3.Connection]:
-    """Context manager yielding a configured SQLite connection.
+def get_connection(
+    db_path: str | Path | None = None,
+    *,
+    timeout: float | None = None,
+    enable_wal: bool = True,
+    foreign_keys: bool = True,
+) -> Iterator[sqlite3.Connection]:
+    """Yield a configured SQLite connection.
 
-    This helper ensures that foreign keys are enforced and that a
-    write-ahead log is used to improve concurrency.
-
-    Args:
-        db_path: Path to the SQLite database file.
-
-    Yields:
-        A configured sqlite3.Connection instance.
+    The helper resolves the database path from ``config.json`` when ``db_path``
+    is ``None``, creates parent directories when needed, applies WAL and
+    ``foreign_keys`` PRAGMAs and honours a configurable timeout.
     """
-    # Ensure parent directory exists
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+
+    paths = get_path_config()
+    resolved_db_path = Path(db_path) if db_path is not None else paths["db_path"]
+    resolved_db_path.parent.mkdir(parents=True, exist_ok=True)
+    timeout_value = timeout if timeout is not None else get_default_timeout()
+    conn = sqlite3.connect(resolved_db_path, timeout=timeout_value)
     try:
-        # Enable WAL and foreign keys
-        conn.execute("PRAGMA journal_mode=WAL;")
-        conn.execute("PRAGMA foreign_keys=ON;")
+        apply_pragmas(
+            conn,
+            enable_wal=enable_wal,
+            foreign_keys=foreign_keys,
+            busy_timeout_ms=int(timeout_value * 1000),
+        )
         yield conn
     finally:
         conn.close()
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
-    """Create required tables if they do not already exist.
+    """Apply the full database schema (core + project specific tables).
 
-    Currently ensures the buyers table exists. Call this before using any
-    helper functions that manipulate the database.
-
-    Args:
-        conn: Open sqlite3.Connection.
+    Besides the core schema from ``schema/schema.sql`` this also ensures the
+    presence of ``buyers``, ``my_lot_positions``, ``my_bids``,
+    ``product_layers`` and ``sync_runs`` tables used throughout the project.
     """
+
+    ensure_core_schema(conn)
     conn.executescript(SCHEMA_BUYERS_SQL)
     conn.executescript(SCHEMA_POSITIONS_SQL)
+    conn.executescript(SCHEMA_MY_BIDS_SQL)
+    conn.executescript(SCHEMA_PRODUCT_LAYERS_SQL)
+    conn.executescript(SCHEMA_SYNC_RUNS_SQL)
 
 
 def ensure_core_schema(conn: sqlite3.Connection) -> None:
-    """Ensure the core auction and lot tables exist in the database.
+    """Apply the core schema from ``schema/schema.sql`` if available."""
 
-    This helper reads the SQL schema from the schema.sql file in the
-    repository root and executes it. It is idempotent: missing tables will
-    be created, existing tables remain untouched.
+    if not _SCHEMA_FILE.exists():
+        return
+    with open(_SCHEMA_FILE, "r", encoding="utf-8") as f:
+        conn.executescript(f.read())
 
-    Args:
-        conn: An open sqlite3.Connection.
+
+def run_migrations(conn: sqlite3.Connection, migrations: Iterable[str] | None = None) -> None:
+    """Execute bundled schema and any additional migration scripts.
+
+    Pass an iterable of SQL strings to run project‑specific migrations after
+    the baseline schema is in place.
     """
-    # Read the schema file only if it exists. The repository should always
-    # ship this file, but we guard against missing files to avoid crashing.
-    try:
-        with open(_SCHEMA_FILE, "r", encoding="utf-8") as f:
-            script = f.read()
-        conn.executescript(script)
-    except FileNotFoundError:
-        # If the schema file is not present (e.g., packaged differently), we
-        # silently do nothing. Sync operations will create necessary tables if
-        # possible.
-        pass
+
+    ensure_schema(conn)
+    if migrations:
+        for script in migrations:
+            conn.executescript(script)
+
+
+def create_snapshot(
+    source_db: str | Path,
+    *,
+    snapshot_root: str | Path | None = None,
+    label: str | None = None,
+) -> Path:
+    """Create a SQLite backup using :meth:`sqlite3.Connection.backup`.
+
+    The snapshot directory is resolved from ``config.json`` when not provided.
+    The resulting filename includes an ISO‑8601 timestamp to guarantee
+    uniqueness and the created :class:`pathlib.Path` is returned for
+    downstream use.
+    """
+
+    paths = get_path_config()
+    root = Path(snapshot_root) if snapshot_root is not None else paths["snapshots_root"]
+    root.mkdir(parents=True, exist_ok=True)
+    timestamp = iso_utcnow().replace(":", "-")
+    suffix = label or "snapshot"
+    destination = root / f"{suffix}-{timestamp}.db"
+    with sqlite3.connect(source_db) as src, sqlite3.connect(destination) as dst:
+        src.backup(dst)
+    return destination
 
 
 def add_buyer(conn: sqlite3.Connection, label: str, name: Optional[str] = None, notes: Optional[str] = None) -> None:

@@ -47,6 +47,8 @@ dependencies = [
   "beautifulsoup4>=4.10",  # for robust HTML parsing
   "requests>=2.31",        # HTTP client (alternative to urllib)
   "rich>=13.4",            # fancy CLI output (tables, colours)
+  "aiohttp>=3.9",          # async HTTP client for concurrent fetching
+  "PyYAML>=5.0",           # YAML parsing for multi-sync
 ]
 
 [project.optional-dependencies]

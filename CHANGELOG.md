@@ -32,6 +32,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - None.
 
+### Fixed
+
+- Applied an idempotent database migration path to add missing `lots` columns
+  referenced by newer sync code. Older databases that lacked these columns
+  no longer raise `sqlite3.OperationalError` during sync.
+
+### Changed
+
+- `sync_auction_to_db` will read runtime defaults from `config.json` under
+  the `sync` key when options like `delay_seconds`, `max_pages` or `dry_run`
+  are not explicitly provided. This allows project-wide tuning without
+  changing invocation code.
+
 ## [0.6.1] – 2025-11-23
 
 ### Added

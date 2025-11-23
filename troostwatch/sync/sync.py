@@ -336,8 +336,8 @@ def sync_auction_to_db(
     auction_code: str,
     auction_url: str,
     max_pages: int | None = None,
-    dry_run: bool = False,
-    delay_seconds: float = 0.0,
+    dry_run: bool | None = None,
+    delay_seconds: float | None = None,
     max_concurrent_requests: int = 5,
     throttle_per_host: float | None = None,
     max_retries: int = 3,
@@ -354,20 +354,39 @@ def sync_auction_to_db(
     status = "failed"
     run_id: int | None = None
 
-    rate_limit = throttle_per_host
-    if rate_limit is None and delay_seconds > 0:
-        rate_limit = 1.0 / delay_seconds
-    fetcher = HttpFetcher(
-        max_concurrent_requests=max_concurrent_requests,
-        throttle_per_host=rate_limit,
-        retry_attempts=max_retries,
-        backoff_base_seconds=retry_backoff_base,
-        concurrency_mode=concurrency_mode,
-    )
+    # fetcher will be created after reading config defaults so rate limits
+    # (which may depend on `delay_seconds`) respect configuration values.
 
     with get_connection(db_path) as conn:
         ensure_core_schema(conn)
         ensure_schema(conn)
+
+        # If caller didn't explicitly provide runtime options, allow
+        # configuration through `config.json` under the `sync` key.
+        try:
+            from ..db import get_config
+
+            cfg = get_config()
+            sync_cfg = cfg.get("sync", {}) if isinstance(cfg, dict) else {}
+        except Exception:
+            sync_cfg = {}
+
+        if delay_seconds is None:
+            delay_seconds = float(sync_cfg.get("delay_seconds", 0.5))
+        if dry_run is None:
+            dry_run = bool(sync_cfg.get("dry_run", False))
+        if max_pages is None and "max_pages" in sync_cfg:
+            raw_max = sync_cfg.get("max_pages")
+            try:
+                if raw_max is None:
+                    max_pages = None
+                else:
+                    # Convert to str first to avoid passing None/unknown types to int()
+                    parsed = int(str(raw_max))
+                    # Treat non-positive values as "no limit"
+                    max_pages = parsed if parsed > 0 else None
+            except Exception:
+                max_pages = None
 
         run_cur = conn.execute(
             """
@@ -377,10 +396,26 @@ def sync_auction_to_db(
             """,
             (auction_code, iso_utcnow(), "running", max_pages, 1 if dry_run else 0),
         )
-        run_id = int(run_cur.lastrowid)
+        lastrowid = run_cur.lastrowid
+        if lastrowid is None:
+            raise RuntimeError("Failed to insert sync_runs record; lastrowid is None")
+        run_id = int(lastrowid)
         conn.commit()
 
-        pages, page_errors, _last_fetch = _collect_pages(
+        # Create fetcher here so it can honour any `delay_seconds` coming
+        # from configuration.
+        rate_limit = throttle_per_host
+        if rate_limit is None and (delay_seconds is not None and delay_seconds > 0):
+            rate_limit = 1.0 / delay_seconds
+        fetcher = HttpFetcher(
+            max_concurrent_requests=max_concurrent_requests,
+            throttle_per_host=rate_limit,
+            retry_attempts=max_retries,
+            backoff_base_seconds=retry_backoff_base,
+            concurrency_mode=concurrency_mode,
+        )
+
+        pages, page_errors, last_fetch = _collect_pages(
             auction_url,
             max_pages=max_pages,
             fetcher=fetcher,
@@ -459,6 +494,10 @@ def sync_auction_to_db(
                         conn.execute(
                             "UPDATE lots SET last_seen_at = ?, listing_hash = COALESCE(listing_hash, ?) WHERE auction_id = ? AND lot_code = ?",
                             (now_seen, listing_hash, auction_id, card.lot_code),
+                        )
+                        # No detail needed for this listing; update last seen and skip.
+                        continue
+                    # Need to fetch detail HTML for this lot
                     detail_html, err, last_fetch = _wait_and_fetch(
                         card.url,
                         last_fetch=last_fetch,

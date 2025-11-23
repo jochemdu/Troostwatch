@@ -82,6 +82,15 @@ CREATE TABLE IF NOT EXISTS sync_runs (
 CREATE INDEX IF NOT EXISTS idx_sync_runs_auction_code ON sync_runs (auction_code);
 """
 
+SCHEMA_MIGRATIONS_SQL = """
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    applied_at TEXT NOT NULL,
+    notes TEXT
+);
+"""
+
 # Relative path to the core schema used by sync operations. This includes
 # definitions for auctions and lots tables. We compute the path relative to
 # this file so it works regardless of the working directory from which
@@ -106,6 +115,17 @@ def _load_config(config_path: Path | str | None = None) -> Dict[str, Any]:
         return {}
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def get_config(config_path: Path | str | None = None) -> Dict[str, Any]:
+    """Return the loaded project configuration as a dictionary.
+
+    This is a light wrapper around the internal loader so other modules can
+    easily access configuration values without duplicating path resolution
+    logic.
+    """
+
+    return _load_config(config_path)
 
 
 def get_path_config(config_path: Path | str | None = None) -> Dict[str, Path]:
@@ -177,8 +197,8 @@ def get_connection(
     db_path: str | Path | None = None,
     *,
     timeout: float | None = None,
-    enable_wal: bool = True,
-    foreign_keys: bool = True,
+    enable_wal: bool | None = None,
+    foreign_keys: bool | None = None,
 ) -> Iterator[sqlite3.Connection]:
     """Yield a configured SQLite connection.
 
@@ -193,10 +213,15 @@ def get_connection(
     timeout_value = timeout if timeout is not None else get_default_timeout()
     conn = sqlite3.connect(resolved_db_path, timeout=timeout_value)
     try:
+        # Resolve pragma defaults from configuration when callers pass None.
+        cfg = _load_config()
+        db_cfg = cfg.get("db", {}) if isinstance(cfg, dict) else {}
+        resolved_enable_wal = enable_wal if enable_wal is not None else bool(db_cfg.get("enable_wal", True))
+        resolved_foreign_keys = foreign_keys if foreign_keys is not None else bool(db_cfg.get("foreign_keys", True))
         apply_pragmas(
             conn,
-            enable_wal=enable_wal,
-            foreign_keys=foreign_keys,
+            enable_wal=resolved_enable_wal,
+            foreign_keys=resolved_foreign_keys,
             busy_timeout_ms=int(timeout_value * 1000),
         )
         yield conn
@@ -213,6 +238,15 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     """
 
     ensure_core_schema(conn)
+    # Ensure we have a migrations table so we can record applied updates.
+    conn.executescript(SCHEMA_MIGRATIONS_SQL)
+    # Apply any SQL files from the `migrations/` directory in repository root.
+    _apply_migration_dir(conn)
+    # Ensure legacy databases get the expected columns on `lots` as a
+    # defensive fallback for older DBs or when the migration runner is
+    # unavailable for some reason.
+    _ensure_lots_columns(conn)
+    _ensure_hash_columns(conn)
     conn.executescript(SCHEMA_BUYERS_SQL)
     conn.executescript(SCHEMA_POSITIONS_SQL)
     conn.executescript(SCHEMA_MY_BIDS_SQL)
@@ -230,6 +264,90 @@ def ensure_core_schema(conn: sqlite3.Connection) -> None:
         conn.executescript(f.read())
 
 
+def _ensure_lots_columns(conn: sqlite3.Connection) -> None:
+    """Add missing columns to the ``lots`` table when migrating older DBs.
+
+    The project uses ALTER TABLE ADD COLUMN to add any columns that are
+    referenced by upserts but may be missing in older copies of ``troostwatch.db``.
+    This function is idempotent and will no-op when columns already exist.
+    """
+    cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='lots'")
+    if cur.fetchone() is None:
+        # No lots table yet; core schema not applied.
+        return
+
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(lots)").fetchall()}
+
+    to_add = {
+        "status": "TEXT",
+        "opens_at": "TEXT",
+        "closing_time_current": "TEXT",
+        "closing_time_original": "TEXT",
+        "bid_count": "INTEGER",
+        "opening_bid_eur": "REAL",
+        "current_bid_eur": "REAL",
+        "current_bidder_label": "TEXT",
+        "current_bid_buyer_id": "INTEGER",
+        "buyer_fee_percent": "REAL",
+        "buyer_fee_vat_percent": "REAL",
+        "vat_percent": "REAL",
+        "awarding_state": "TEXT",
+        "total_example_price_eur": "REAL",
+        "location_city": "TEXT",
+        "location_country": "TEXT",
+        "seller_allocation_note": "TEXT",
+    }
+
+    added_cols: list[str] = []
+    for col, col_type in to_add.items():
+        if col in existing:
+            continue
+        # ALTER TABLE ADD COLUMN is safe for SQLite and will use NULL as default.
+        conn.execute(f"ALTER TABLE lots ADD COLUMN {col} {col_type}")
+        added_cols.append(col)
+    # If we added one or more columns, record the migration so we don't
+    # repeatedly insert the same migration marker. This is intentionally
+    # simple: a single migration name covers the first batch of added cols.
+    if added_cols:
+        migration_name = "add_lots_columns_v1"
+        cur = conn.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (migration_name,))
+        if cur.fetchone() is None:
+            conn.execute(
+                "INSERT INTO schema_migrations (name, applied_at, notes) VALUES (?, ?, ?)",
+                (migration_name, iso_utcnow(), ",".join(added_cols)),
+            )
+
+
+def _apply_migration_dir(conn: sqlite3.Connection, migrations_dir: str | None = None) -> None:
+    """Apply SQL migration files from the repository `migrations/` directory.
+
+    Files are applied in lexical order. Each applied filename is recorded in
+    `schema_migrations` (name == filename) to ensure idempotence.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    migrations_path = Path(migrations_dir) if migrations_dir else (root / "migrations")
+    if not migrations_path.exists() or not migrations_path.is_dir():
+        return
+
+    for path in sorted(migrations_path.iterdir()):
+        if not path.is_file() or not path.name.lower().endswith(".sql"):
+            continue
+        name = path.name
+        cur = conn.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (name,))
+        if cur.fetchone() is not None:
+            continue
+        with open(path, "r", encoding="utf-8") as f:
+            sql = f.read()
+        if not sql.strip():
+            continue
+        conn.executescript(sql)
+        conn.execute(
+            "INSERT INTO schema_migrations (name, applied_at, notes) VALUES (?, ?, ?)",
+            (name, iso_utcnow(), f"applied from {path.relative_to(root)}"),
+        )
+    # commit is left to the caller; callers of ensure_schema generally commit as needed
 def _ensure_hash_columns(conn: sqlite3.Connection) -> None:
     """Add hash- and timestamp-related columns to the lots table if missing."""
 
@@ -244,6 +362,7 @@ def _ensure_hash_columns(conn: sqlite3.Connection) -> None:
     for column, sql_type in required_columns.items():
         if column not in existing:
             conn.execute(f"ALTER TABLE lots ADD COLUMN {column} {sql_type}")
+
 
 
 def run_migrations(conn: sqlite3.Connection, migrations: Iterable[str] | None = None) -> None:

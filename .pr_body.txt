@@ -1,0 +1,9 @@
+This PR:
+
+- Adds an idempotent migration runner that applies SQL files from `migrations/` and records applied migrations in `schema_migrations`.
+- Adds initial migration `0001_add_lots_columns.sql` to add missing `lots` columns referenced by upserts.
+- Adds a defensive `_ensure_lots_columns` fallback for older DBs.
+- Exposes `get_config()` and allows `sync_auction_to_db` to read runtime defaults from `config.json` under `sync` when options like `delay_seconds`, `max_pages` or `dry_run` are omitted.
+- Makes `get_connection` read PRAGMA defaults (`enable_wal`, `foreign_keys`) from `config.json` when not explicitly passed.
+
+All tests pass locally (7 passed).

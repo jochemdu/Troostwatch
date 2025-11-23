@@ -1,0 +1,9 @@
+{
+  "project_version": "0.3.7",
+  "paths": {
+    "db_path": "troostwatch.db",
+    "snapshots_root": "snapshots",
+    "lot_cards_dir": "snapshots/lot_cards",
+    "lot_details_dir": "snapshots/lot_details"
+  }
+}

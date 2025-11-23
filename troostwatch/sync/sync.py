@@ -278,6 +278,26 @@ def sync_auction_to_db(
         ensure_core_schema(conn)
         ensure_schema(conn)
 
+        # If caller didn't explicitly provide runtime options, allow
+        # configuration through `config.json` under the `sync` key.
+        try:
+            from ..db import get_config
+
+            cfg = get_config()
+            sync_cfg = cfg.get("sync", {}) if isinstance(cfg, dict) else {}
+        except Exception:
+            sync_cfg = {}
+
+        if delay_seconds is None:
+            delay_seconds = float(sync_cfg.get("delay_seconds", 0.5))
+        if dry_run is None:
+            dry_run = bool(sync_cfg.get("dry_run", False))
+        if max_pages is None and "max_pages" in sync_cfg:
+            try:
+                max_pages = int(sync_cfg.get("max_pages"))
+            except Exception:
+                max_pages = None
+
         run_cur = conn.execute(
             """
             INSERT INTO sync_runs (

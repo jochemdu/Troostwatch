@@ -82,6 +82,15 @@ CREATE TABLE IF NOT EXISTS sync_runs (
 CREATE INDEX IF NOT EXISTS idx_sync_runs_auction_code ON sync_runs (auction_code);
 """
 
+SCHEMA_MIGRATIONS_SQL = """
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    applied_at TEXT NOT NULL,
+    notes TEXT
+);
+"""
+
 # Relative path to the core schema used by sync operations. This includes
 # definitions for auctions and lots tables. We compute the path relative to
 # this file so it works regardless of the working directory from which
@@ -106,6 +115,17 @@ def _load_config(config_path: Path | str | None = None) -> Dict[str, Any]:
         return {}
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def get_config(config_path: Path | str | None = None) -> Dict[str, Any]:
+    """Return the loaded project configuration as a dictionary.
+
+    This is a light wrapper around the internal loader so other modules can
+    easily access configuration values without duplicating path resolution
+    logic.
+    """
+
+    return _load_config(config_path)
 
 
 def get_path_config(config_path: Path | str | None = None) -> Dict[str, Path]:
@@ -213,6 +233,10 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     """
 
     ensure_core_schema(conn)
+    # Ensure we have a migrations table so we can record applied updates.
+    conn.executescript(SCHEMA_MIGRATIONS_SQL)
+    # Ensure legacy databases get the expected columns on `lots`.
+    _ensure_lots_columns(conn)
     conn.executescript(SCHEMA_BUYERS_SQL)
     conn.executescript(SCHEMA_POSITIONS_SQL)
     conn.executescript(SCHEMA_MY_BIDS_SQL)
@@ -227,6 +251,61 @@ def ensure_core_schema(conn: sqlite3.Connection) -> None:
         return
     with open(_SCHEMA_FILE, "r", encoding="utf-8") as f:
         conn.executescript(f.read())
+
+
+def _ensure_lots_columns(conn: sqlite3.Connection) -> None:
+    """Add missing columns to the ``lots`` table when migrating older DBs.
+
+    The project uses ALTER TABLE ADD COLUMN to add any columns that are
+    referenced by upserts but may be missing in older copies of ``troostwatch.db``.
+    This function is idempotent and will no-op when columns already exist.
+    """
+    cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='lots'")
+    if cur.fetchone() is None:
+        # No lots table yet; core schema not applied.
+        return
+
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(lots)").fetchall()}
+
+    to_add = {
+        "status": "TEXT",
+        "opens_at": "TEXT",
+        "closing_time_current": "TEXT",
+        "closing_time_original": "TEXT",
+        "bid_count": "INTEGER",
+        "opening_bid_eur": "REAL",
+        "current_bid_eur": "REAL",
+        "current_bidder_label": "TEXT",
+        "current_bid_buyer_id": "INTEGER",
+        "buyer_fee_percent": "REAL",
+        "buyer_fee_vat_percent": "REAL",
+        "vat_percent": "REAL",
+        "awarding_state": "TEXT",
+        "total_example_price_eur": "REAL",
+        "location_city": "TEXT",
+        "location_country": "TEXT",
+        "seller_allocation_note": "TEXT",
+    }
+
+    added_cols: list[str] = []
+    for col, col_type in to_add.items():
+        if col in existing:
+            continue
+        # ALTER TABLE ADD COLUMN is safe for SQLite and will use NULL as default.
+        conn.execute(f"ALTER TABLE lots ADD COLUMN {col} {col_type}")
+        added_cols.append(col)
+    # If we added one or more columns, record the migration so we don't
+    # repeatedly insert the same migration marker. This is intentionally
+    # simple: a single migration name covers the first batch of added cols.
+    if added_cols:
+        migration_name = "add_lots_columns_v1"
+        cur = conn.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (migration_name,))
+        if cur.fetchone() is None:
+            conn.execute(
+                "INSERT INTO schema_migrations (name, applied_at, notes) VALUES (?, ?, ?)",
+                (migration_name, iso_utcnow(), ",".join(added_cols)),
+            )
+    # commit is left to the caller; callers of ensure_schema generally commit as needed
 
 
 def run_migrations(conn: sqlite3.Connection, migrations: Iterable[str] | None = None) -> None:

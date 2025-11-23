@@ -14,6 +14,7 @@ from .positions import positions
 from .report import report
 from .debug import debug
 from .view import view
+from .bid import bid
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -29,6 +30,7 @@ cli.add_command(positions)
 cli.add_command(report)
 cli.add_command(debug)
 cli.add_command(view)
+cli.add_command(bid)
 
 
 if __name__ == "__main__":

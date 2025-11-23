@@ -37,6 +37,9 @@ pipeline depends on both [aiohttp](https://docs.aiohttp.org/) and
 [requests](https://requests.readthedocs.io/) to support concurrent fetching with
 retries and rate limiting. For richer terminal output you can also install
 [Rich](https://rich.readthedocs.io/). All of these are listed in
+configuration file used by the `sync-multi` command. The sync pipeline also
+depends on [aiohttp](https://docs.aiohttp.org/) and [requests](https://requests.readthedocs.io/) to
+support concurrent fetching with retries and rate limiting. These are listed in
 `requirements.txt` for convenience.
 
 Listing pages and lot details are hashed to detect changes between sync runs.

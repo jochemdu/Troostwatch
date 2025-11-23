@@ -8,7 +8,7 @@ It provides a set of tools to scrape Troostwijk auctions, store the data in a SQ
 
 -The code is organised into a Python package `troostwatch` with several sub‑packages:
 
-- `troostwatch/cli/` – entry points for all available commands including `buyer`, `sync`, `sync-multi`, `positions`, `report`, `view` and `debug`. Running `python -m troostwatch.cli` will list them.
+    - `troostwatch/cli/` – entry points for all available commands including `buyer`, `sync`, `sync-multi`, `positions`, `report`, `debug` and `view`.  The `view` command is currently a placeholder and simply prints a stub message; for live database inspection, use the `report` and `debug` commands instead.
 - `troostwatch/parsers/` – HTML parsers for auction listing pages and lot detail pages.
 - `troostwatch/sync/` – functions to fetch pages from the Troostwijk website and upsert data into the database.
 - `troostwatch/analytics/` – helper functions to summarise your bidding exposure.
@@ -52,7 +52,7 @@ There is also a `schema` directory containing the database schema and any migrat
 
 ### New commands in version 0.6.0
 
-Recent versions have greatly expanded the CLI. In addition to the core `sync` and `view` commands, you can now:
+Recent versions have greatly expanded the CLI. In addition to the core `sync` command, you can now:
 
 - **buyer** – create, list and delete buyers. Each buyer represents one identity you use to bid.
 - **positions** – track specific lots for a buyer, optionally with a maximum budget, and mark them active or inactive.
@@ -60,4 +60,4 @@ Recent versions have greatly expanded the CLI. In addition to the core `sync` an
 - **sync-multi** – synchronise multiple auctions at once from a YAML file.
 - **debug** – inspect your local database. Subcommands let you view row counts per table, run an integrity check, or show rows from a specific table.
 
-These commands can be invoked via `python -m troostwatch.cli <command>`. See the examples above and the documentation in `docs/` for more details.
+These commands can be invoked via `python -m troostwatch.cli <command>`. Note that the `view` command is not yet implemented and will only print a placeholder message. For an overview of your tracked lots and exposure, use the `report buyer` command; for inspecting the underlying database tables, use the `debug view` subcommand. See the examples above and the documentation in `docs/` for more details.

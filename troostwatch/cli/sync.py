@@ -65,7 +65,15 @@ from ..sync.sync import sync_auction_to_db
     default=False,
     help="Enable verbose logging during the sync run.",
 )
-def sync(db_path: str, auction_code: str, auction_url: str, max_pages: int | None, dry_run: bool, delay_seconds: float, verbose: bool) -> None:
+def sync(
+    db_path: str,
+    auction_code: str,
+    auction_url: str,
+    max_pages: int | None,
+    dry_run: bool,
+    delay_seconds: float,
+    verbose: bool,
+) -> None:
     """Synchronize an auction into a local database.
 
     This command downloads the auction listing page (and subsequent pages if
@@ -79,7 +87,7 @@ def sync(db_path: str, auction_code: str, auction_url: str, max_pages: int | Non
         f"Syncing auction {auction_code} from {auction_url} into {db_path}..."
     )
     try:
-        sync_auction_to_db(
+        result = sync_auction_to_db(
             db_path=db_path,
             auction_code=auction_code,
             auction_url=auction_url,
@@ -88,6 +96,15 @@ def sync(db_path: str, auction_code: str, auction_url: str, max_pages: int | Non
             delay_seconds=delay_seconds,
             verbose=verbose,
         )
-        click.echo("Sync complete.")
     except Exception as exc:
         click.echo(f"Error during sync: {exc}")
+        return
+
+    click.echo(
+        f"Sync {result.status} (run #{result.run_id}): pages={result.pages_scanned}, "
+        f"lots scanned={result.lots_scanned}, lots updated={result.lots_updated}, errors={result.error_count}"
+    )
+    if result.errors:
+        click.echo("Errors:")
+        for err in result.errors:
+            click.echo(f"  - {err}")

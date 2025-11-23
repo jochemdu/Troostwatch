@@ -263,8 +263,8 @@ def sync_auction_to_db(
     auction_code: str,
     auction_url: str,
     max_pages: int | None = None,
-    dry_run: bool = False,
-    delay_seconds: float = 0.5,
+    dry_run: bool | None = None,
+    delay_seconds: float | None = None,
     verbose: bool = False,
 ) -> SyncRunResult:
     pages_scanned = 0

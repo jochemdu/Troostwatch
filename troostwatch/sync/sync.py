@@ -293,8 +293,15 @@ def sync_auction_to_db(
         if dry_run is None:
             dry_run = bool(sync_cfg.get("dry_run", False))
         if max_pages is None and "max_pages" in sync_cfg:
+            raw_max = sync_cfg.get("max_pages")
             try:
-                max_pages = int(sync_cfg.get("max_pages"))
+                if raw_max is None:
+                    max_pages = None
+                else:
+                    # Convert to str first to avoid passing None/unknown types to int()
+                    parsed = int(str(raw_max))
+                    # Treat non-positive values as "no limit"
+                    max_pages = parsed if parsed > 0 else None
             except Exception:
                 max_pages = None
 
@@ -306,7 +313,10 @@ def sync_auction_to_db(
             """,
             (auction_code, iso_utcnow(), "running", max_pages, 1 if dry_run else 0),
         )
-        run_id = int(run_cur.lastrowid)
+        lastrowid = run_cur.lastrowid
+        if lastrowid is None:
+            raise RuntimeError("Failed to insert sync_runs record; lastrowid is None")
+        run_id = int(lastrowid)
         conn.commit()
 
         pages, page_errors, last_fetch = _collect_pages(

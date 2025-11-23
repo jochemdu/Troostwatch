@@ -63,6 +63,10 @@ CREATE TABLE IF NOT EXISTS lots (
     location_city TEXT,
     location_country TEXT,
     seller_allocation_note TEXT,
+    listing_hash TEXT,
+    detail_hash TEXT,
+    last_seen_at TEXT,
+    detail_last_seen_at TEXT,
     FOREIGN KEY (auction_id) REFERENCES auctions (id) ON DELETE CASCADE,
     FOREIGN KEY (current_bid_buyer_id) REFERENCES buyers (id),
     UNIQUE (auction_id, lot_code)

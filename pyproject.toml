@@ -1,0 +1,85 @@
+## pyproject.toml for the Troostwatch package
+
+# This file follows the [PEP 621](https://peps.python.org/pep-0621/) specification for
+# Python project metadata.  It describes the Troostwatch package as it exists
+# today at version 0.6.1.  The project scrapes auction data from the
+# Troostwijk website, stores it in a SQLite database, calculates bidding
+# exposure and provides several command‑line interfaces.
+
+[build-system]
+# Setuptools is used to build the package; a recent version is required for
+# PEP 621 and pyproject support.  Wheel is included to generate a wheel
+# distribution when building.
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# Basic metadata.  The name should be unique on PyPI if you intend to
+# publish the package; change this if a different name is needed.
+name = "troostwatch"
+# The version number mirrors the __version__ attribute in troostwatch/__init__.py.
+version = "0.6.1"
+# A short, one‑line summary of what the project does.
+description = "Scrape Troostwijk auctions, track bids, analyse exposure and view results via a CLI."
+# A longer description taken from the README file.  When distributed, this
+# ensures that the README renders correctly on package indexes.
+readme = "README.md"
+# The minimum Python version required.  Troostwatch uses modern type hints
+# and dataclasses, so Python 3.10 or newer is recommended.
+requires-python = ">=3.10"
+# The project’s license.  If you intend to publish, replace with the
+# appropriate SPDX identifier or a license file.
+license = { text = "MIT" }
+# Contact information for the authors/maintainers.  Replace the email address
+# with an appropriate contact if known.  Multiple authors can be listed.
+authors = [
+  { name = "Jochem", email = "jochem@example.com" },
+]
+
+# Runtime dependencies.  Only include external packages that are actually
+# required for the package to function.  Click is used for the CLI entry
+# points; BeautifulSoup and requests are suggested for future HTML parsing and
+# HTTP fetching.  Rich provides colourful tables and progress bars for
+# improved command‑line output.  These versions are kept broad so they will
+# resolve correctly on most systems.
+dependencies = [
+  "click>=8.0",
+  "beautifulsoup4>=4.10",  # for robust HTML parsing
+  "requests>=2.31",        # HTTP client (alternative to urllib)
+  "rich>=13.4",            # fancy CLI output (tables, colours)
+]
+
+[project.optional-dependencies]
+# Extra groups of dependencies that are not required at runtime.  Developers
+# working on Troostwatch can install the "dev" group to get tooling for
+# testing, linting and static analysis.  A separate "docs" group adds
+# dependencies useful for building documentation.
+dev = [
+  "pytest>=7.0",
+  "black>=23.0",
+  "flake8>=6.0",
+  "mypy>=1.2",
+]
+docs = [
+  "markdown-it-py>=2.2",  # used for rendering markdown in documentation builds
+]
+
+[project.scripts]
+# Console script entry points.  These expose the CLI subcommands defined
+# inside the troostwatch package so they can be run as standalone programs.
+troostwatch-sync = "troostwatch.cli.sync:sync"
+troostwatch-sync-multi = "troostwatch.cli.sync_multi:sync_multi"
+troostwatch-view = "troostwatch.cli.view:view"
+troostwatch-debug = "troostwatch.cli.debug:debug"
+troostwatch-buyer = "troostwatch.cli.buyer:buyer"
+# Additional commands can be added here once their implementations exist, e.g.:
+# troostwatch-positions = "troostwatch.cli.positions:positions"
+# troostwatch-report = "troostwatch.cli.report:report"
+
+[tool.setuptools.packages.find]
+# Configure setuptools to automatically find all packages under the
+# troostwatch source tree.  This simplifies adding new subpackages without
+# manually listing them.
+where = ["."]
+include = ["troostwatch*", "tests*", "schema*", "examples*", "scripts*"]
+exclude = ["docs*", "slides*"]

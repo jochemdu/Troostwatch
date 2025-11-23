@@ -31,6 +31,12 @@ pip install -r requirements.txt
 
 At minimum the CLI requires [Click](https://click.palletsprojects.com/) for
 defining commands and [PyYAML](https://pyyaml.org/) for reading the YAML
+configuration file used by the `sync-multi` command. Parsing HTML responses relies
+on [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/), and the sync
+pipeline depends on both [aiohttp](https://docs.aiohttp.org/) and
+[requests](https://requests.readthedocs.io/) to support concurrent fetching with
+retries and rate limiting. For richer terminal output you can also install
+[Rich](https://rich.readthedocs.io/). All of these are listed in
 configuration file used by the `sync-multi` command. The sync pipeline also
 depends on [aiohttp](https://docs.aiohttp.org/) and [requests](https://requests.readthedocs.io/) to
 support concurrent fetching with retries and rate limiting. These are listed in

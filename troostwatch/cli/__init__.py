@@ -18,5 +18,15 @@ from .positions import positions  # noqa: F401
 from .report import report  # noqa: F401
 from .debug import debug  # noqa: F401
 from .view import view  # noqa: F401
+from .bid import bid  # noqa: F401
 
-__all__ = ["buyer", "sync", "sync_multi", "positions", "report", "debug", "view"]
+__all__ = [
+    "buyer",
+    "sync",
+    "sync_multi",
+    "positions",
+    "report",
+    "debug",
+    "view",
+    "bid",
+]

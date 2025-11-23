@@ -60,3 +60,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - Bumped the package version to 0.6.1 to reflect these small fixes.
+
+## [0.6.2] – 2025-11-23
+
+### Added
+
+- Idempotent database migration runner applying SQL files from `migrations/`.
+- Initial migration `0001_add_lots_columns.sql` to add missing `lots` columns used by sync upserts.
+
+### Changed
+
+- `sync_auction_to_db` now reads runtime defaults from `config.json` under the `sync` key when options are omitted (`delay_seconds`, `max_pages`, `dry_run`).
+- `get_connection` accepts `None` to let `config.json` control PRAGMA defaults (`enable_wal`, `foreign_keys`).
+
+### Fixed
+
+- Prevent crashes on older databases by ensuring missing `lots` columns are added before upserts.

@@ -118,6 +118,7 @@ def sync_auction_to_db(
     max_pages: int | None = None,
     dry_run: bool = False,
     delay_seconds: float = 0.5,
+    verbose: bool = False,
 ) -> None:
     """Synchronize a Troostwijk auction into a SQLite database.
 
@@ -154,6 +155,12 @@ def sync_auction_to_db(
         if html_text:
             pages.append((url, html_text))
             count += 1
+    if verbose:
+        try:
+            import click
+            click.echo(f"Discovered {len(pages)} page(s) for auction {auction_code} (max_pages={max_pages or 'all'})")
+        except ImportError:
+            print(f"Discovered {len(pages)} page(s) for auction {auction_code} (max_pages={max_pages or 'all'})")
     # Open database connection
     with get_connection(db_path) as conn:
         # Ensure core and buyers schemas exist
@@ -182,10 +189,22 @@ def sync_auction_to_db(
             return
         auction_id = row[0]
         # Process each page and each lot card
-        for (page_url, page_html) in pages:
+        for (page_idx, (page_url, page_html)) in enumerate(pages, start=1):
+            if verbose:
+                try:
+                    import click
+                    click.echo(f"Processing page {page_idx}/{len(pages)}: {page_url}")
+                except ImportError:
+                    print(f"Processing page {page_idx}/{len(pages)}: {page_url}")
             for card_html in _iter_lot_card_blocks(page_html):
                 # Parse the card
                 card = parse_lot_card(card_html, auction_code, base_url=auction_url)
+                if verbose:
+                    try:
+                        import click
+                        click.echo(f"  Found lot card {card.lot_code}")
+                    except ImportError:
+                        print(f"  Found lot card {card.lot_code}")
                 # Fetch the detail page
                 detail_html = _fetch_url(card.url)
                 if not detail_html:
@@ -252,6 +271,12 @@ def sync_auction_to_db(
                             lot_current_bid,
                         ),
                     )
+                if verbose:
+                    try:
+                        import click
+                        click.echo(f"  Upserted lot {lot_code}: current bid €{lot_current_bid or 'N/A'}")
+                    except ImportError:
+                        print(f"  Upserted lot {lot_code}: current bid €{lot_current_bid or 'N/A'}")
         if not dry_run:
             conn.commit()
 

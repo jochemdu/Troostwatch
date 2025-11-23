@@ -12,6 +12,7 @@ from .sync import sync
 from .sync_multi import sync_multi
 from .positions import positions
 from .report import report
+from .debug import debug
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -25,6 +26,7 @@ cli.add_command(sync)
 cli.add_command(sync_multi)
 cli.add_command(positions)
 cli.add_command(report)
+cli.add_command(debug)
 
 
 if __name__ == "__main__":

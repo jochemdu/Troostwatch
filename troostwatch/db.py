@@ -218,6 +218,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA_MY_BIDS_SQL)
     conn.executescript(SCHEMA_PRODUCT_LAYERS_SQL)
     conn.executescript(SCHEMA_SYNC_RUNS_SQL)
+    _ensure_hash_columns(conn)
 
 
 def ensure_core_schema(conn: sqlite3.Connection) -> None:
@@ -227,6 +228,22 @@ def ensure_core_schema(conn: sqlite3.Connection) -> None:
         return
     with open(_SCHEMA_FILE, "r", encoding="utf-8") as f:
         conn.executescript(f.read())
+
+
+def _ensure_hash_columns(conn: sqlite3.Connection) -> None:
+    """Add hash- and timestamp-related columns to the lots table if missing."""
+
+    required_columns = {
+        "listing_hash": "TEXT",
+        "detail_hash": "TEXT",
+        "last_seen_at": "TEXT",
+        "detail_last_seen_at": "TEXT",
+    }
+    cur = conn.execute("PRAGMA table_info(lots)")
+    existing = {row[1] for row in cur.fetchall()}
+    for column, sql_type in required_columns.items():
+        if column not in existing:
+            conn.execute(f"ALTER TABLE lots ADD COLUMN {column} {sql_type}")
 
 
 def run_migrations(conn: sqlite3.Connection, migrations: Iterable[str] | None = None) -> None:

@@ -7,6 +7,12 @@ This module aggregates the subcommands for the Troostwatch command line interfac
 # discover subcommands via setuptools entry points. Import buyer to
 # register the ``buyer`` group when this package is imported.
 
-from .buyer import buyer  # noqa: F401
+# Import CLI subcommands so that `python -m troostwatch.cli` can
+# discover them via setuptools entry points. Each imported name is
+# added to __all__ to make it discoverable by Click.
 
-__all__ = ["buyer"]
+from .buyer import buyer  # noqa: F401
+from .sync import sync  # noqa: F401
+from .sync_multi import sync_multi  # noqa: F401
+
+__all__ = ["buyer", "sync", "sync_multi"]

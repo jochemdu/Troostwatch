@@ -21,6 +21,13 @@ CREATE TABLE IF NOT EXISTS buyers (
 );
 """
 
+# Relative path to the core schema used by sync operations. This includes
+# definitions for auctions and lots tables. We compute the path relative to
+# this file so it works regardless of the working directory from which
+# functions are invoked.
+from pathlib import Path as _Path
+_SCHEMA_FILE = (_Path(__file__).resolve().parents[2] / "schema" / "schema.sql").as_posix()
+
 
 @contextmanager
 def get_connection(db_path: str) -> Iterator[sqlite3.Connection]:
@@ -57,6 +64,29 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn: Open sqlite3.Connection.
     """
     conn.executescript(SCHEMA_BUYERS_SQL)
+
+
+def ensure_core_schema(conn: sqlite3.Connection) -> None:
+    """Ensure the core auction and lot tables exist in the database.
+
+    This helper reads the SQL schema from the schema.sql file in the
+    repository root and executes it. It is idempotent: missing tables will
+    be created, existing tables remain untouched.
+
+    Args:
+        conn: An open sqlite3.Connection.
+    """
+    # Read the schema file only if it exists. The repository should always
+    # ship this file, but we guard against missing files to avoid crashing.
+    try:
+        with open(_SCHEMA_FILE, "r", encoding="utf-8") as f:
+            script = f.read()
+        conn.executescript(script)
+    except FileNotFoundError:
+        # If the schema file is not present (e.g., packaged differently), we
+        # silently do nothing. Sync operations will create necessary tables if
+        # possible.
+        pass
 
 
 def add_buyer(conn: sqlite3.Connection, label: str, name: Optional[str] = None, notes: Optional[str] = None) -> None:

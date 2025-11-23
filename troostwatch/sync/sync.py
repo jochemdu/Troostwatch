@@ -7,10 +7,11 @@ import html
 import re
 import time
 from typing import Iterable, List, Optional, Tuple
-from urllib.error import URLError, HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from ..db import ensure_core_schema, ensure_schema, get_connection, iso_utcnow
+from ..http_client import TroostwatchHttpClient
 from ..parsers.lot_card import LotCardData, parse_lot_card
 from ..parsers.lot_detail import LotDetailData, parse_lot_detail
 
@@ -43,10 +44,16 @@ def _log(message: str, verbose: bool) -> None:
         print(message)
 
 
-def _fetch_url(url: str) -> Tuple[Optional[str], Optional[str]]:
+def _fetch_url(
+    url: str, http_client: TroostwatchHttpClient | None = None
+) -> Tuple[Optional[str], Optional[str]]:
     """Fetch the contents of a URL and return HTML plus any error message."""
 
     try:
+        if http_client is not None:
+            response_text = http_client.fetch_text(url)
+            return response_text, None
+
         req = Request(url, headers={"User-Agent": "troostwatch-sync/0.1"})
         with urlopen(req) as response:
             data = response.read()
@@ -100,12 +107,18 @@ def _iter_lot_card_blocks(page_html: str) -> Iterable[str]:
                     yield snippet
 
 
-def _wait_and_fetch(url: str, *, last_fetch: Optional[float], delay_seconds: float) -> Tuple[Optional[str], Optional[str], float]:
+def _wait_and_fetch(
+    url: str,
+    *,
+    last_fetch: Optional[float],
+    delay_seconds: float,
+    http_client: TroostwatchHttpClient | None,
+) -> Tuple[Optional[str], Optional[str], float]:
     if last_fetch is not None and delay_seconds > 0:
         elapsed = time.time() - last_fetch
         if elapsed < delay_seconds:
             time.sleep(delay_seconds - elapsed)
-    html_text, error = _fetch_url(url)
+    html_text, error = _fetch_url(url, http_client=http_client)
     return html_text, error, time.time()
 
 
@@ -115,13 +128,14 @@ def _collect_pages(
     max_pages: int | None,
     delay_seconds: float,
     verbose: bool,
+    http_client: TroostwatchHttpClient | None,
 ) -> Tuple[List[PageResult], List[str], Optional[float]]:
     pages: List[PageResult] = []
     errors: List[str] = []
     last_fetch: Optional[float] = None
 
     first_html, err, last_fetch = _wait_and_fetch(
-        auction_url, last_fetch=last_fetch, delay_seconds=0
+        auction_url, last_fetch=last_fetch, delay_seconds=0, http_client=http_client
     )
     if not first_html:
         errors.append(f"Failed to fetch first page {auction_url}: {err or 'empty response'}")
@@ -135,7 +149,10 @@ def _collect_pages(
             break
         for attempt in range(2):
             html_text, err, last_fetch = _wait_and_fetch(
-                url, last_fetch=last_fetch, delay_seconds=delay_seconds
+                url,
+                last_fetch=last_fetch,
+                delay_seconds=delay_seconds,
+                http_client=http_client,
             )
             if html_text:
                 pages.append(PageResult(url=url, html=html_text))
@@ -266,6 +283,7 @@ def sync_auction_to_db(
     dry_run: bool = False,
     delay_seconds: float = 0.5,
     verbose: bool = False,
+    http_client: TroostwatchHttpClient | None = None,
 ) -> SyncRunResult:
     pages_scanned = 0
     lots_scanned = 0
@@ -294,6 +312,7 @@ def sync_auction_to_db(
             max_pages=max_pages,
             delay_seconds=delay_seconds,
             verbose=verbose,
+            http_client=http_client,
         )
         errors.extend(page_errors)
         if not pages:
@@ -349,6 +368,7 @@ def sync_auction_to_db(
                         card.url,
                         last_fetch=last_fetch,
                         delay_seconds=delay_seconds,
+                        http_client=http_client,
                     )
                     if not detail_html:
                         errors.append(

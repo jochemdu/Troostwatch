@@ -1,9 +1,16 @@
 {
   "project_version": "0.3.7",
   "paths": {
-    "db_path": "C:\\Users\\joche\\Downloads\\troostwatch_skeleton\\troostwatch.db",
+    "db_path": "troostwatch.db",
     "snapshots_root": "snapshots",
     "lot_cards_dir": "snapshots/lot_cards",
     "lot_details_dir": "snapshots/lot_details"
+  },
+  "sync": {
+    "delay_seconds": 0.5,
+    "max_pages": null,
+    "dry_run": false,
+    "verbose": true,
+    "log_path": "sync.log"
   }
 }

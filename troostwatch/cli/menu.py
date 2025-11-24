@@ -162,14 +162,14 @@ def _run_sync(ctx: click.Context) -> None:
 
 def _run_sync_multi(ctx: click.Context) -> None:
     db_path = click.prompt("Database path", default=_default_db_path())
-    auctions_file = click.prompt("Path to YAML file with auctions")
     max_pages = _prompt_optional_int("Max pages to fetch per auction (blank for all)")
-    verbose = click.confirm("Enable verbose logging?", default=False)
+    include_inactive = click.confirm("Include auctions without active lots?", default=False)
+    verbose = click.confirm("Enable verbose logging?", default=True)
 
     ctx.invoke(
         sync_multi,
         db_path=db_path,
-        auctions_file=auctions_file,
+        include_inactive=include_inactive,
         max_pages=max_pages,
         dry_run=False,
         delay_seconds=0.0,

@@ -409,7 +409,7 @@ def sync_auction_to_db(
     retry_backoff_base: float = 0.5,
     concurrency_mode: str = "asyncio",
     force_detail_refetch: bool = False,
-    verbose: bool = False,
+    verbose: bool | None = None,
     log_path: str | None = None,
     http_client: TroostwatchHttpClient | None = None,
 ) -> SyncRunResult:
@@ -450,8 +450,8 @@ def sync_auction_to_db(
             delay_seconds = float(sync_cfg.get("delay_seconds", 0.5))
         if dry_run is None:
             dry_run = bool(sync_cfg.get("dry_run", False))
-        if not verbose:
-            verbose = bool(sync_cfg.get("verbose", False))
+        if verbose is None:
+            verbose = bool(sync_cfg.get("verbose", True))
         if log_path is None:
             raw_log_path = sync_cfg.get("log_path")
             if raw_log_path:

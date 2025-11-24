@@ -100,9 +100,9 @@ from ..sync.sync import sync_auction_to_db
     help="Always refetch detail pages even when listing hashes are unchanged.",
 )
 @click.option(
-    "--verbose",
-    is_flag=True,
-    default=False,
+    "--verbose/--no-verbose",
+    default=True,
+    show_default=True,
     help="Enable verbose logging during the sync run.",
 )
 @click.option(

@@ -1,26 +1,16 @@
 """Multi‑auction synchronization CLI for Troostwatch.
 
-This module defines the ``sync-multi`` subcommand, which reads a YAML file
-containing a list of auctions to synchronize and iterates over them, calling
-``sync_auction_to_db`` for each. The YAML file should have the following
-structure::
-
-    auctions:
-      - code: A1-39499
-        url: "https://www.troostwijkauctions.com/a/123"
-      - code: B2-12345
-        url: "https://www.troostwijkauctions.com/a/456"
-
-Only the ``code`` and ``url`` fields are required for each auction entry.
-Additional keys are ignored.
+This module defines the ``sync-multi`` subcommand, which pulls auctions from
+the local database and iterates over them, calling ``sync_auction_to_db`` for
+each. Auction URLs are read from the stored auction records, so no external
+YAML file is required.
 """
 
 from __future__ import annotations
 
 import click
-import yaml
-
 from .auth import build_http_client
+from ..db import ensure_core_schema, ensure_schema, get_connection, list_auctions
 from ..sync.sync import sync_auction_to_db
 
 
@@ -33,10 +23,10 @@ from ..sync.sync import sync_auction_to_db
     show_default=True,
 )
 @click.option(
-    "--auctions-file",
-    required=True,
-    type=click.Path(exists=True, dir_okay=False, readable=True),
-    help="Path to a YAML file describing auctions to sync.",
+    "--include-inactive/--active-only",
+    default=False,
+    show_default=True,
+    help="Include auctions without active lots.",
 )
 @click.option(
     "--max-pages",
@@ -98,9 +88,9 @@ from ..sync.sync import sync_auction_to_db
     help="Always refetch detail pages even when listing hashes are unchanged.",
 )
 @click.option(
-    "--verbose",
-    is_flag=True,
-    default=False,
+    "--verbose/--no-verbose",
+    default=True,
+    show_default=True,
     help="Enable verbose logging for each auction sync run.",
 )
 @click.option(
@@ -137,7 +127,7 @@ from ..sync.sync import sync_auction_to_db
 )
 def sync_multi(
     db_path: str,
-    auctions_file: str,
+    include_inactive: bool,
     max_pages: int | None,
     dry_run: bool,
     delay_seconds: float,
@@ -155,24 +145,16 @@ def sync_multi(
     login_path: str,
     session_timeout: float,
 ) -> None:
-    """Synchronize multiple auctions defined in a YAML file.
+    """Synchronize multiple auctions stored in the local database."""
+    click.echo(f"Loading auctions from {db_path}...")
 
-    The YAML file must contain a top‑level ``auctions`` list with objects
-    containing at least ``code`` and ``url`` fields. Each auction is synced in
-    the order specified. Errors in one auction will be reported but will not
-    prevent subsequent auctions from being processed.
-    """
-    click.echo(f"Loading auctions list from {auctions_file}...")
-    # Read YAML file
-    try:
-        with open(auctions_file, "r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-    except Exception as exc:
-        click.echo(f"Failed to read YAML file: {exc}")
-        return
-    auctions = data.get("auctions") if isinstance(data, dict) else None
-    if not auctions or not isinstance(auctions, list):
-        click.echo("The YAML file must define a list under the 'auctions' key.")
+    with get_connection(db_path) as conn:
+        ensure_core_schema(conn)
+        ensure_schema(conn)
+        auctions = list_auctions(conn, only_active=not include_inactive)
+
+    if not auctions:
+        click.echo("No auctions found to sync.")
         return
     if username and not password and token_path is None:
         password = click.prompt("Troostwijk password", hide_input=True)
@@ -193,10 +175,13 @@ def sync_multi(
             return
 
     for entry in auctions:
-        code = entry.get("code")
+        code = entry.get("auction_code") or entry.get("code")
         url = entry.get("url")
-        if not code or not url:
-            click.echo(f"Skipping entry without 'code' or 'url': {entry}")
+        if not code:
+            click.echo(f"Skipping auction without code: {entry}")
+            continue
+        if not url:
+            click.echo(f"Skipping auction {code} because no URL is stored.")
             continue
         click.echo(f"\n→ Syncing auction {code} from {url}...")
         try:

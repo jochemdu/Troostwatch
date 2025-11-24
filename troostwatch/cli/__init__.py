@@ -19,6 +19,7 @@ from .report import report  # noqa: F401
 from .debug import debug  # noqa: F401
 from .view import view  # noqa: F401
 from .bid import bid  # noqa: F401
+from .add_lot import add_lot  # noqa: F401
 
 __all__ = [
     "buyer",
@@ -29,4 +30,5 @@ __all__ = [
     "debug",
     "view",
     "bid",
+    "add_lot",
 ]

@@ -20,6 +20,7 @@ from .report import report
 from .sync import sync
 from .sync_multi import sync_multi
 from .view import view
+from .add_lot import add_lot
 
 
 def _prompt_optional_str(message: str) -> Optional[str]:
@@ -110,6 +111,51 @@ def _run_view(ctx: click.Context) -> None:
         state=state,
         limit=limit,
         json_output=json_output,
+    )
+
+
+def _run_add_lot(ctx: click.Context) -> None:
+    db_path = click.prompt("Database path", default="troostwatch.db")
+    auction_code = click.prompt("Auction code (e.g. A1-12345)")
+    auction_title = _prompt_optional_str("Auction title (optional)")
+    auction_url = _prompt_optional_str("Auction URL (optional)")
+    lot_code = click.prompt("Lot code")
+    title = click.prompt("Lot title")
+    lot_url = _prompt_optional_str("Lot URL (optional)")
+    state = _prompt_optional_str("Lot state (running/scheduled/closed, optional)") or ""
+    opens_at = _prompt_optional_str("Opens at (ISO, optional)")
+    closing_time = _prompt_optional_str("Closing time (ISO, optional)")
+    bid_count = _prompt_optional_int("Bid count (optional)")
+    opening_bid = _prompt_optional_str("Opening bid EUR (optional)")
+    current_bid = _prompt_optional_str("Current bid EUR (optional)")
+    city = _prompt_optional_str("City (optional)")
+    country = _prompt_optional_str("Country (optional)")
+
+    def _parse_float(val: Optional[str]) -> Optional[float]:
+        if val is None:
+            return None
+        try:
+            return float(val)
+        except Exception:
+            return None
+
+    ctx.invoke(
+        add_lot,
+        db=db_path,
+        auction_code=auction_code,
+        auction_title=auction_title,
+        auction_url=auction_url,
+        lot_code=lot_code,
+        title=title,
+        url=lot_url,
+        state=state,
+        opens_at=opens_at,
+        closing_time=closing_time,
+        bid_count=bid_count,
+        opening_bid=_parse_float(opening_bid),
+        current_bid=_parse_float(current_bid),
+        city=city,
+        country=country,
     )
 
 
@@ -246,6 +292,7 @@ def menu(ctx: click.Context) -> None:
         "sync": ("Sync a single auction", _run_sync),
         "sync-multi": ("Sync multiple auctions from a YAML file", _run_sync_multi),
         "view": ("View lots stored in the database", _run_view),
+        "add-lot": ("Manually add or update a lot", _run_add_lot),
         "buyers": ("Manage buyers", _run_buyer),
         "positions": ("Manage tracked positions", _run_positions),
         "report": ("Generate a buyer report", _run_report),

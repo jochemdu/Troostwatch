@@ -286,6 +286,27 @@ def compute_detail_hash(detail: LotDetailData) -> str:
     return _hash_payload(payload)
 
 
+def _listing_detail_from_card(card: LotCardData) -> LotDetailData:
+    """Build a minimal detail object from listing data when detail parsing fails."""
+
+    opening_bid = card.price_eur if card.is_price_opening_bid else None
+    current_bid = card.price_eur if opening_bid is None else None
+
+    return LotDetailData(
+        lot_code=card.lot_code,
+        title=card.title,
+        url=card.url,
+        state=card.state,
+        opens_at=card.opens_at,
+        closing_time_current=card.closing_time_current,
+        bid_count=card.bid_count,
+        opening_bid_eur=opening_bid,
+        current_bid_eur=current_bid,
+        location_city=card.location_city,
+        location_country=card.location_country,
+    )
+
+
 def _upsert_lot(
     conn,
     auction_id: int,
@@ -552,7 +573,7 @@ def sync_auction_to_db(
                         "detail_hash": detail_hash,
                     }
 
-            cards_needing_detail: list[tuple[LotCardData, str]] = []
+            cards_needing_detail: list[tuple[LotCardData, str, Optional[str]]] = []
             now_seen = iso_utcnow()
             url_parts = urlsplit(auction_url)
             base_url = f"{url_parts.scheme}://{url_parts.netloc}" if url_parts.scheme and url_parts.netloc else auction_url
@@ -600,20 +621,73 @@ def sync_auction_to_db(
                         delay_seconds=delay_seconds,
                         http_client=http_client,
                     )
-                    # No detail needed for this listing; update last seen and skip.
-                    continue
+                    if not detail_html:
+                        errors.append(
+                            f"Failed to fetch detail for {card.lot_code} ({card.url}): {err or 'empty response'}"
+                        )
+                        if not dry_run and auction_id is not None:
+                            detail = _listing_detail_from_card(card)
+                            detail_hash = compute_detail_hash(detail)
+                            last_seen = iso_utcnow()
+                            _upsert_lot(
+                                conn,
+                                auction_id,
+                                card,
+                                detail,
+                                listing_hash=listing_hash,
+                                detail_hash=detail_hash,
+                                last_seen_at=last_seen,
+                                detail_last_seen_at=last_seen,
+                            )
+                            lots_updated += 1
+                            _log(
+                                f"  Upserted lot {card.lot_code} from listing (detail fetch failed)",
+                                verbose,
+                                log_path,
+                            )
+                        continue
 
-            for idx, (card, listing_hash) in enumerate(cards_needing_detail):
+                    cards_needing_detail.append((card, listing_hash, detail_html))
+
+            if cards_needing_detail:
+                detail_results = asyncio.run(
+                    fetcher.fetch_many([card.url for card, _listing_hash, _prefetched in cards_needing_detail])
+                )
+            else:
+                detail_results = []
+
+            for idx, (card, listing_hash, prefetched_html) in enumerate(cards_needing_detail):
                 detail_result = detail_results[idx] if idx < len(detail_results) else None
-                if not detail_result or not detail_result.ok or not detail_result.text:
+                detail_text: str | None = None
+                if detail_result and detail_result.ok and detail_result.text:
+                    detail_text = detail_result.text
+                elif prefetched_html:
+                    detail_text = prefetched_html
+                else:
                     errors.append(
                         f"Failed to fetch detail for {card.lot_code} ({card.url}): {getattr(detail_result, 'error', None) or 'empty response'}"
                     )
-                    continue
-                detail = parse_lot_detail(detail_result.text, card.lot_code, base_url=auction_url)
-                detail_hash = compute_detail_hash(detail)
+
+                detail: LotDetailData
+                detail_hash: str | None = None
+                try:
+                    if detail_text:
+                        detail = parse_lot_detail(detail_text, card.lot_code, base_url=auction_url)
+                        detail_hash = compute_detail_hash(detail)
+                    else:
+                        detail = _listing_detail_from_card(card)
+                except Exception as exc:
+                    errors.append(
+                        f"Failed to parse detail for {card.lot_code} ({card.url}): {exc}"
+                    )
+                    detail = _listing_detail_from_card(card)
+
+                if detail_hash is None:
+                    detail_hash = compute_detail_hash(detail)
+
                 if not dry_run and auction_id is not None:
-                    detail_seen_at = iso_utcnow()
+                    detail_seen_at = iso_utcnow() if detail_text else None
+                    last_seen = detail_seen_at or iso_utcnow()
                     _upsert_lot(
                         conn,
                         auction_id,
@@ -621,8 +695,8 @@ def sync_auction_to_db(
                         detail,
                         listing_hash=listing_hash,
                         detail_hash=detail_hash,
-                        last_seen_at=detail_seen_at,
-                        detail_last_seen_at=detail_seen_at,
+                        last_seen_at=last_seen,
+                        detail_last_seen_at=detail_seen_at or last_seen,
                     )
                     lots_updated += 1
                     _log(

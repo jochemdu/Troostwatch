@@ -16,6 +16,7 @@ from .debug import debug
 from .view import view
 from .menu import menu
 from .bid import bid
+from .add_lot import add_lot
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]}, invoke_without_command=True)
@@ -35,6 +36,7 @@ cli.add_command(report)
 cli.add_command(debug)
 cli.add_command(view)
 cli.add_command(bid)
+cli.add_command(add_lot)
 cli.add_command(menu)
 
 

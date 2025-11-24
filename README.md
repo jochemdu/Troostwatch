@@ -6,15 +6,36 @@ It provides a set of tools to scrape Troostwijk auctions, store the data in a SQ
 
 ## Project structure
 
-- The code is organised into a Python package `troostwatch` with several sub‑packages:
+Troostwatch volgt een gelaagde indeling zodat domeinlogica, infrastructuur en interfaces duidelijk gescheiden blijven:
 
-    - `troostwatch/cli/` – entry points for all available commands including `buyer`, `sync`, `sync-multi`, `positions`, `report`, `debug` and `view`. The `view` command now displays lots stored in the SQLite database with optional filters for `--auction-code`, `--state` and `--limit`, and can emit structured data via `--json-output`. Under the hood it calls `list_lots` from `troostwatch.db`, so the output shows auction code, lot code, title, state, bid metrics (current bid, bid count, current bidder) and closing times.
-- `troostwatch/parsers/` – HTML parsers for auction listing pages and lot detail pages.
-- `troostwatch/sync/` – functions to fetch pages from the Troostwijk website and upsert data into the database.
-- `troostwatch/analytics/` – helper functions to summarise your bidding exposure.
-- `troostwatch/models/` – dataclasses and helpers for working with internal models.
-- `troostwatch/db.py` – helper for connecting to the SQLite database.
-- `troostwatch/config.py` and `troostwatch/logging_utils.py` – configuration and logging helpers.
+- `troostwatch/domain/` – domeinmodellen en analytische hulpfuncties die geen directe afhankelijkheid op I/O hebben.
+- `troostwatch/infrastructure/` – adapters voor opslag, HTTP en HTML-parsing (`web/parsers`), logging en diagnostics.
+- `troostwatch/services/` – coördinerende services zoals sync-workflows en biedlogica.
+- `troostwatch/interfaces/cli/` – CLI-entrypoints en facades die de Click-commando’s beschikbaar maken.
+- `troostwatch/app/` – applicatie-coördinatie, inclusief configuratie-facades voor CLI en services.
+
+Om bestaande imports te beschermen tijdens de migratie bevat iedere nieuwe laag een alias/facade die doorverwijst naar de legacy-modules. De console scripts in `pyproject.toml` gebruiken nu de nieuwe CLI-facades, terwijl de oorspronkelijke modules bruikbaar blijven. Geleidelijke migratie is zo mogelijk: bestaande code kan blijven verwijzen naar `troostwatch.cli.*` of `troostwatch.parsers.*`, terwijl nieuwe code de gelaagde namen gebruikt.
+
+### Mapping van legacy-modules naar de gelaagde structuur
+
+| Legacy-pad                          | Nieuw laag-pad                                            |
+| ----------------------------------- | --------------------------------------------------------- |
+| `troostwatch.cli.*`                 | `troostwatch.interfaces.cli.*`                            |
+| `troostwatch.parsers.*`             | `troostwatch.infrastructure.web.parsers.*`                 |
+| `troostwatch.sync.*`                | `troostwatch.services.sync.*`                             |
+| `troostwatch.analytics`             | `troostwatch.domain.analytics`                            |
+| `troostwatch.models`                | `troostwatch.domain.models`                               |
+| `troostwatch.db`                    | `troostwatch.infrastructure.persistence.db`               |
+| `troostwatch.http_client`           | `troostwatch.infrastructure.http`                         |
+| `troostwatch.logging_utils`         | `troostwatch.infrastructure.observability.logging`        |
+| `troostwatch.debug_tools`           | `troostwatch.infrastructure.diagnostics.debug_tools`      |
+| `troostwatch.config`                | `troostwatch.app.config`                                  |
+
+Plan voor gefaseerde import-updates:
+
+1. Nieuwe code importeert primair via de gelaagde namen uit de tabel hierboven.
+2. Legacy-imports blijven beschikbaar via de facades zodat bestaande scripts blijven draaien.
+3. Tijdens toekomstige refactors kunnen modules per laag verplaatst worden zonder externe breuken; pas daarna worden de legacy-paden uitgefaseerd.
 
 Examples voor de vernieuwde `view` command:
 

@@ -69,11 +69,11 @@ docs = [
 [project.scripts]
 # Console script entry points.  These expose the CLI subcommands defined
 # inside the troostwatch package so they can be run as standalone programs.
-troostwatch-sync = "troostwatch.cli.sync:sync"
-troostwatch-sync-multi = "troostwatch.cli.sync_multi:sync_multi"
-troostwatch-view = "troostwatch.cli.view:view"
-troostwatch-debug = "troostwatch.cli.debug:debug"
-troostwatch-buyer = "troostwatch.cli.buyer:buyer"
+troostwatch-sync = "troostwatch.interfaces.cli.sync:sync"
+troostwatch-sync-multi = "troostwatch.interfaces.cli.sync_multi:sync_multi"
+troostwatch-view = "troostwatch.interfaces.cli.view:view"
+troostwatch-debug = "troostwatch.interfaces.cli.debug:debug"
+troostwatch-buyer = "troostwatch.interfaces.cli.buyer:buyer"
 # Additional commands can be added here once their implementations exist, e.g.:
 # troostwatch-positions = "troostwatch.cli.positions:positions"
 # troostwatch-report = "troostwatch.cli.report:report"

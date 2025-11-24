@@ -276,7 +276,7 @@ def _upsert_lot(
             awarding_state, total_example_price_eur, location_city,
             location_country, seller_allocation_note,
             listing_hash, detail_hash, last_seen_at, detail_last_seen_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(auction_id, lot_code) DO UPDATE SET
             title = excluded.title,
             url = excluded.url,

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS auctions (
     auction_code TEXT NOT NULL UNIQUE,
     title TEXT,
     url TEXT,
+    pagination_pages TEXT,
     starts_at TEXT,
     ends_at_planned TEXT
 );
@@ -18,6 +19,11 @@ CREATE TABLE IF NOT EXISTS buyers (
     label TEXT NOT NULL UNIQUE,
     name TEXT,
     notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS user_preferences (
+    key TEXT PRIMARY KEY,
+    value TEXT
 );
 
 CREATE TABLE IF NOT EXISTS products (

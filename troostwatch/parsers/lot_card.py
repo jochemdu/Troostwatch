@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import json
 import re
 from typing import Iterable, Optional
+from urllib.parse import urlsplit, urlencode, urlunsplit
 
 from bs4 import BeautifulSoup
 
@@ -158,3 +159,74 @@ def parse_auction_page(html: str, base_url: str | None = None) -> Iterable[LotCa
             price_eur=current_bid_amount,
             is_price_opening_bid=is_price_opening_bid,
         )
+
+
+def extract_page_urls(html: str, auction_url: str) -> list[str]:
+    """Return all pagination URLs for an auction page.
+
+    Troostwijk encodes pagination metadata inside ``__NEXT_DATA__``. We derive
+    the total page count from there and build ``?page=N`` URLs while preserving
+    any existing query parameters. A regex fallback keeps working when the
+    markup happens to render explicit page links.
+    """
+
+    page_urls: list[str] = []
+
+    try:
+        data = utils.extract_next_data(html)
+    except Exception:
+        data = None
+
+    if isinstance(data, dict):
+        page_props = data.get("props", {}).get("pageProps", {})
+        pagination = (
+            page_props.get("lots", {}).get("pagination")
+            or page_props.get("pagination")
+            or {}
+        )
+        total_pages = pagination.get("totalPages") or pagination.get("total_pages") or pagination.get("pages")
+        try:
+            total_pages_int = int(total_pages) if total_pages is not None else 1
+        except Exception:
+            total_pages_int = 1
+
+        if total_pages_int > 1:
+            parts = urlsplit(auction_url)
+            base_query: dict[str, str] = {}
+            if parts.query:
+                # Preserve any existing query params on the auction URL
+                from urllib.parse import parse_qsl
+
+                base_query = {key: value for key, value in parse_qsl(parts.query)}
+            for page_num in range(1, total_pages_int + 1):
+                query = base_query.copy()
+                query["page"] = page_num
+                page_urls.append(
+                    urlunsplit(
+                        (
+                            parts.scheme,
+                            parts.netloc,
+                            parts.path,
+                            urlencode(query),
+                            parts.fragment,
+                        )
+                    )
+                )
+
+    # Fallback: extract any explicit links that look like page selectors.
+    pattern = re.compile(r"href=[\"']([^\"']*?page=\d+)[\"']", re.IGNORECASE)
+    for match in pattern.finditer(html):
+        href = match.group(1)
+        if href.startswith("http://") or href.startswith("https://"):
+            full_url = href
+        elif href.startswith("/"):
+            full_url = auction_url.rstrip("/") + href
+        else:
+            if auction_url.endswith("/"):
+                full_url = auction_url + href
+            else:
+                full_url = auction_url + ("/" if href and not href.startswith("?") else "") + href
+        if full_url not in page_urls:
+            page_urls.append(full_url)
+
+    return page_urls or [auction_url]

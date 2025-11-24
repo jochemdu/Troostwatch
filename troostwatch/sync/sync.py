@@ -202,16 +202,26 @@ def _extract_auction_title(page_html: str) -> Optional[str]:
     return None
 
 
-def _upsert_auction(conn, auction_code: str, auction_url: str, auction_title: str | None) -> int:
+def _upsert_auction(
+    conn,
+    auction_code: str,
+    auction_url: str,
+    auction_title: str | None,
+    pagination_pages: list[str] | None = None,
+) -> int:
+    normalized_pages = list(dict.fromkeys(pagination_pages or []))
+    pages_json = json.dumps(normalized_pages) if normalized_pages else None
+
     conn.execute(
         """
-        INSERT INTO auctions (auction_code, title, url)
-        VALUES (?, ?, ?)
+        INSERT INTO auctions (auction_code, title, url, pagination_pages)
+        VALUES (?, ?, ?, ?)
         ON CONFLICT(auction_code) DO UPDATE SET
             title = excluded.title,
-            url = excluded.url
+            url = excluded.url,
+            pagination_pages = excluded.pagination_pages
         """,
-        (auction_code, auction_title, auction_url),
+        (auction_code, auction_title, auction_url, pages_json),
     )
     cur = conn.execute("SELECT id FROM auctions WHERE auction_code = ?", (auction_code,))
     row = cur.fetchone()
@@ -363,7 +373,7 @@ def sync_auction_to_db(
     lots_scanned = 0
     lots_updated = 0
     errors: list[str] = []
-    status = "failed"
+    status = "success"
     run_id: int | None = None
     discovered_page_urls: list[str] = []
 
@@ -446,6 +456,7 @@ def sync_auction_to_db(
         )
         errors.extend(page_errors)
         if not pages:
+            status = "failed"
             finished_at = iso_utcnow()
             conn.execute(
                 """
@@ -491,7 +502,13 @@ def sync_auction_to_db(
             auction_id = None
             existing_lots: Dict[str, Dict[str, Optional[str]]] = {}
             if not dry_run:
-                auction_id = _upsert_auction(conn, auction_code, auction_url, auction_title)
+                auction_id = _upsert_auction(
+                    conn,
+                    auction_code,
+                    auction_url,
+                    auction_title,
+                    pagination_pages=discovered_page_urls,
+                )
                 cur = conn.execute(
                     "SELECT lot_code, listing_hash, detail_hash FROM lots WHERE auction_id = ?",
                     (auction_id,),
@@ -571,7 +588,6 @@ def sync_auction_to_db(
                     )
             if not dry_run:
                 conn.commit()
-            status = "success"
         except Exception as exc:  # pragma: no cover - runtime protection
             errors.append(str(exc))
             if not dry_run:

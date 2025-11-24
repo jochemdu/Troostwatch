@@ -12,11 +12,12 @@ import time
 from typing import Iterable, List, Optional, Tuple, Dict
 from typing import Iterable, List, Optional, Tuple
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from ..db import ensure_core_schema, ensure_schema, get_connection, iso_utcnow
 from ..http_client import TroostwatchHttpClient
-from ..parsers.lot_card import LotCardData, parse_lot_card
+from ..parsers.lot_card import LotCardData, parse_auction_page, parse_lot_card
 from ..parsers.lot_detail import LotDetailData, parse_lot_detail
 from .fetcher import HttpFetcher, RequestResult
 
@@ -275,7 +276,7 @@ def _upsert_lot(
             awarding_state, total_example_price_eur, location_city,
             location_country, seller_allocation_note,
             listing_hash, detail_hash, last_seen_at, detail_last_seen_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(auction_id, lot_code) DO UPDATE SET
             title = excluded.title,
             url = excluded.url,
@@ -476,13 +477,23 @@ def sync_auction_to_db(
 
             cards_needing_detail: list[tuple[LotCardData, str]] = []
             now_seen = iso_utcnow()
+            url_parts = urlsplit(auction_url)
+            base_url = f"{url_parts.scheme}://{url_parts.netloc}" if url_parts.scheme and url_parts.netloc else auction_url
+
             for page_idx, page in enumerate(pages, start=1):
                 _log(
                     f"Processing page {page_idx}/{pages_scanned}: {page.url}",
                     verbose,
                 )
-                for card_html in _iter_lot_card_blocks(page.html):
-                    card = parse_lot_card(card_html, auction_code, base_url=auction_url)
+
+                parsed_cards = list(parse_auction_page(page.html, base_url=base_url))
+                if not parsed_cards:
+                    parsed_cards = [
+                        parse_lot_card(card_html, auction_code, base_url=base_url)
+                        for card_html in _iter_lot_card_blocks(page.html)
+                    ]
+
+                for card in parsed_cards:
                     lots_scanned += 1
                     listing_hash = compute_listing_hash(card)
                     existing = existing_lots.get(card.lot_code)
@@ -497,6 +508,13 @@ def sync_auction_to_db(
                         )
                         # No detail needed for this listing; update last seen and skip.
                         continue
+
+                    if not card.url:
+                        errors.append(
+                            f"Failed to fetch detail for {card.lot_code} ({card.url}): missing detail URL"
+                        )
+                        continue
+
                     # Need to fetch detail HTML for this lot
                     detail_html, err, last_fetch = _wait_and_fetch(
                         card.url,

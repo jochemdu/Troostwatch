@@ -10,8 +10,7 @@ from __future__ import annotations
 import click
 import json
 
-from ..db import get_connection
-from ..analytics.summary import get_buyer_summary
+from troostwatch.services.reporting import ReportingService
 
 
 @click.group()
@@ -26,8 +25,8 @@ def report() -> None:
 @click.option("--json-output", is_flag=True, help="Output the summary as JSON instead of plain text.")
 def report_buyer(db_path: str, buyer: str, json_output: bool) -> None:
     """Show a summary of exposure and tracked lots for BUYER."""
-    with get_connection(db_path) as conn:
-        summary = get_buyer_summary(conn, buyer)
+    service = ReportingService.from_sqlite_path(db_path)
+    summary = service.get_buyer_summary(buyer).to_dict()
     if json_output:
         click.echo(json.dumps(summary, indent=2))
         return

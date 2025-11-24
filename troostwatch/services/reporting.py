@@ -1,0 +1,44 @@
+"""High-level reporting use cases for the CLI and APIs."""
+
+from __future__ import annotations
+
+from contextlib import AbstractContextManager
+from typing import Callable
+
+from troostwatch.domain.analytics.summary import BuyerSummary
+from troostwatch.infrastructure.db import ensure_schema, get_connection
+from troostwatch.infrastructure.db.repositories import BuyerRepository, PositionRepository
+
+
+ConnectionFactory = Callable[[], AbstractContextManager]
+
+
+class ReportingService:
+    """Service exposing reporting and analytics operations."""
+
+    def __init__(self, connection_factory: ConnectionFactory) -> None:
+        self._connection_factory = connection_factory
+
+    @classmethod
+    def from_sqlite_path(cls, db_path: str) -> "ReportingService":
+        """Create a reporting service bound to a SQLite database path."""
+
+        def connection_factory() -> AbstractContextManager:
+            return get_connection(db_path)
+
+        return cls(connection_factory)
+
+    def get_buyer_summary(self, buyer_label: str) -> BuyerSummary:
+        """Compute a summary of tracked and won lots for a buyer."""
+
+        with self._connection_factory() as conn:
+            ensure_schema(conn)
+            buyer_repo = BuyerRepository(conn)
+            buyer_id = buyer_repo.get_id(buyer_label)
+            if buyer_id is None:
+                return BuyerSummary()
+
+            position_repo = PositionRepository(conn, buyers=buyer_repo)
+            positions = position_repo.list(buyer_label)
+
+        return BuyerSummary.from_positions(positions)

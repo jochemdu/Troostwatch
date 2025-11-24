@@ -173,28 +173,42 @@ def sync(
     If ``--dry-run`` is specified, the command parses the pages but skips
     database writes.
     """
-    from ..db import get_connection, list_auctions
+    from ..db import get_connection, get_preference, list_auctions
 
     resolved_code = auction_code
     resolved_url = auction_url
 
     if not resolved_code or not resolved_url:
+        preferred_code = None
         with get_connection(db_path) as conn:
             available = list_auctions(conn, only_active=False)
+            preferred_code = get_preference(conn, "preferred_auction")
+
         if available and not resolved_code:
             click.echo("Select an auction to sync:")
+            default_index = 0
             for idx, auction in enumerate(available, start=1):
                 title = auction.get("title") or "(geen titel)"
                 url = auction.get("url") or "(geen url bekend)"
                 click.echo(f"{idx}) {auction['auction_code']} - {title} - {url}")
+                if auction.get("auction_code") == preferred_code:
+                    default_index = idx - 1
+            default_choice_num = default_index + 1
+            click.echo(
+                "Standaard keuze: "
+                f"{default_choice_num}) {available[default_index]['auction_code']}"
+            )
             choice = click.prompt(
                 "Keuze",
                 type=click.IntRange(1, len(available)),
                 show_choices=False,
+                default=default_choice_num,
+                show_default=True,
             )
             selected = available[choice - 1]
             resolved_code = selected.get("auction_code") or resolved_code
             resolved_url = selected.get("url") or resolved_url
+
         if available and resolved_code and not resolved_url:
             match = next(
                 (a for a in available if a.get("auction_code") == resolved_code), None

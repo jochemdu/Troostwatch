@@ -1,8 +1,9 @@
 # Agent Guidelines for Troostwatch
 
 These instructions apply to the entire repository.  Follow them when editing any
-file in this project unless a more specific agent file applies.  For
-specialized tasks, see the role‑based agents under `.github/agents/`:
+file in this project unless a more specific agent file applies.  Role‑specific
+instructions live only under `.github/agents/`; duplicate copies in other
+directories have been removed so each role has a single canonical file:
 
 - `docs-agent.md` – writes and maintains project documentation.
 - `test-agent.md` – writes and maintains unit and integration tests.

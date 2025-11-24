@@ -373,7 +373,7 @@ def sync_auction_to_db(
     lots_scanned = 0
     lots_updated = 0
     errors: list[str] = []
-    status = "failed"
+    status = "success"
     run_id: int | None = None
     discovered_page_urls: list[str] = []
 
@@ -456,6 +456,7 @@ def sync_auction_to_db(
         )
         errors.extend(page_errors)
         if not pages:
+            status = "failed"
             finished_at = iso_utcnow()
             conn.execute(
                 """
@@ -599,7 +600,6 @@ def sync_auction_to_db(
                     )
             if not dry_run:
                 conn.commit()
-            status = "success"
         except Exception as exc:  # pragma: no cover - runtime protection
             errors.append(str(exc))
             if not dry_run:

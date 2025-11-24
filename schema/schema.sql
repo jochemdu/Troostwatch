@@ -87,8 +87,6 @@ CREATE TABLE IF NOT EXISTS my_lot_positions (
     track_active INTEGER NOT NULL DEFAULT 1,
     max_budget_total_eur REAL,
     my_highest_bid_eur REAL,
-    exposure_limit_eur REAL,
-    status TEXT,
     FOREIGN KEY (buyer_id) REFERENCES buyers (id) ON DELETE CASCADE,
     FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE,
     UNIQUE (buyer_id, lot_id)
@@ -99,18 +97,16 @@ CREATE INDEX IF NOT EXISTS idx_my_lot_positions_lot_id ON my_lot_positions (lot_
 
 CREATE TABLE IF NOT EXISTS my_bids (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    buyer_id INTEGER NOT NULL,
     lot_id INTEGER NOT NULL,
-    bid_amount_eur REAL NOT NULL,
-    bid_time TEXT,
-    is_proxy INTEGER NOT NULL DEFAULT 0,
-    status TEXT,
-    FOREIGN KEY (buyer_id) REFERENCES buyers (id) ON DELETE CASCADE,
-    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
+    buyer_id INTEGER,
+    amount_eur REAL NOT NULL,
+    placed_at TEXT NOT NULL,
+    note TEXT,
+    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE,
+    FOREIGN KEY (buyer_id) REFERENCES buyers (id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_my_bids_lot_id ON my_bids (lot_id);
-CREATE INDEX IF NOT EXISTS idx_my_bids_buyer_id ON my_bids (buyer_id);
 
 CREATE TABLE IF NOT EXISTS lot_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -143,6 +139,16 @@ CREATE TABLE IF NOT EXISTS market_offers (
 CREATE INDEX IF NOT EXISTS idx_market_offers_lot_id ON market_offers (lot_id);
 CREATE INDEX IF NOT EXISTS idx_market_offers_buyer_id ON market_offers (buyer_id);
 
+CREATE TABLE IF NOT EXISTS product_layers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id INTEGER NOT NULL,
+    layer INTEGER NOT NULL DEFAULT 0,
+    title TEXT,
+    value TEXT,
+    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_product_layers_lot_id ON product_layers (lot_id);
+
 CREATE TABLE IF NOT EXISTS sync_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     auction_code TEXT,
@@ -158,6 +164,13 @@ CREATE TABLE IF NOT EXISTS sync_runs (
     notes TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sync_runs_auction_code ON sync_runs (auction_code);
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    applied_at TEXT NOT NULL,
+    notes TEXT
+);
 
 -- Additional tables (buyers, my_lot_positions, my_bids, products, etc.)
 -- should be added here following the full specification of the project.

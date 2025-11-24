@@ -106,6 +106,11 @@ from ..sync.sync import sync_auction_to_db
     help="Enable verbose logging during the sync run.",
 )
 @click.option(
+    "--log-path",
+    type=click.Path(path_type=str),
+    help="Optional path to write verbose sync logs.",
+)
+@click.option(
     "--username",
     help="Account username/email for authenticated requests.",
 )
@@ -151,6 +156,7 @@ def sync(
     concurrency_mode: str,
     force_detail_refetch: bool,
     verbose: bool,
+    log_path: str | None,
     username: str | None,
     password: str | None,
     token_path: str | None,
@@ -204,6 +210,7 @@ def sync(
             concurrency_mode=concurrency_mode.lower(),
             force_detail_refetch=force_detail_refetch,
             verbose=verbose,
+            log_path=log_path,
             http_client=http_client,
         )
     except Exception as exc:

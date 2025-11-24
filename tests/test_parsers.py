@@ -76,7 +76,7 @@ def test_extract_page_urls_from_next_data():
     urls = extract_page_urls(html, base)
 
     assert urls == [
-        base,
+        f"{base}?page=1",
         f"{base}?page=2",
         f"{base}?page=3",
     ]

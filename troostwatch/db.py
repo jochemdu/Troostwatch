@@ -128,6 +128,19 @@ def get_config(config_path: Path | str | None = None) -> Dict[str, Any]:
     return _load_config(config_path)
 
 
+def _ensure_user_preferences(conn: sqlite3.Connection) -> None:
+    """Create a simple key/value table for user preferences if missing."""
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_preferences (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+        """
+    )
+
+
 def get_path_config(config_path: Path | str | None = None) -> Dict[str, Path]:
     """Return resolved filesystem paths from the project configuration.
 
@@ -253,6 +266,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA_MY_BIDS_SQL)
     conn.executescript(SCHEMA_PRODUCT_LAYERS_SQL)
     conn.executescript(SCHEMA_SYNC_RUNS_SQL)
+    _ensure_user_preferences(conn)
     _ensure_hash_columns(conn)
 
 
@@ -490,13 +504,21 @@ def _get_lot_id(conn: sqlite3.Connection, lot_code: str, auction_code: Optional[
     """
     ensure_core_schema(conn)
     query = "SELECT l.id FROM lots l JOIN auctions a ON l.auction_id = a.id WHERE l.lot_code = ?"
-    params: List = [lot_code]
-    if auction_code is not None:
-        query += " AND a.auction_code = ?"
-        params.append(auction_code)
-    cur = conn.execute(query, tuple(params))
-    row = cur.fetchone()
-    return row[0] if row else None
+
+    def _lookup(code: str) -> Optional[int]:
+        params: List = [code]
+        local_query = query
+        if auction_code is not None:
+            local_query += " AND a.auction_code = ?"
+            params.append(auction_code)
+        cur = conn.execute(local_query, tuple(params))
+        row = cur.fetchone()
+        return row[0] if row else None
+
+    lot_id = _lookup(lot_code)
+    if lot_id is None and auction_code and not lot_code.startswith(f"{auction_code}-"):
+        lot_id = _lookup(f"{auction_code}-{lot_code}")
+    return lot_id
 
 def add_position(
     conn: sqlite3.Connection,
@@ -595,6 +617,84 @@ def delete_position(conn: sqlite3.Connection, buyer_label: str, lot_code: str, a
         "DELETE FROM my_lot_positions WHERE buyer_id = ? AND lot_id = ?",
         (buyer_id, lot_id),
     )
+    conn.commit()
+
+
+def list_auctions(conn: sqlite3.Connection, only_active: bool = True) -> List[Dict[str, Optional[str]]]:
+    """Return auctions, optionally limited to those with active lots."""
+
+    ensure_schema(conn)
+    query = """
+        SELECT a.auction_code,
+               a.title,
+               a.url,
+               a.starts_at,
+               a.ends_at_planned,
+               SUM(CASE WHEN l.state IS NULL OR l.state NOT IN ('closed', 'ended') THEN 1 ELSE 0 END) AS active_lots,
+               COUNT(l.id) AS lot_count
+        FROM auctions a
+        LEFT JOIN lots l ON l.auction_id = a.id
+        GROUP BY a.id
+        ORDER BY a.ends_at_planned IS NULL DESC, a.ends_at_planned DESC, a.auction_code
+    """
+    rows = conn.execute(query).fetchall()
+    auctions = [
+        {
+            "auction_code": row[0],
+            "title": row[1],
+            "url": row[2],
+            "starts_at": row[3],
+            "ends_at_planned": row[4],
+            "active_lots": row[5] or 0,
+            "lot_count": row[6] or 0,
+        }
+        for row in rows
+    ]
+    if not only_active:
+        return auctions
+    active = [a for a in auctions if a["active_lots"] > 0]
+    return active
+
+
+def list_lot_codes_by_auction(conn: sqlite3.Connection, auction_code: str) -> List[str]:
+    """Return lot codes for a given auction, ordered numerically when possible."""
+
+    ensure_schema(conn)
+    rows = conn.execute(
+        """
+        SELECT l.lot_code
+        FROM lots l
+        JOIN auctions a ON l.auction_id = a.id
+        WHERE a.auction_code = ?
+        ORDER BY l.lot_code
+        """,
+        (auction_code,),
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def get_preference(conn: sqlite3.Connection, key: str) -> Optional[str]:
+    """Return a stored preference value for the given key."""
+
+    ensure_schema(conn)
+    _ensure_user_preferences(conn)
+    cur = conn.execute("SELECT value FROM user_preferences WHERE key = ?", (key,))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
+def set_preference(conn: sqlite3.Connection, key: str, value: Optional[str]) -> None:
+    """Persist a preference key/value pair (removing it when value is None)."""
+
+    ensure_schema(conn)
+    _ensure_user_preferences(conn)
+    if value is None:
+        conn.execute("DELETE FROM user_preferences WHERE key = ?", (key,))
+    else:
+        conn.execute(
+            "INSERT INTO user_preferences (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
     conn.commit()
 
 

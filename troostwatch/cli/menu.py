@@ -8,7 +8,7 @@ users who prefer interactive choice lists over long command invocations.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Sequence
 
 import click
 
@@ -21,6 +21,16 @@ from .sync import sync
 from .sync_multi import sync_multi
 from .view import view
 from .add_lot import add_lot
+from ..db import (
+    get_path_config,
+    get_connection,
+    get_preference,
+    list_auctions,
+    list_lot_codes_by_auction,
+    set_preference,
+)
+
+PREFERRED_AUCTION_KEY = "preferred_auction"
 
 
 def _prompt_optional_str(message: str) -> Optional[str]:
@@ -37,8 +47,90 @@ def _prompt_optional_int(message: str, default: Optional[int] = None) -> Optiona
     return value
 
 
+def _default_db_path() -> str:
+    paths = get_path_config()
+    return str(paths["db_path"])
+
+
+def _load_auctions(db_path: str, active_only: bool = True):
+    with get_connection(db_path) as conn:
+        return list_auctions(conn, only_active=active_only)
+
+
+def _choose_auction(db_path: str, *, remember_choice: bool = True) -> str:
+    """Prompt the user to pick an auction, defaulting to active ones."""
+
+    auctions = _load_auctions(db_path, active_only=True)
+    if not auctions:
+        auctions = _load_auctions(db_path, active_only=False)
+
+    preferred: Optional[str] = None
+    with get_connection(db_path) as conn:
+        preferred = get_preference(conn, PREFERRED_AUCTION_KEY)
+
+    if auctions:
+        codes = [a["auction_code"] for a in auctions]
+        default_choice = preferred if preferred in codes else codes[0]
+        options: Sequence[str] = list(codes) + ["other"]
+        selection = click.prompt(
+            "Select auction",
+            type=click.Choice(options, case_sensitive=False),
+            default=default_choice,
+            show_choices=True,
+        ).upper()
+        if selection == "OTHER":
+            selection = click.prompt("Auction code")
+    else:
+        selection = click.prompt("Auction code")
+
+    if remember_choice:
+        with get_connection(db_path) as conn:
+            current = get_preference(conn, PREFERRED_AUCTION_KEY)
+            if current != selection:
+                prompt = (
+                    "Remember this as your preferred auction?"
+                    if current is None
+                    else f"Update preferred auction to {selection}?"
+                )
+                if click.confirm(prompt, default=current is None):
+                    set_preference(conn, PREFERRED_AUCTION_KEY, selection)
+
+    return selection
+
+
+def _prompt_lot_code(db_path: str, auction_code: str) -> str:
+    """Offer a lot-code prompt with known lots as choices when available."""
+
+    lots = _load_lots_for_auction(db_path, auction_code)
+    if not lots:
+        return click.prompt("Lot code")
+
+    options: Sequence[str] = list(lots) + ["other"]
+    selection = click.prompt(
+        "Lot code (or suffix)",
+        type=click.Choice(options, case_sensitive=False),
+        default=options[0],
+        show_choices=True,
+    )
+    if selection.lower() == "other":
+        selection = click.prompt("Lot code (you can enter just the suffix)")
+    if not selection.startswith(f"{auction_code}-"):
+        # If the user entered a suffix and a matching code exists, expand it.
+        candidate = f"{auction_code}-{selection}"
+        if selection in lots:
+            return selection
+        if candidate in lots:
+            return candidate
+    return selection
+
+
+def _load_lots_for_auction(db_path: str, auction_code: str) -> Sequence[str]:
+    with get_connection(db_path) as conn:
+        return list_lot_codes_by_auction(conn, auction_code)
+
+
 def _run_sync(ctx: click.Context) -> None:
-    db_path = click.prompt("Database path", default="troostwatch.db")
+    db_path = click.prompt("Database path", default=_default_db_path())
     auction_code = click.prompt("Auction code (e.g. A1-39499)")
     auction_url = click.prompt("Auction URL")
     max_pages = _prompt_optional_int("Max pages to fetch (blank for all)")
@@ -69,7 +161,7 @@ def _run_sync(ctx: click.Context) -> None:
 
 
 def _run_sync_multi(ctx: click.Context) -> None:
-    db_path = click.prompt("Database path", default="troostwatch.db")
+    db_path = click.prompt("Database path", default=_default_db_path())
     auctions_file = click.prompt("Path to YAML file with auctions")
     max_pages = _prompt_optional_int("Max pages to fetch per auction (blank for all)")
     verbose = click.confirm("Enable verbose logging?", default=False)
@@ -98,7 +190,7 @@ def _run_sync_multi(ctx: click.Context) -> None:
 
 
 def _run_view(ctx: click.Context) -> None:
-    db_path = click.prompt("Database path", default="troostwatch.db")
+    db_path = click.prompt("Database path", default=_default_db_path())
     auction_code = _prompt_optional_str("Auction code filter (blank for all)")
     state = _prompt_optional_str("State filter (blank for all)")
     limit = click.prompt("Maximum lots to show (0 for no limit)", default=50, type=int)
@@ -115,7 +207,7 @@ def _run_view(ctx: click.Context) -> None:
 
 
 def _run_add_lot(ctx: click.Context) -> None:
-    db_path = click.prompt("Database path", default="troostwatch.db")
+    db_path = click.prompt("Database path", default=_default_db_path())
     auction_code = click.prompt("Auction code (e.g. A1-12345)")
     auction_title = _prompt_optional_str("Auction title (optional)")
     auction_url = _prompt_optional_str("Auction URL (optional)")
@@ -160,7 +252,7 @@ def _run_add_lot(ctx: click.Context) -> None:
 
 
 def _run_buyer(ctx: click.Context) -> None:
-    db_path = click.prompt("Database path", default="troostwatch.db")
+    db_path = click.prompt("Database path", default=_default_db_path())
     action = click.prompt(
         "Buyer action",
         type=click.Choice(["list", "add", "delete", "back"], case_sensitive=False),
@@ -188,7 +280,7 @@ def _run_buyer(ctx: click.Context) -> None:
 
 
 def _run_positions(ctx: click.Context) -> None:
-    db_path = click.prompt("Database path", default="troostwatch.db")
+    db_path = click.prompt("Database path", default=_default_db_path())
     action = click.prompt(
         "Positions action",
         type=click.Choice(["list", "add", "delete", "back"], case_sensitive=False),
@@ -202,8 +294,8 @@ def _run_positions(ctx: click.Context) -> None:
         return
 
     buyer_label = click.prompt("Buyer label")
-    auction_code = click.prompt("Auction code")
-    lot_code = click.prompt("Lot code")
+    auction_code = _choose_auction(db_path)
+    lot_code = _prompt_lot_code(db_path, auction_code)
     if action == "add":
         budget = _prompt_optional_int("Budget EUR (blank for none)")
         inactive = click.confirm("Mark as inactive?", default=False)
@@ -227,17 +319,17 @@ def _run_positions(ctx: click.Context) -> None:
 
 
 def _run_report(ctx: click.Context) -> None:
-    db_path = click.prompt("Database path", default="troostwatch.db")
+    db_path = click.prompt("Database path", default=_default_db_path())
     buyer_label = click.prompt("Buyer label to summarize")
     json_output = click.confirm("Show as JSON?", default=False)
     ctx.invoke(report.commands["buyer"], db_path=db_path, buyer=buyer_label, json_output=json_output)
 
 
 def _run_bid(ctx: click.Context) -> None:
-    db_path = click.prompt("Database path", default="troostwatch.db")
+    db_path = click.prompt("Database path", default=_default_db_path())
     buyer_label = click.prompt("Buyer label")
-    auction_code = click.prompt("Auction code")
-    lot_code = click.prompt("Lot code")
+    auction_code = _choose_auction(db_path)
+    lot_code = _prompt_lot_code(db_path, auction_code)
     amount = click.prompt("Bid amount (EUR)", type=float)
     note = _prompt_optional_str("Note (optional)")
     quiet = click.confirm("Quiet output?", default=False)
@@ -262,7 +354,7 @@ def _run_bid(ctx: click.Context) -> None:
 
 
 def _run_debug(ctx: click.Context) -> None:
-    db_path = click.prompt("Database path", default="troostwatch.db")
+    db_path = click.prompt("Database path", default=_default_db_path())
     action = click.prompt(
         "Debug action",
         type=click.Choice(["stats", "integrity", "view", "back"], case_sensitive=False),

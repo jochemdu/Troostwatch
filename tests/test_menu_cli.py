@@ -17,6 +17,10 @@ def _seed_db(db_path: Path) -> None:
             "INSERT INTO auctions (auction_code, title, url) VALUES (?, ?, ?)",
             ("A1-111", "Test Auction", "http://example.com"),
         )
+        conn.execute(
+            "INSERT INTO buyers (label, name) VALUES (?, ?)",
+            ("B-1", "Example Buyer"),
+        )
         auction_id = conn.execute(
             "SELECT id FROM auctions WHERE auction_code = ?", ("A1-111",)
         ).fetchone()[0]
@@ -37,6 +41,25 @@ def _seed_db(db_path: Path) -> None:
                 2,
                 "B-10",
                 "2025-01-01T10:00:00Z",
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO lots (
+                auction_id, lot_code, title, state, current_bid_eur, bid_count,
+                current_bidder_label, closing_time_current
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                auction_id,
+                "A1-111-40",
+                "Tracked lot",
+                "open",
+                50.0,
+                0,
+                None,
+                "2025-01-02T10:00:00Z",
             ),
         )
         conn.commit()
@@ -76,3 +99,31 @@ def test_menu_view_flow(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "Showing 1 lot(s):" in result.output
     assert "[A1-111/0001]" in result.output
+
+
+def test_menu_positions_prefers_active_auction_and_suffix(tmp_path: Path) -> None:
+    db_file = tmp_path / "lots.db"
+    _seed_db(db_file)
+
+    runner = CliRunner()
+    user_input = "\n".join(
+        [
+            "positions",
+            str(db_file),
+            "add",
+            "B-1",
+            "",  # accept default active auction A1-111
+            "",  # confirm remembering preferred auction
+            "other",  # choose to enter a suffix
+            "40",
+            "",  # budget blank
+            "n",  # inactive? no
+            "exit",
+            "",
+        ]
+    )
+    result = runner.invoke(menu, input=user_input)
+
+    assert result.exit_code == 0
+    assert "preferred auction" in result.output.lower()
+    assert "A1-111-40" in result.output

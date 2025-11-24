@@ -7,7 +7,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.parsers.lot_card import parse_auction_page, parse_lot_card
+from troostwatch.parsers.lot_card import (
+    extract_page_urls,
+    parse_auction_page,
+    parse_lot_card,
+)
 from troostwatch.parsers.utils import parse_eur_to_float, parse_nl_datetime
 from troostwatch.parsers.lot_detail import parse_lot_detail
 
@@ -59,6 +63,23 @@ def test_parse_auction_page_next_data_live_snapshot():
     assert second.lot_code == "A1-39500-1802"
     assert second.price_eur == 70.0
     assert second.bid_count == 12
+
+
+def test_extract_page_urls_from_next_data():
+    html = """
+    <script id="__NEXT_DATA__" type="application/json">
+    {"props":{"pageProps":{"lots":{"pagination":{"totalPages":3,"currentPage":1}}}}}
+    </script>
+    """
+    base = "https://www.troostwijkauctions.com/a/sale-A1-12345"
+
+    urls = extract_page_urls(html, base)
+
+    assert urls == [
+        f"{base}?page=1",
+        f"{base}?page=2",
+        f"{base}?page=3",
+    ]
 
 
 def test_parse_lot_cards_from_snapshots():

@@ -527,7 +527,6 @@ def list_positions(conn: sqlite3.Connection, buyer_label: Optional[str] = None) 
         auction code, lot code, track_active flag and budget fields.
     """
     ensure_schema(conn)
-    ensure_core_schema(conn)
     params: List = []
     query = """
         SELECT b.label AS buyer_label,
@@ -573,3 +572,60 @@ def delete_position(conn: sqlite3.Connection, buyer_label: str, lot_code: str, a
         (buyer_id, lot_id),
     )
     conn.commit()
+
+
+def list_lots(
+    conn: sqlite3.Connection,
+    *,
+    auction_code: Optional[str] = None,
+    state: Optional[str] = None,
+    limit: Optional[int] = None,
+) -> List[Dict[str, Optional[str]]]:
+    """Return lots optionally filtered by auction code or state.
+
+    Args:
+        conn: An open SQLite connection.
+        auction_code: If provided, only include lots from this auction code.
+        state: If provided, filter by the lot's ``state`` column.
+        limit: Maximum number of rows to return; ``None`` disables the limit.
+
+    Returns:
+        A list of dictionaries describing each lot, including auction code,
+        lot code, title, state, bid metrics and closing times.
+    """
+
+    ensure_schema(conn)
+
+    query = """
+        SELECT a.auction_code AS auction_code,
+               l.lot_code AS lot_code,
+               l.title AS title,
+               l.state AS state,
+               l.current_bid_eur AS current_bid_eur,
+               l.bid_count AS bid_count,
+               l.current_bidder_label AS current_bidder_label,
+               l.closing_time_current AS closing_time_current,
+               l.closing_time_original AS closing_time_original
+        FROM lots l
+        JOIN auctions a ON l.auction_id = a.id
+    """
+
+    conditions: list[str] = []
+    params: list = []
+    if auction_code:
+        conditions.append("a.auction_code = ?")
+        params.append(auction_code)
+    if state:
+        conditions.append("l.state = ?")
+        params.append(state)
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    query += " ORDER BY a.auction_code, l.lot_code"
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+
+    cur = conn.execute(query, tuple(params))
+    columns = [c[0] for c in cur.description]
+    return [dict(zip(columns, row)) for row in cur.fetchall()]

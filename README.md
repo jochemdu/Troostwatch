@@ -37,7 +37,7 @@ Plan voor gefaseerde import-updates:
 2. Legacy-imports blijven beschikbaar via de facades zodat bestaande scripts blijven draaien.
 3. Tijdens toekomstige refactors kunnen modules per laag verplaatst worden zonder externe breuken; pas daarna worden de legacy-paden uitgefaseerd.
 
-Examples voor de vernieuwde `view` command:
+Examples voor de `view` command, die opgeslagen lots laat zien met optionele filters en een JSON‑outputmodus:
 
 ```bash
 # Bekijk alle lots in een lokale SQLite database
@@ -48,6 +48,9 @@ python -m troostwatch.cli view --db troostwatch.db --auction-code A1-39499 --lim
 
 # Toon alleen open lots, bijvoorbeeld na een sync run
 python -m troostwatch.cli view --db troostwatch.db --state open
+
+# Toon alle lots zonder limiet en formatteer als tekst
+python -m troostwatch.cli view --db troostwatch.db --limit 0
 ```
 
 ## Requirements and installation
@@ -107,4 +110,4 @@ Recent versions have greatly expanded the CLI. In addition to the core `sync` co
 - **sync-multi** – synchronise multiple auctions at once from a YAML file.
 - **debug** – inspect your local database. Subcommands let you view row counts per table, run an integrity check, or show rows from a specific table.
 
-These commands can be invoked via `python -m troostwatch.cli <command>`. Note that the `view` command is not yet implemented and will only print a placeholder message. For an overview of your tracked lots and exposure, use the `report buyer` command; for inspecting the underlying database tables, use the `debug view` subcommand. See the examples above and the documentation in `docs/` for more details.
+These commands can be invoked via `python -m troostwatch.cli <command>`. Gebruik `view` om opgeslagen lots te bekijken (met filters voor veilingcode, status en limiet, plus een JSON‑uitvoeroptie), `report buyer` voor een overzicht van je exposure en `debug view` om tabellen rechtstreeks te inspecteren. See the examples above and the documentation in `docs/` for more details.

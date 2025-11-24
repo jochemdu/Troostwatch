@@ -4,7 +4,7 @@ This module provides helper functions to inspect the state of the SQLite
 database used by Troostwatch. It offers simple statistics (row counts per
 table), integrity checks and the ability to view rows from a given table.
 
-These functions are intended to be used by the ``troostwatch.cli.debug``
+These functions are intended to be used by the ``troostwatch.interfaces.cli.debug``
 command but can be imported and used independently in scripts or tests.
 """
 

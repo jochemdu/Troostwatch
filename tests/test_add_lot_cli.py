@@ -8,7 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.cli.add_lot import add_lot
+from troostwatch.interfaces.cli.add_lot import add_lot
 
 
 def test_add_lot_command_inserts_record(tmp_path):

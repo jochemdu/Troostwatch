@@ -37,6 +37,11 @@ Plan voor gefaseerde import-updates:
 2. Legacy-imports blijven beschikbaar via de facades zodat bestaande scripts blijven draaien.
 3. Tijdens toekomstige refactors kunnen modules per laag verplaatst worden zonder externe breuken; pas daarna worden de legacy-paden uitgefaseerd.
 
+> **Deprecation notice:** het `troostwatch.cli.*` pad geeft nu een
+> `DeprecationWarning` bij import. Gebruik `troostwatch.interfaces.cli.*` voor
+> CLI-commando’s en module-executie. Het legacy pad blijft tijdelijk werken
+> zodat bestaande scripts kunnen migreren.
+
 Examples voor de `view` command, die opgeslagen lots laat zien met optionele filters en een JSON‑outputmodus:
 
 ```bash

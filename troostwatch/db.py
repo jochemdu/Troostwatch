@@ -242,6 +242,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA_MIGRATIONS_SQL)
     # Apply any SQL files from the `migrations/` directory in repository root.
     _apply_migration_dir(conn)
+    _ensure_auction_columns(conn)
     # Ensure legacy databases get the expected columns on `lots` as a
     # defensive fallback for older DBs or when the migration runner is
     # unavailable for some reason.
@@ -310,6 +311,29 @@ def _ensure_lots_columns(conn: sqlite3.Connection) -> None:
     # simple: a single migration name covers the first batch of added cols.
     if added_cols:
         migration_name = "add_lots_columns_v1"
+        cur = conn.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (migration_name,))
+        if cur.fetchone() is None:
+            conn.execute(
+                "INSERT INTO schema_migrations (name, applied_at, notes) VALUES (?, ?, ?)",
+                (migration_name, iso_utcnow(), ",".join(added_cols)),
+            )
+
+
+def _ensure_auction_columns(conn: sqlite3.Connection) -> None:
+    """Add pagination tracking columns to the ``auctions`` table if missing."""
+
+    cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='auctions'")
+    if cur.fetchone() is None:
+        return
+
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(auctions)").fetchall()}
+    added_cols: list[str] = []
+    if "pagination_pages" not in existing:
+        conn.execute("ALTER TABLE auctions ADD COLUMN pagination_pages TEXT")
+        added_cols.append("pagination_pages")
+
+    if added_cols:
+        migration_name = "add_auction_pagination_pages_v1"
         cur = conn.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (migration_name,))
         if cur.fetchone() is None:
             conn.execute(

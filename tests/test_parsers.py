@@ -82,6 +82,26 @@ def test_extract_page_urls_from_next_data():
     ]
 
 
+def test_extract_page_urls_from_lot_totals():
+    html = """
+    <script id="__NEXT_DATA__" type="application/json">
+    {"props":{"pageProps":{"lots":{"results":[],"pageSize":48,"totalSize":262}}}}
+    </script>
+    """
+    base = "https://www.troostwijkauctions.com/a/sale-A1-12345"
+
+    urls = extract_page_urls(html, base)
+
+    assert urls == [
+        base,
+        f"{base}?page=2",
+        f"{base}?page=3",
+        f"{base}?page=4",
+        f"{base}?page=5",
+        f"{base}?page=6",
+    ]
+
+
 def test_parse_lot_cards_from_snapshots():
     base_url = "https://www.troostwijkauctions.com"
 

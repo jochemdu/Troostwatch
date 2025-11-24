@@ -183,38 +183,57 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
 
     if isinstance(data, dict):
         page_props = data.get("props", {}).get("pageProps", {})
-        pagination = (
-            page_props.get("lots", {}).get("pagination")
-            or page_props.get("pagination")
-            or {}
+        lots_meta = page_props.get("lots", {}) if isinstance(page_props, dict) else {}
+        pagination = (lots_meta.get("pagination") or page_props.get("pagination") or {})
+
+        total_pages = (
+            pagination.get("totalPages")
+            or pagination.get("total_pages")
+            or pagination.get("pages")
         )
-        total_pages = pagination.get("totalPages") or pagination.get("total_pages") or pagination.get("pages")
+
+        # Fall back to calculating the total based on totalSize/pageSize
+        if total_pages is None:
+            total_size = lots_meta.get("totalSize")
+            page_size = lots_meta.get("pageSize")
+            try:
+                if total_size is not None and page_size:
+                    total_pages = int((int(total_size) + int(page_size) - 1) // int(page_size))
+            except Exception:
+                total_pages = None
+
         try:
             total_pages_int = int(total_pages) if total_pages is not None else 1
         except Exception:
             total_pages_int = 1
 
-        if total_pages_int > 1:
-            base_query: dict[str, str] = {}
-            if parsed_base.query:
-                # Preserve any existing query params on the auction URL
-                from urllib.parse import parse_qsl
+        base_query: dict[str, str] = {}
+        if parsed_base.query:
+            # Preserve any existing query params on the auction URL
+            from urllib.parse import parse_qsl
 
-                base_query = {key: value for key, value in parse_qsl(parsed_base.query)}
-            for page_num in range(1, total_pages_int + 1):
-                query = base_query.copy()
-                query["page"] = page_num
-                page_urls.append(
-                    urlunsplit(
-                        (
-                            parsed_base.scheme,
-                            parsed_base.netloc,
-                            parsed_base.path,
-                            urlencode(query),
-                            parsed_base.fragment,
-                        )
+            base_query = {key: value for key, value in parse_qsl(parsed_base.query)}
+
+        # Always keep the original auction URL as the first page.
+        normalized_base = urlunsplit(
+            (parsed_base.scheme, parsed_base.netloc, parsed_base.path, parsed_base.query, parsed_base.fragment)
+        )
+        page_urls.append(normalized_base)
+
+        for page_num in range(2, total_pages_int + 1):
+            query = base_query.copy()
+            query["page"] = page_num
+            page_urls.append(
+                urlunsplit(
+                    (
+                        parsed_base.scheme,
+                        parsed_base.netloc,
+                        parsed_base.path,
+                        urlencode(query),
+                        parsed_base.fragment,
                     )
                 )
+            )
 
     # Fallback: extract any explicit links that look like page selectors.
     pattern = re.compile(r"href=[\"']([^\"']*?page=\d+)[\"']", re.IGNORECASE)

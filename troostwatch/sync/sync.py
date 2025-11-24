@@ -603,9 +603,11 @@ def sync_auction_to_db(
                     # No detail needed for this listing; update last seen and skip.
                     continue
 
-                if not card.url:
+            for idx, (card, listing_hash) in enumerate(cards_needing_detail):
+                detail_result = detail_results[idx] if idx < len(detail_results) else None
+                if not detail_result or not detail_result.ok or not detail_result.text:
                     errors.append(
-                        f"Failed to fetch detail for {card.lot_code} ({card.url}): missing detail URL"
+                        f"Failed to fetch detail for {card.lot_code} ({card.url}): {getattr(detail_result, 'error', None) or 'empty response'}"
                     )
                     continue
                 detail = parse_lot_detail(detail_result.text, card.lot_code, base_url=auction_url)

@@ -128,6 +128,19 @@ def get_config(config_path: Path | str | None = None) -> Dict[str, Any]:
     return _load_config(config_path)
 
 
+def _ensure_user_preferences(conn: sqlite3.Connection) -> None:
+    """Create a simple key/value table for user preferences if missing."""
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_preferences (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+        """
+    )
+
+
 def get_path_config(config_path: Path | str | None = None) -> Dict[str, Path]:
     """Return resolved filesystem paths from the project configuration.
 
@@ -242,6 +255,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA_MIGRATIONS_SQL)
     # Apply any SQL files from the `migrations/` directory in repository root.
     _apply_migration_dir(conn)
+    _ensure_auction_columns(conn)
     # Ensure legacy databases get the expected columns on `lots` as a
     # defensive fallback for older DBs or when the migration runner is
     # unavailable for some reason.
@@ -252,6 +266,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA_MY_BIDS_SQL)
     conn.executescript(SCHEMA_PRODUCT_LAYERS_SQL)
     conn.executescript(SCHEMA_SYNC_RUNS_SQL)
+    _ensure_user_preferences(conn)
     _ensure_hash_columns(conn)
 
 
@@ -310,6 +325,29 @@ def _ensure_lots_columns(conn: sqlite3.Connection) -> None:
     # simple: a single migration name covers the first batch of added cols.
     if added_cols:
         migration_name = "add_lots_columns_v1"
+        cur = conn.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (migration_name,))
+        if cur.fetchone() is None:
+            conn.execute(
+                "INSERT INTO schema_migrations (name, applied_at, notes) VALUES (?, ?, ?)",
+                (migration_name, iso_utcnow(), ",".join(added_cols)),
+            )
+
+
+def _ensure_auction_columns(conn: sqlite3.Connection) -> None:
+    """Add pagination tracking columns to the ``auctions`` table if missing."""
+
+    cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='auctions'")
+    if cur.fetchone() is None:
+        return
+
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(auctions)").fetchall()}
+    added_cols: list[str] = []
+    if "pagination_pages" not in existing:
+        conn.execute("ALTER TABLE auctions ADD COLUMN pagination_pages TEXT")
+        added_cols.append("pagination_pages")
+
+    if added_cols:
+        migration_name = "add_auction_pagination_pages_v1"
         cur = conn.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (migration_name,))
         if cur.fetchone() is None:
             conn.execute(
@@ -466,13 +504,21 @@ def _get_lot_id(conn: sqlite3.Connection, lot_code: str, auction_code: Optional[
     """
     ensure_core_schema(conn)
     query = "SELECT l.id FROM lots l JOIN auctions a ON l.auction_id = a.id WHERE l.lot_code = ?"
-    params: List = [lot_code]
-    if auction_code is not None:
-        query += " AND a.auction_code = ?"
-        params.append(auction_code)
-    cur = conn.execute(query, tuple(params))
-    row = cur.fetchone()
-    return row[0] if row else None
+
+    def _lookup(code: str) -> Optional[int]:
+        params: List = [code]
+        local_query = query
+        if auction_code is not None:
+            local_query += " AND a.auction_code = ?"
+            params.append(auction_code)
+        cur = conn.execute(local_query, tuple(params))
+        row = cur.fetchone()
+        return row[0] if row else None
+
+    lot_id = _lookup(lot_code)
+    if lot_id is None and auction_code and not lot_code.startswith(f"{auction_code}-"):
+        lot_id = _lookup(f"{auction_code}-{lot_code}")
+    return lot_id
 
 def add_position(
     conn: sqlite3.Connection,
@@ -527,7 +573,6 @@ def list_positions(conn: sqlite3.Connection, buyer_label: Optional[str] = None) 
         auction code, lot code, track_active flag and budget fields.
     """
     ensure_schema(conn)
-    ensure_core_schema(conn)
     params: List = []
     query = """
         SELECT b.label AS buyer_label,
@@ -573,3 +618,138 @@ def delete_position(conn: sqlite3.Connection, buyer_label: str, lot_code: str, a
         (buyer_id, lot_id),
     )
     conn.commit()
+
+
+def list_auctions(conn: sqlite3.Connection, only_active: bool = True) -> List[Dict[str, Optional[str]]]:
+    """Return auctions, optionally limited to those with active lots."""
+
+    ensure_schema(conn)
+    query = """
+        SELECT a.auction_code,
+               a.title,
+               a.url,
+               a.starts_at,
+               a.ends_at_planned,
+               SUM(CASE WHEN l.state IS NULL OR l.state NOT IN ('closed', 'ended') THEN 1 ELSE 0 END) AS active_lots,
+               COUNT(l.id) AS lot_count
+        FROM auctions a
+        LEFT JOIN lots l ON l.auction_id = a.id
+        GROUP BY a.id
+        ORDER BY a.ends_at_planned IS NULL DESC, a.ends_at_planned DESC, a.auction_code
+    """
+    rows = conn.execute(query).fetchall()
+    auctions = [
+        {
+            "auction_code": row[0],
+            "title": row[1],
+            "url": row[2],
+            "starts_at": row[3],
+            "ends_at_planned": row[4],
+            "active_lots": row[5] or 0,
+            "lot_count": row[6] or 0,
+        }
+        for row in rows
+    ]
+    if not only_active:
+        return auctions
+    active = [a for a in auctions if a["active_lots"] > 0]
+    return active
+
+
+def list_lot_codes_by_auction(conn: sqlite3.Connection, auction_code: str) -> List[str]:
+    """Return lot codes for a given auction, ordered numerically when possible."""
+
+    ensure_schema(conn)
+    rows = conn.execute(
+        """
+        SELECT l.lot_code
+        FROM lots l
+        JOIN auctions a ON l.auction_id = a.id
+        WHERE a.auction_code = ?
+        ORDER BY l.lot_code
+        """,
+        (auction_code,),
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def get_preference(conn: sqlite3.Connection, key: str) -> Optional[str]:
+    """Return a stored preference value for the given key."""
+
+    ensure_schema(conn)
+    _ensure_user_preferences(conn)
+    cur = conn.execute("SELECT value FROM user_preferences WHERE key = ?", (key,))
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
+def set_preference(conn: sqlite3.Connection, key: str, value: Optional[str]) -> None:
+    """Persist a preference key/value pair (removing it when value is None)."""
+
+    ensure_schema(conn)
+    _ensure_user_preferences(conn)
+    if value is None:
+        conn.execute("DELETE FROM user_preferences WHERE key = ?", (key,))
+    else:
+        conn.execute(
+            "INSERT INTO user_preferences (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
+    conn.commit()
+
+
+def list_lots(
+    conn: sqlite3.Connection,
+    *,
+    auction_code: Optional[str] = None,
+    state: Optional[str] = None,
+    limit: Optional[int] = None,
+) -> List[Dict[str, Optional[str]]]:
+    """Return lots optionally filtered by auction code or state.
+
+    Args:
+        conn: An open SQLite connection.
+        auction_code: If provided, only include lots from this auction code.
+        state: If provided, filter by the lot's ``state`` column.
+        limit: Maximum number of rows to return; ``None`` disables the limit.
+
+    Returns:
+        A list of dictionaries describing each lot, including auction code,
+        lot code, title, state, bid metrics and closing times.
+    """
+
+    ensure_schema(conn)
+
+    query = """
+        SELECT a.auction_code AS auction_code,
+               l.lot_code AS lot_code,
+               l.title AS title,
+               l.state AS state,
+               l.current_bid_eur AS current_bid_eur,
+               l.bid_count AS bid_count,
+               l.current_bidder_label AS current_bidder_label,
+               l.closing_time_current AS closing_time_current,
+               l.closing_time_original AS closing_time_original
+        FROM lots l
+        JOIN auctions a ON l.auction_id = a.id
+    """
+
+    conditions: list[str] = []
+    params: list = []
+    if auction_code:
+        conditions.append("a.auction_code = ?")
+        params.append(auction_code)
+    if state:
+        conditions.append("l.state = ?")
+        params.append(state)
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    query += " ORDER BY a.auction_code, l.lot_code"
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+
+    cur = conn.execute(query, tuple(params))
+    columns = [c[0] for c in cur.description]
+    return [dict(zip(columns, row)) for row in cur.fetchall()]

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import click
 
-from troostwatch.db import ensure_core_schema, ensure_schema, get_connection, iso_utcnow
+from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection, iso_utcnow
+from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
 from troostwatch.parsers.lot_card import LotCardData
 from troostwatch.parsers.lot_detail import LotDetailData
-from troostwatch.sync.sync import _listing_detail_from_card, _upsert_lot, compute_detail_hash, compute_listing_hash, _upsert_auction
+from troostwatch.sync.sync import _listing_detail_from_card, compute_detail_hash, compute_listing_hash
 
 
 @click.command()
@@ -83,16 +84,22 @@ def add_lot(
     with get_connection(db_path) as conn:
         ensure_core_schema(conn)
         ensure_schema(conn)
+        auction_repo = AuctionRepository(conn)
+        lot_repo = LotRepository(conn)
 
-        auction_id = _upsert_auction(conn, auction_code, auction_url or auction_code, auction_title, pagination_pages=None)
+        auction_id = auction_repo.upsert(
+            auction_code,
+            auction_url or auction_code,
+            auction_title,
+            pagination_pages=None,
+        )
 
         # If there is no detail info at all, fall back to listing-only detail so the lot still persists.
         if not (opening_bid or current_bid or bid_count or city or country or lot_url):
             detail = _listing_detail_from_card(card)
             detail_hash = compute_detail_hash(detail)
 
-        _upsert_lot(
-            conn,
+        lot_repo.upsert_from_parsed(
             auction_id,
             card,
             detail,

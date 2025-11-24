@@ -7,7 +7,8 @@ from typing import Optional
 
 import click
 
-from ..db import get_connection, list_lots
+from troostwatch.infrastructure.db import ensure_schema, get_connection
+from troostwatch.infrastructure.db.repositories import LotRepository
 
 
 @click.command()
@@ -33,7 +34,12 @@ def view(
 
     effective_limit = None if limit is not None and limit <= 0 else limit
     with get_connection(db_path) as conn:
-        lots = list_lots(conn, auction_code=auction_code, state=state, limit=effective_limit)
+        ensure_schema(conn)
+        lots = LotRepository(conn).list_lots(
+            auction_code=auction_code,
+            state=state,
+            limit=effective_limit,
+        )
 
     if json_output:
         click.echo(json.dumps(lots, indent=2))

@@ -21,14 +21,8 @@ from .sync import sync
 from .sync_multi import sync_multi
 from .view import view
 from .add_lot import add_lot
-from ..db import (
-    get_path_config,
-    get_connection,
-    get_preference,
-    list_auctions,
-    list_lot_codes_by_auction,
-    set_preference,
-)
+from troostwatch.infrastructure.db import ensure_schema, get_connection, get_path_config
+from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository, PreferenceRepository
 
 PREFERRED_AUCTION_KEY = "preferred_auction"
 
@@ -54,7 +48,8 @@ def _default_db_path() -> str:
 
 def _load_auctions(db_path: str, active_only: bool = True):
     with get_connection(db_path) as conn:
-        return list_auctions(conn, only_active=active_only)
+        ensure_schema(conn)
+        return AuctionRepository(conn).list(only_active=active_only)
 
 
 def _choose_auction(db_path: str, *, remember_choice: bool = True) -> str:
@@ -66,7 +61,8 @@ def _choose_auction(db_path: str, *, remember_choice: bool = True) -> str:
 
     preferred: Optional[str] = None
     with get_connection(db_path) as conn:
-        preferred = get_preference(conn, PREFERRED_AUCTION_KEY)
+        ensure_schema(conn)
+        preferred = PreferenceRepository(conn).get(PREFERRED_AUCTION_KEY)
 
     if auctions:
         codes = [a["auction_code"] for a in auctions]
@@ -85,7 +81,9 @@ def _choose_auction(db_path: str, *, remember_choice: bool = True) -> str:
 
     if remember_choice:
         with get_connection(db_path) as conn:
-            current = get_preference(conn, PREFERRED_AUCTION_KEY)
+            ensure_schema(conn)
+            pref_repo = PreferenceRepository(conn)
+            current = pref_repo.get(PREFERRED_AUCTION_KEY)
             if current != selection:
                 prompt = (
                     "Remember this as your preferred auction?"
@@ -93,7 +91,7 @@ def _choose_auction(db_path: str, *, remember_choice: bool = True) -> str:
                     else f"Update preferred auction to {selection}?"
                 )
                 if click.confirm(prompt, default=current is None):
-                    set_preference(conn, PREFERRED_AUCTION_KEY, selection)
+                    pref_repo.set(PREFERRED_AUCTION_KEY, selection)
 
     return selection
 
@@ -126,7 +124,8 @@ def _prompt_lot_code(db_path: str, auction_code: str) -> str:
 
 def _load_lots_for_auction(db_path: str, auction_code: str) -> Sequence[str]:
     with get_connection(db_path) as conn:
-        return list_lot_codes_by_auction(conn, auction_code)
+        ensure_schema(conn)
+        return LotRepository(conn).list_lot_codes_by_auction(auction_code)
 
 
 def _run_sync(ctx: click.Context) -> None:

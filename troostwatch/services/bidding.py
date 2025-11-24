@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 from urllib.parse import urljoin
 
-from ..db import get_connection, ensure_schema, _get_buyer_id, _get_lot_id, iso_utcnow
+from troostwatch.infrastructure.db import ensure_schema, get_connection
+from troostwatch.infrastructure.db.repositories import BidRepository
 from ..http_client import AuthenticationError, TroostwatchHttpClient
 
 
@@ -90,16 +91,10 @@ class BiddingService:
             return
         with get_connection(db_path) as conn:
             ensure_schema(conn)
-            buyer_id = _get_buyer_id(conn, buyer_label)
-            lot_id = _get_lot_id(conn, lot_code, auction_code)
-            if lot_id is None or buyer_id is None:
-                # Do not fail the bid if the local DB is missing metadata
-                return
-            conn.execute(
-                """
-                INSERT INTO my_bids (lot_id, buyer_id, amount_eur, placed_at, note)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (lot_id, buyer_id, amount_eur, iso_utcnow(), note),
+            BidRepository(conn).record_bid(
+                buyer_label=buyer_label,
+                auction_code=auction_code,
+                lot_code=lot_code,
+                amount_eur=amount_eur,
+                note=note,
             )
-            conn.commit()

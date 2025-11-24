@@ -18,6 +18,8 @@ from the given URL and persist the lots and auction metadata into
 """
 
 import click
+from troostwatch.infrastructure.db import ensure_schema, get_connection
+from troostwatch.infrastructure.db.repositories import AuctionRepository, PreferenceRepository
 from .auth import build_http_client
 from ..sync.sync import sync_auction_to_db
 
@@ -181,8 +183,10 @@ def sync(
     if not resolved_code or not resolved_url:
         preferred_code = None
         with get_connection(db_path) as conn:
-            available = list_auctions(conn, only_active=False)
-            preferred_code = get_preference(conn, "preferred_auction")
+            ensure_schema(conn)
+            repo = AuctionRepository(conn)
+            available = repo.list(only_active=False)
+            preferred_code = PreferenceRepository(conn).get("preferred_auction")
 
         if available and not resolved_code:
             click.echo("Select an auction to sync:")

@@ -465,15 +465,21 @@ def sync_auction_to_db(
                     run_id,
                 ),
             )
-            conn.commit()
-            return SyncRunResult(
-                run_id=run_id,
-                status="failed",
-                pages_scanned=pages_scanned,
-                lots_scanned=lots_scanned,
-                lots_updated=lots_updated,
-                error_count=len(errors),
-                errors=errors,
+            for lot_code, listing_hash, detail_hash in cur.fetchall():
+                existing_lots[str(lot_code)] = {
+                    "listing_hash": listing_hash,
+                    "detail_hash": detail_hash,
+                }
+
+        cards_needing_detail: list[tuple[LotCardData, str]] = []
+        now_seen = iso_utcnow()
+        url_parts = urlsplit(auction_url)
+        base_url = f"{url_parts.scheme}://{url_parts.netloc}" if url_parts.scheme and url_parts.netloc else auction_url
+
+        for page_idx, page in enumerate(pages, start=1):
+            _log(
+                f"Processing page {page_idx}/{pages_scanned}: {page.url}",
+                verbose,
             )
 
         pages_scanned = len(pages)
@@ -543,52 +549,27 @@ def sync_auction_to_db(
                         delay_seconds=delay_seconds,
                         http_client=http_client,
                     )
-                    if not detail_html:
-                        errors.append(
-                            f"Failed to fetch detail for {card.lot_code} ({card.url}): {err or 'empty response'}"
-                        )
-                        continue
+                    # No detail needed for this listing; update last seen and skip.
+                    continue
 
-                    cards_needing_detail.append((card, listing_hash))
-
-            if cards_needing_detail:
-                detail_results = asyncio.run(fetcher.fetch_many([card.url for card, _ in cards_needing_detail]))
-            else:
-                detail_results = []
-
-            for (card, listing_hash), detail_result in zip(cards_needing_detail, detail_results):
-                if not detail_result.ok or not detail_result.text:
+                if not card.url:
                     errors.append(
-                        f"Failed to fetch detail for {card.lot_code} ({card.url}): {detail_result.error or 'empty response'}"
+                        f"Failed to fetch detail for {card.lot_code} ({card.url}): missing detail URL"
                     )
                     continue
-                detail = parse_lot_detail(detail_result.text, card.lot_code, base_url=auction_url)
-                detail_hash = compute_detail_hash(detail)
-                if not dry_run and auction_id is not None:
-                    detail_seen_at = iso_utcnow()
-                    _upsert_lot(
-                        conn,
-                        auction_id,
-                        card,
-                        detail,
-                        listing_hash=listing_hash,
-                        detail_hash=detail_hash,
-                        last_seen_at=detail_seen_at,
-                        detail_last_seen_at=detail_seen_at,
+
+                # Need to fetch detail HTML for this lot
+                detail_html, err, last_fetch = _wait_and_fetch(
+                    card.url,
+                    last_fetch=last_fetch,
+                    delay_seconds=delay_seconds,
+                    http_client=http_client,
+                )
+                if not detail_html:
+                    errors.append(
+                        f"Failed to fetch detail for {card.lot_code} ({card.url}): {err or 'empty response'}"
                     )
-                    lots_updated += 1
-                    _log(
-                        f"  Upserted lot {card.lot_code}: bid €{detail.current_bid_eur or card.price_eur or 'n/a'}",
-                        verbose,
-                    )
-            if not dry_run:
-                conn.commit()
-            status = "success"
-        except Exception as exc:  # pragma: no cover - runtime protection
-            errors.append(str(exc))
-            if not dry_run:
-                conn.rollback()
-            status = "failed"
+                    continue
 
         finished_at = iso_utcnow()
         conn.execute(

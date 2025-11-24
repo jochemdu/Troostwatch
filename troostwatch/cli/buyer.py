@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import click
 
-from ..db import get_connection, add_buyer, list_buyers, delete_buyer
+from troostwatch.infrastructure.db import ensure_schema, get_connection
+from troostwatch.infrastructure.db.repositories import BuyerRepository
 
 
 @click.group()
@@ -30,7 +31,8 @@ def add_cmd(ctx: click.Context, label: str, name: str | None, notes: str | None)
     """Add a new buyer with a unique LABEL."""
     db_path = ctx.obj["db_path"]
     with get_connection(db_path) as conn:
-        add_buyer(conn, label, name, notes)
+        ensure_schema(conn)
+        BuyerRepository(conn).add(label, name, notes)
     click.echo(f"Added buyer {label}")
 
 
@@ -40,7 +42,8 @@ def list_cmd(ctx: click.Context) -> None:
     """List all buyers."""
     db_path = ctx.obj["db_path"]
     with get_connection(db_path) as conn:
-        buyers = list_buyers(conn)
+        ensure_schema(conn)
+        buyers = BuyerRepository(conn).list()
     if not buyers:
         click.echo("No buyers found.")
     else:
@@ -55,5 +58,6 @@ def delete_cmd(ctx: click.Context, label: str) -> None:
     """Delete a buyer by LABEL."""
     db_path = ctx.obj["db_path"]
     with get_connection(db_path) as conn:
-        delete_buyer(conn, label)
+        ensure_schema(conn)
+        BuyerRepository(conn).delete(label)
     click.echo(f"Deleted buyer {label}")

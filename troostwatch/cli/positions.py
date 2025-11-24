@@ -11,12 +11,8 @@ from __future__ import annotations
 import click
 from typing import Optional
 
-from ..db import (
-    get_connection,
-    add_position as db_add_position,
-    list_positions as db_list_positions,
-    delete_position as db_delete_position,
-)
+from troostwatch.infrastructure.db import ensure_schema, get_connection
+from troostwatch.infrastructure.db.repositories import PositionRepository
 
 
 @click.group()
@@ -41,8 +37,8 @@ def add(db_path: str, buyer: str, auction_code: str, lot_code: str, budget: Opti
     """
     track_active = not inactive
     with get_connection(db_path) as conn:
-        db_add_position(
-            conn,
+        ensure_schema(conn)
+        PositionRepository(conn).upsert(
             buyer_label=buyer,
             lot_code=lot_code,
             auction_code=auction_code,
@@ -63,7 +59,8 @@ def list_positions_cmd(db_path: str, buyer: Optional[str]) -> None:
     ``--buyer`` option to filter by buyer label.
     """
     with get_connection(db_path) as conn:
-        positions = db_list_positions(conn, buyer_label=buyer)
+        ensure_schema(conn)
+        positions = PositionRepository(conn).list(buyer_label=buyer)
     if not positions:
         click.echo("No positions found.")
         return
@@ -85,5 +82,6 @@ def list_positions_cmd(db_path: str, buyer: Optional[str]) -> None:
 def delete(db_path: str, buyer: str, auction_code: str, lot_code: str) -> None:
     """Delete a tracked position for BUYER on AUCTION_CODE/LOT_CODE."""
     with get_connection(db_path) as conn:
-        db_delete_position(conn, buyer_label=buyer, lot_code=lot_code, auction_code=auction_code)
+        ensure_schema(conn)
+        PositionRepository(conn).delete(buyer_label=buyer, lot_code=lot_code, auction_code=auction_code)
     click.echo(f"Removed position for {buyer} on {auction_code}/{lot_code}.")

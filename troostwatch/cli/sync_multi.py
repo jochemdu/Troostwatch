@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import click
 from .auth import build_http_client
-from ..db import ensure_core_schema, ensure_schema, get_connection, list_auctions
+from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection
+from troostwatch.infrastructure.db.repositories import AuctionRepository
 from ..sync.sync import sync_auction_to_db
 
 
@@ -151,7 +152,7 @@ def sync_multi(
     with get_connection(db_path) as conn:
         ensure_core_schema(conn)
         ensure_schema(conn)
-        auctions = list_auctions(conn, only_active=not include_inactive)
+        auctions = AuctionRepository(conn).list(only_active=not include_inactive)
 
     if not auctions:
         click.echo("No auctions found to sync.")

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS auctions (
     auction_code TEXT NOT NULL UNIQUE,
     title TEXT,
     url TEXT,
+    pagination_pages TEXT,
     starts_at TEXT,
     ends_at_planned TEXT
 );

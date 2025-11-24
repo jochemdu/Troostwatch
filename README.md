@@ -8,13 +8,26 @@ It provides a set of tools to scrape Troostwijk auctions, store the data in a SQ
 
 - The code is organised into a Python package `troostwatch` with several sub‑packages:
 
-    - `troostwatch/cli/` – entry points for all available commands including `buyer`, `sync`, `sync-multi`, `positions`, `report`, `debug` and `view`.  The `view` command is currently a placeholder and simply prints a stub message; for live database inspection, use the `report` and `debug` commands instead.
+    - `troostwatch/cli/` – entry points for all available commands including `buyer`, `sync`, `sync-multi`, `positions`, `report`, `debug` and `view`. The `view` command now displays lots stored in the SQLite database with optional filters for `--auction-code`, `--state` and `--limit`, and can emit structured data via `--json-output`. Under the hood it calls `list_lots` from `troostwatch.db`, so the output shows auction code, lot code, title, state, bid metrics (current bid, bid count, current bidder) and closing times.
 - `troostwatch/parsers/` – HTML parsers for auction listing pages and lot detail pages.
 - `troostwatch/sync/` – functions to fetch pages from the Troostwijk website and upsert data into the database.
 - `troostwatch/analytics/` – helper functions to summarise your bidding exposure.
 - `troostwatch/models/` – dataclasses and helpers for working with internal models.
 - `troostwatch/db.py` – helper for connecting to the SQLite database.
 - `troostwatch/config.py` and `troostwatch/logging_utils.py` – configuration and logging helpers.
+
+Examples voor de vernieuwde `view` command:
+
+```bash
+# Bekijk alle lots in een lokale SQLite database
+python -m troostwatch.cli view --db troostwatch.db
+
+# Filter op een specifieke veiling en toon maximaal 20 lots als JSON
+python -m troostwatch.cli view --db troostwatch.db --auction-code A1-39499 --limit 20 --json-output
+
+# Toon alleen open lots, bijvoorbeeld na een sync run
+python -m troostwatch.cli view --db troostwatch.db --state open
+```
 
 ## Requirements and installation
 

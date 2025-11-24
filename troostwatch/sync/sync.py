@@ -573,7 +573,7 @@ def sync_auction_to_db(
                         "detail_hash": detail_hash,
                     }
 
-            cards_needing_detail: list[tuple[LotCardData, str]] = []
+            cards_needing_detail: list[tuple[LotCardData, str, Optional[str]]] = []
             now_seen = iso_utcnow()
             url_parts = urlsplit(auction_url)
             base_url = f"{url_parts.scheme}://{url_parts.netloc}" if url_parts.scheme and url_parts.netloc else auction_url
@@ -621,14 +621,48 @@ def sync_auction_to_db(
                         delay_seconds=delay_seconds,
                         http_client=http_client,
                     )
-                    # No detail needed for this listing; update last seen and skip.
-                    continue
+                    if not detail_html:
+                        errors.append(
+                            f"Failed to fetch detail for {card.lot_code} ({card.url}): {err or 'empty response'}"
+                        )
+                        if not dry_run and auction_id is not None:
+                            detail = _listing_detail_from_card(card)
+                            detail_hash = compute_detail_hash(detail)
+                            last_seen = iso_utcnow()
+                            _upsert_lot(
+                                conn,
+                                auction_id,
+                                card,
+                                detail,
+                                listing_hash=listing_hash,
+                                detail_hash=detail_hash,
+                                last_seen_at=last_seen,
+                                detail_last_seen_at=last_seen,
+                            )
+                            lots_updated += 1
+                            _log(
+                                f"  Upserted lot {card.lot_code} from listing (detail fetch failed)",
+                                verbose,
+                                log_path,
+                            )
+                        continue
 
-            for idx, (card, listing_hash) in enumerate(cards_needing_detail):
+                    cards_needing_detail.append((card, listing_hash, detail_html))
+
+            if cards_needing_detail:
+                detail_results = asyncio.run(
+                    fetcher.fetch_many([card.url for card, _listing_hash, _prefetched in cards_needing_detail])
+                )
+            else:
+                detail_results = []
+
+            for idx, (card, listing_hash, prefetched_html) in enumerate(cards_needing_detail):
                 detail_result = detail_results[idx] if idx < len(detail_results) else None
                 detail_text: str | None = None
                 if detail_result and detail_result.ok and detail_result.text:
                     detail_text = detail_result.text
+                elif prefetched_html:
+                    detail_text = prefetched_html
                 else:
                     errors.append(
                         f"Failed to fetch detail for {card.lot_code} ({card.url}): {getattr(detail_result, 'error', None) or 'empty response'}"

@@ -10,8 +10,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import importlib
 
-cli_sync_module = importlib.import_module("troostwatch.cli.sync")
-from troostwatch.cli.sync import sync
+cli_sync_module = importlib.import_module("troostwatch.interfaces.cli.sync")
+from troostwatch.interfaces.cli.sync import sync
 from troostwatch.db import ensure_schema, set_preference
 from troostwatch.sync.sync import SyncRunResult, _upsert_auction
 

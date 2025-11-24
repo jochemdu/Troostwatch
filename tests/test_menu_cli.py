@@ -5,7 +5,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from troostwatch.cli.menu import menu
+from troostwatch.interfaces.cli.menu import menu
 from troostwatch.db import ensure_schema
 
 

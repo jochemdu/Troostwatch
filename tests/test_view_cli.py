@@ -6,7 +6,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from troostwatch.cli.view import view
+from troostwatch.interfaces.cli.view import view
 from troostwatch.db import ensure_schema, list_lots
 
 

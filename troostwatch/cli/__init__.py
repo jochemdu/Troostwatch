@@ -1,34 +1,44 @@
-"""CLI entry points for Troostwatch.
+"""Legacy CLI namespace.
 
-This module aggregates the subcommands for the Troostwatch command line interface.
+This package is kept as a thin compatibility layer that forwards imports to
+:mod:`troostwatch.interfaces.cli`. Existing consumers should migrate to the
+``troostwatch.interfaces.cli`` namespace; the legacy path will be removed after
+the deprecation period.
 """
 
-# Re-export command functions so that ``python -m troostwatch.cli`` can
-# discover subcommands via setuptools entry points. Import buyer to
-# register the ``buyer`` group when this package is imported.
+from __future__ import annotations
 
-# Import CLI subcommands so that `python -m troostwatch.cli` can
-# discover them via setuptools entry points. Each imported name is
-# added to __all__ to make it discoverable by Click.
+import warnings
 
-from .buyer import buyer  # noqa: F401
-from .sync import sync  # noqa: F401
-from .sync_multi import sync_multi  # noqa: F401
-from .positions import positions  # noqa: F401
-from .report import report  # noqa: F401
-from .debug import debug  # noqa: F401
-from .view import view  # noqa: F401
-from .bid import bid  # noqa: F401
-from .add_lot import add_lot  # noqa: F401
+from troostwatch.interfaces.cli.__main__ import cli
+from troostwatch.interfaces.cli.add_lot import add_lot
+from troostwatch.interfaces.cli.bid import bid
+from troostwatch.interfaces.cli.buyer import buyer
+from troostwatch.interfaces.cli.debug import debug
+from troostwatch.interfaces.cli.menu import menu
+from troostwatch.interfaces.cli.positions import positions
+from troostwatch.interfaces.cli.report import report
+from troostwatch.interfaces.cli.sync import sync
+from troostwatch.interfaces.cli.sync_multi import sync_multi
+from troostwatch.interfaces.cli.view import view
+
+warnings.warn(
+    "`troostwatch.cli` is deprecated; import CLI commands from "
+    "`troostwatch.interfaces.cli` instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 __all__ = [
+    "add_lot",
+    "bid",
     "buyer",
-    "sync",
-    "sync_multi",
+    "cli",
+    "debug",
+    "menu",
     "positions",
     "report",
-    "debug",
+    "sync",
+    "sync_multi",
     "view",
-    "bid",
-    "add_lot",
 ]

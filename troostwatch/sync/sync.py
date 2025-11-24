@@ -17,7 +17,12 @@ from urllib.request import Request, urlopen
 
 from ..db import ensure_core_schema, ensure_schema, get_connection, iso_utcnow
 from ..http_client import TroostwatchHttpClient
-from ..parsers.lot_card import LotCardData, parse_auction_page, parse_lot_card
+from ..parsers.lot_card import (
+    LotCardData,
+    extract_page_urls,
+    parse_auction_page,
+    parse_lot_card,
+)
 from ..parsers.lot_detail import LotDetailData, parse_lot_detail
 from .fetcher import HttpFetcher, RequestResult
 
@@ -135,9 +140,10 @@ def _collect_pages(
     fetcher: HttpFetcher,
     verbose: bool,
     http_client: TroostwatchHttpClient | None,
-) -> Tuple[List[PageResult], List[str], Optional[float]]:
+) -> Tuple[List[PageResult], List[str], List[str], Optional[float]]:
     pages: List[PageResult] = []
     errors: List[str] = []
+    discovered_page_urls: List[str] = []
     last_fetch: Optional[float] = None
 
     first_result = fetcher.fetch_sync(auction_url)
@@ -150,10 +156,11 @@ def _collect_pages(
     )
     if not first_html:
         errors.append(f"Failed to fetch first page {auction_url}: {err or 'empty response'}")
-        return pages, errors, last_fetch
+        return pages, errors, discovered_page_urls, last_fetch
     pages.append(PageResult(url=auction_url, html=first_result.text))
 
-    page_urls = _extract_page_urls(first_result.text, auction_url)
+    discovered_page_urls = extract_page_urls(first_result.text, auction_url)
+    page_urls = [url for url in discovered_page_urls if url != auction_url]
     target = max_pages if max_pages is not None else len(page_urls) + 1
     for url in page_urls:
         if len(pages) >= target:
@@ -178,7 +185,7 @@ def _collect_pages(
                 _log(f"Retrying page {url} after error: {err}", verbose)
         else:
             errors.append(f"Failed to fetch page {url}: {result.error or 'empty response'}")
-    return pages, errors, last_fetch
+    return pages, errors, discovered_page_urls, last_fetch
 
 
 def _extract_auction_title(page_html: str) -> Optional[str]:
@@ -354,6 +361,7 @@ def sync_auction_to_db(
     errors: list[str] = []
     status = "failed"
     run_id: int | None = None
+    discovered_page_urls: list[str] = []
 
     # fetcher will be created after reading config defaults so rate limits
     # (which may depend on `delay_seconds`) respect configuration values.
@@ -361,6 +369,14 @@ def sync_auction_to_db(
     with get_connection(db_path) as conn:
         ensure_core_schema(conn)
         ensure_schema(conn)
+
+        def _notes_text() -> str | None:
+            parts: list[str] = []
+            if errors:
+                parts.append("; ".join(errors))
+            if discovered_page_urls:
+                parts.append("pages: " + ", ".join(discovered_page_urls))
+            return " | ".join(parts) if parts else None
 
         # If caller didn't explicitly provide runtime options, allow
         # configuration through `config.json` under the `sync` key.
@@ -416,7 +432,7 @@ def sync_auction_to_db(
             concurrency_mode=concurrency_mode,
         )
 
-        pages, page_errors, last_fetch = _collect_pages(
+        pages, page_errors, discovered_page_urls, last_fetch = _collect_pages(
             auction_url,
             max_pages=max_pages,
             fetcher=fetcher,
@@ -440,7 +456,7 @@ def sync_auction_to_db(
                     lots_scanned,
                     lots_updated,
                     len(errors),
-                    "; ".join(errors) if errors else None,
+                    _notes_text(),
                     run_id,
                 ),
             )
@@ -572,11 +588,11 @@ def sync_auction_to_db(
         finished_at = iso_utcnow()
         conn.execute(
             """
-            UPDATE sync_runs SET status = ?, finished_at = ?,
-                pages_scanned = ?, lots_scanned = ?, lots_updated = ?,
-                error_count = ?, notes = ?
-            WHERE id = ?
-            """,
+                UPDATE sync_runs SET status = ?, finished_at = ?,
+                    pages_scanned = ?, lots_scanned = ?, lots_updated = ?,
+                    error_count = ?, notes = ?
+                WHERE id = ?
+                """,
             (
                 status,
                 finished_at,
@@ -584,7 +600,7 @@ def sync_auction_to_db(
                 lots_scanned,
                 lots_updated,
                 len(errors),
-                "; ".join(errors) if errors else None,
+                _notes_text(),
                 run_id,
             ),
         )

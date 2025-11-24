@@ -12,11 +12,17 @@ import time
 from typing import Iterable, List, Optional, Tuple, Dict
 from typing import Iterable, List, Optional, Tuple
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from ..db import ensure_core_schema, ensure_schema, get_connection, iso_utcnow
 from ..http_client import TroostwatchHttpClient
-from ..parsers.lot_card import LotCardData, parse_lot_card
+from ..parsers.lot_card import (
+    LotCardData,
+    extract_page_urls,
+    parse_auction_page,
+    parse_lot_card,
+)
 from ..parsers.lot_detail import LotDetailData, parse_lot_detail
 from .fetcher import HttpFetcher, RequestResult
 
@@ -133,10 +139,12 @@ def _collect_pages(
     max_pages: int | None,
     fetcher: HttpFetcher,
     verbose: bool,
+    delay_seconds: float,
     http_client: TroostwatchHttpClient | None,
-) -> Tuple[List[PageResult], List[str], Optional[float]]:
+) -> Tuple[List[PageResult], List[str], List[str], Optional[float]]:
     pages: List[PageResult] = []
     errors: List[str] = []
+    discovered_page_urls: List[str] = []
     last_fetch: Optional[float] = None
 
     first_result = fetcher.fetch_sync(auction_url)
@@ -149,10 +157,11 @@ def _collect_pages(
     )
     if not first_html:
         errors.append(f"Failed to fetch first page {auction_url}: {err or 'empty response'}")
-        return pages, errors, last_fetch
+        return pages, errors, discovered_page_urls, last_fetch
     pages.append(PageResult(url=auction_url, html=first_result.text))
 
-    page_urls = _extract_page_urls(first_result.text, auction_url)
+    discovered_page_urls = extract_page_urls(first_result.text, auction_url)
+    page_urls = [url for url in discovered_page_urls if url != auction_url]
     target = max_pages if max_pages is not None else len(page_urls) + 1
     for url in page_urls:
         if len(pages) >= target:
@@ -177,7 +186,7 @@ def _collect_pages(
                 _log(f"Retrying page {url} after error: {err}", verbose)
         else:
             errors.append(f"Failed to fetch page {url}: {result.error or 'empty response'}")
-    return pages, errors, last_fetch
+    return pages, errors, discovered_page_urls, last_fetch
 
 
 def _extract_auction_title(page_html: str) -> Optional[str]:
@@ -275,7 +284,7 @@ def _upsert_lot(
             awarding_state, total_example_price_eur, location_city,
             location_country, seller_allocation_note,
             listing_hash, detail_hash, last_seen_at, detail_last_seen_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(auction_id, lot_code) DO UPDATE SET
             title = excluded.title,
             url = excluded.url,
@@ -353,6 +362,7 @@ def sync_auction_to_db(
     errors: list[str] = []
     status = "failed"
     run_id: int | None = None
+    discovered_page_urls: list[str] = []
 
     # fetcher will be created after reading config defaults so rate limits
     # (which may depend on `delay_seconds`) respect configuration values.
@@ -360,6 +370,14 @@ def sync_auction_to_db(
     with get_connection(db_path) as conn:
         ensure_core_schema(conn)
         ensure_schema(conn)
+
+        def _notes_text() -> str | None:
+            parts: list[str] = []
+            if errors:
+                parts.append("; ".join(errors))
+            if discovered_page_urls:
+                parts.append("pages: " + ", ".join(discovered_page_urls))
+            return " | ".join(parts) if parts else None
 
         # If caller didn't explicitly provide runtime options, allow
         # configuration through `config.json` under the `sync` key.
@@ -415,162 +433,180 @@ def sync_auction_to_db(
             concurrency_mode=concurrency_mode,
         )
 
-        pages, page_errors, last_fetch = _collect_pages(
-            auction_url,
-            max_pages=max_pages,
-            fetcher=fetcher,
-            verbose=verbose,
-            http_client=http_client,
-        )
-        errors.extend(page_errors)
-        if not pages:
-            finished_at = iso_utcnow()
-            conn.execute(
-                """
+    pages, page_errors, discovered_page_urls, last_fetch = _collect_pages(
+        auction_url,
+        max_pages=max_pages,
+        fetcher=fetcher,
+        verbose=verbose,
+        delay_seconds=delay_seconds or 0,
+        http_client=http_client,
+    )
+    errors.extend(page_errors)
+    if not pages:
+        finished_at = iso_utcnow()
+        conn.execute(
+            """
                 UPDATE sync_runs SET status = ?, finished_at = ?,
                     pages_scanned = ?, lots_scanned = ?, lots_updated = ?,
                     error_count = ?, notes = ?
                 WHERE id = ?
                 """,
-                (
-                    "failed",
-                    finished_at,
-                    pages_scanned,
-                    lots_scanned,
-                    lots_updated,
-                    len(errors),
-                    "; ".join(errors) if errors else None,
-                    run_id,
-                ),
-            )
-            conn.commit()
-            return SyncRunResult(
-                run_id=run_id,
-                status="failed",
-                pages_scanned=pages_scanned,
-                lots_scanned=lots_scanned,
-                lots_updated=lots_updated,
-                error_count=len(errors),
-                errors=errors,
-            )
-
-        pages_scanned = len(pages)
-        auction_title = _extract_auction_title(pages[0].html)
-
-        try:
-            if not dry_run:
-                conn.execute("BEGIN")
-            auction_id = None
-            existing_lots: Dict[str, Dict[str, Optional[str]]] = {}
-            if not dry_run:
-                auction_id = _upsert_auction(conn, auction_code, auction_url, auction_title)
-                cur = conn.execute(
-                    "SELECT lot_code, listing_hash, detail_hash FROM lots WHERE auction_id = ?",
-                    (auction_id,),
-                )
-                for lot_code, listing_hash, detail_hash in cur.fetchall():
-                    existing_lots[str(lot_code)] = {
-                        "listing_hash": listing_hash,
-                        "detail_hash": detail_hash,
-                    }
-
-            cards_needing_detail: list[tuple[LotCardData, str]] = []
-            now_seen = iso_utcnow()
-            for page_idx, page in enumerate(pages, start=1):
-                _log(
-                    f"Processing page {page_idx}/{pages_scanned}: {page.url}",
-                    verbose,
-                )
-                for card_html in _iter_lot_card_blocks(page.html):
-                    card = parse_lot_card(card_html, auction_code, base_url=auction_url)
-                    lots_scanned += 1
-                    listing_hash = compute_listing_hash(card)
-                    existing = existing_lots.get(card.lot_code)
-                    needs_detail = force_detail_refetch or existing is None or existing.get("detail_hash") is None
-                    if existing and existing.get("listing_hash") != listing_hash:
-                        needs_detail = True
-
-                    if not needs_detail and not dry_run and auction_id is not None:
-                        conn.execute(
-                            "UPDATE lots SET last_seen_at = ?, listing_hash = COALESCE(listing_hash, ?) WHERE auction_id = ? AND lot_code = ?",
-                            (now_seen, listing_hash, auction_id, card.lot_code),
-                        )
-                        # No detail needed for this listing; update last seen and skip.
-                        continue
-                    # Need to fetch detail HTML for this lot
-                    detail_html, err, last_fetch = _wait_and_fetch(
-                        card.url,
-                        last_fetch=last_fetch,
-                        delay_seconds=delay_seconds,
-                        http_client=http_client,
-                    )
-                    if not detail_html:
-                        errors.append(
-                            f"Failed to fetch detail for {card.lot_code} ({card.url}): {err or 'empty response'}"
-                        )
-                        continue
-
-                    cards_needing_detail.append((card, listing_hash))
-
-            if cards_needing_detail:
-                detail_results = asyncio.run(fetcher.fetch_many([card.url for card, _ in cards_needing_detail]))
-            else:
-                detail_results = []
-
-            for (card, listing_hash), detail_result in zip(cards_needing_detail, detail_results):
-                if not detail_result.ok or not detail_result.text:
-                    errors.append(
-                        f"Failed to fetch detail for {card.lot_code} ({card.url}): {detail_result.error or 'empty response'}"
-                    )
-                    continue
-                detail = parse_lot_detail(detail_result.text, card.lot_code, base_url=auction_url)
-                detail_hash = compute_detail_hash(detail)
-                if not dry_run and auction_id is not None:
-                    detail_seen_at = iso_utcnow()
-                    _upsert_lot(
-                        conn,
-                        auction_id,
-                        card,
-                        detail,
-                        listing_hash=listing_hash,
-                        detail_hash=detail_hash,
-                        last_seen_at=detail_seen_at,
-                        detail_last_seen_at=detail_seen_at,
-                    )
-                    lots_updated += 1
-                    _log(
-                        f"  Upserted lot {card.lot_code}: bid €{detail.current_bid_eur or card.price_eur or 'n/a'}",
-                        verbose,
-                    )
-            if not dry_run:
-                conn.commit()
-            status = "success"
-        except Exception as exc:  # pragma: no cover - runtime protection
-            errors.append(str(exc))
-            if not dry_run:
-                conn.rollback()
-            status = "failed"
-
-        finished_at = iso_utcnow()
-        conn.execute(
-            """
-            UPDATE sync_runs SET status = ?, finished_at = ?,
-                pages_scanned = ?, lots_scanned = ?, lots_updated = ?,
-                error_count = ?, notes = ?
-            WHERE id = ?
-            """,
             (
-                status,
+                "failed",
                 finished_at,
                 pages_scanned,
                 lots_scanned,
                 lots_updated,
                 len(errors),
-                "; ".join(errors) if errors else None,
+                _notes_text(),
                 run_id,
             ),
         )
         conn.commit()
+        return SyncRunResult(
+            run_id=run_id,
+            status="failed",
+            pages_scanned=pages_scanned,
+            lots_scanned=lots_scanned,
+            lots_updated=lots_updated,
+            error_count=len(errors),
+            errors=errors,
+        )
+
+    pages_scanned = len(pages)
+    auction_title = _extract_auction_title(pages[0].html)
+
+    try:
+        if not dry_run:
+            conn.execute("BEGIN")
+        auction_id = None
+        existing_lots: Dict[str, Dict[str, Optional[str]]] = {}
+        if not dry_run:
+            auction_id = _upsert_auction(conn, auction_code, auction_url, auction_title)
+            cur = conn.execute(
+                "SELECT lot_code, listing_hash, detail_hash FROM lots WHERE auction_id = ?",
+                (auction_id,),
+            )
+            for lot_code, listing_hash, detail_hash in cur.fetchall():
+                existing_lots[str(lot_code)] = {
+                    "listing_hash": listing_hash,
+                    "detail_hash": detail_hash,
+                }
+
+        cards_needing_detail: list[tuple[LotCardData, str]] = []
+        now_seen = iso_utcnow()
+        url_parts = urlsplit(auction_url)
+        base_url = f"{url_parts.scheme}://{url_parts.netloc}" if url_parts.scheme and url_parts.netloc else auction_url
+
+        for page_idx, page in enumerate(pages, start=1):
+            _log(
+                f"Processing page {page_idx}/{pages_scanned}: {page.url}",
+                verbose,
+            )
+
+            parsed_cards = list(parse_auction_page(page.html, base_url=base_url))
+            if not parsed_cards:
+                parsed_cards = [
+                    parse_lot_card(card_html, auction_code, base_url=base_url)
+                    for card_html in _iter_lot_card_blocks(page.html)
+                ]
+
+            for card in parsed_cards:
+                lots_scanned += 1
+                listing_hash = compute_listing_hash(card)
+                existing = existing_lots.get(card.lot_code)
+                needs_detail = force_detail_refetch or existing is None or existing.get("detail_hash") is None
+                if existing and existing.get("listing_hash") != listing_hash:
+                    needs_detail = True
+
+                if not needs_detail and not dry_run and auction_id is not None:
+                    conn.execute(
+                        "UPDATE lots SET last_seen_at = ?, listing_hash = COALESCE(listing_hash, ?) WHERE auction_id = ? AND lot_code = ?",
+                        (now_seen, listing_hash, auction_id, card.lot_code),
+                    )
+                    # No detail needed for this listing; update last seen and skip.
+                    continue
+
+                if not card.url:
+                    errors.append(
+                        f"Failed to fetch detail for {card.lot_code} ({card.url}): missing detail URL"
+                    )
+                    continue
+
+                # Need to fetch detail HTML for this lot
+                detail_html, err, last_fetch = _wait_and_fetch(
+                    card.url,
+                    last_fetch=last_fetch,
+                    delay_seconds=delay_seconds,
+                    http_client=http_client,
+                )
+                if not detail_html:
+                    errors.append(
+                        f"Failed to fetch detail for {card.lot_code} ({card.url}): {err or 'empty response'}"
+                    )
+                    continue
+
+                cards_needing_detail.append((card, listing_hash))
+
+        if cards_needing_detail:
+            detail_results = asyncio.run(fetcher.fetch_many([card.url for card, _ in cards_needing_detail]))
+        else:
+            detail_results = []
+
+        for (card, listing_hash), detail_result in zip(cards_needing_detail, detail_results):
+            if not detail_result.ok or not detail_result.text:
+                errors.append(
+                    f"Failed to fetch detail for {card.lot_code} ({card.url}): {detail_result.error or 'empty response'}"
+                )
+                continue
+            detail = parse_lot_detail(detail_result.text, card.lot_code, base_url=auction_url)
+            detail_hash = compute_detail_hash(detail)
+            if not dry_run and auction_id is not None:
+                detail_seen_at = iso_utcnow()
+                _upsert_lot(
+                    conn,
+                    auction_id,
+                    card,
+                    detail,
+                    listing_hash=listing_hash,
+                    detail_hash=detail_hash,
+                    last_seen_at=detail_seen_at,
+                    detail_last_seen_at=detail_seen_at,
+                )
+                lots_updated += 1
+                _log(
+                    f"  Upserted lot {card.lot_code}: bid €{detail.current_bid_eur or card.price_eur or 'n/a'}",
+                    verbose,
+                )
+        if not dry_run:
+            conn.commit()
+        status = "success"
+    except Exception as exc:  # pragma: no cover - runtime protection
+        errors.append(str(exc))
+        if not dry_run:
+            conn.rollback()
+        status = "failed"
+
+    finished_at = iso_utcnow()
+    conn.execute(
+        """
+            UPDATE sync_runs SET status = ?, finished_at = ?,
+                pages_scanned = ?, lots_scanned = ?, lots_updated = ?,
+                error_count = ?, notes = ?
+            WHERE id = ?
+            """,
+        (
+            status,
+            finished_at,
+            pages_scanned,
+            lots_scanned,
+            lots_updated,
+            len(errors),
+            _notes_text(),
+            run_id,
+        ),
+    )
+    conn.commit()
 
     return SyncRunResult(
         run_id=run_id,

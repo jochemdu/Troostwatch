@@ -530,15 +530,21 @@ def sync_auction_to_db(
                     run_id,
                 ),
             )
-            conn.commit()
-            return SyncRunResult(
-                run_id=run_id,
-                status="failed",
-                pages_scanned=pages_scanned,
-                lots_scanned=lots_scanned,
-                lots_updated=lots_updated,
-                error_count=len(errors),
-                errors=errors,
+            for lot_code, listing_hash, detail_hash in cur.fetchall():
+                existing_lots[str(lot_code)] = {
+                    "listing_hash": listing_hash,
+                    "detail_hash": detail_hash,
+                }
+
+        cards_needing_detail: list[tuple[LotCardData, str]] = []
+        now_seen = iso_utcnow()
+        url_parts = urlsplit(auction_url)
+        base_url = f"{url_parts.scheme}://{url_parts.netloc}" if url_parts.scheme and url_parts.netloc else auction_url
+
+        for page_idx, page in enumerate(pages, start=1):
+            _log(
+                f"Processing page {page_idx}/{pages_scanned}: {page.url}",
+                verbose,
             )
 
         pages_scanned = len(pages)

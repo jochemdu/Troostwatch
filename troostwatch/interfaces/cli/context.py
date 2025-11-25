@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Callable, ContextManager, Iterator, TypeVar
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection, get_path_config
+from troostwatch.infrastructure.db.repositories import LotRepository
+from troostwatch.services.lots import LotViewService
 
 RepositoryT = TypeVar("RepositoryT")
 
@@ -39,6 +41,22 @@ class CLIContext:
 
         with self.connect() as connection:
             yield repository_cls(connection)
+
+
+@contextmanager
+def lot_repository(cli_context: CLIContext) -> Iterator[LotRepository]:
+    """Yield a LotRepository tied to the CLI context connection."""
+
+    with cli_context.repository(LotRepository) as repository:
+        yield repository
+
+
+@contextmanager
+def lot_view_service(cli_context: CLIContext) -> Iterator[LotViewService]:
+    """Yield a LotViewService wired to the CLI context repository."""
+
+    with lot_repository(cli_context) as repository:
+        yield LotViewService(repository)
 
 
 def build_cli_context(db_path: str | Path | None = None) -> CLIContext:

@@ -3,3 +3,5 @@ __pycache__/
 *.sqlite
 snapshots/
 troostwatch.db
+node_modules/
+ui/.next/

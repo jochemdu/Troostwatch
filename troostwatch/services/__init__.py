@@ -9,6 +9,7 @@ from .positions import (  # noqa: F401
     list_positions,
 )
 from .sync import *  # noqa: F401,F403
+from .sync_service import SyncService  # noqa: F401
 
 __all__ = [
     "BiddingService",
@@ -17,6 +18,7 @@ __all__ = [
     "LotView",
     "LotViewService",
     "PositionsService",
+    "SyncService",
     "add_position",
     "delete_position",
     "list_positions",

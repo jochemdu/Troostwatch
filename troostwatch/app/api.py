@@ -183,12 +183,13 @@ async def delete_buyer(label: str, service: BuyerService = Depends(get_buyer_ser
 
 @app.post("/sync", status_code=status.HTTP_202_ACCEPTED)
 async def trigger_sync(request: SyncRequest, service: SyncService = Depends(get_sync_service)) -> Dict[str, object]:
-    return await service.run_sync(
+    summary = await service.run_sync(
         auction_code=request.auction_code,
         auction_url=request.auction_url,
         max_pages=request.max_pages,
         dry_run=request.dry_run,
     )
+    return summary.to_dict()
 
 
 @app.post("/live-sync/start", status_code=status.HTTP_202_ACCEPTED)

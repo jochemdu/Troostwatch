@@ -17,10 +17,15 @@ from troostwatch.app.dependencies import (
     get_position_repository,
 )
 from troostwatch.infrastructure.db.config import get_path_config
+from troostwatch.infrastructure.db.repositories import BuyerRepository, LotRepository, PositionRepository
+from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
+from troostwatch.services import buyers as buyer_service
 from troostwatch.infrastructure.db.repositories import LotRepository, PositionRepository
 from troostwatch.services.live_runner import LiveSyncConfig, LiveSyncRunner
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
 from troostwatch.services import positions as position_service
+from troostwatch.services.lots import LotView, LotViewService
+from troostwatch.services.live_runner import LiveSyncConfig, LiveSyncRunner
 from troostwatch.services.sync import sync_auction
 
 
@@ -64,6 +69,17 @@ def get_buyer_service(repository=Depends(get_buyer_repository)) -> BuyerService:
     return BuyerService(repository=repository, event_publisher=event_bus.publish)
 
 
+
+def get_lot_view_service(conn: sqlite3.Connection = Depends(get_db_connection)) -> LotViewService:
+    return LotViewService(LotRepository(conn))
+
+
+def get_buyer_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> BuyerRepository:
+    return BuyerRepository(conn)
+
+
+def get_position_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> PositionRepository:
+    return PositionRepository(conn)
 class BuyerCreateRequest(BaseModel):
     label: str
     name: Optional[str] = None
@@ -114,14 +130,14 @@ class LiveSyncStartRequest(BaseModel):
     )
 
 
-@app.get("/lots")
+@app.get("/lots", response_model=list[LotView])
 async def list_lots(
     auction_code: Optional[str] = None,
     state: Optional[str] = None,
     limit: Optional[int] = Query(default=None, ge=1),
-    repository: LotRepository = Depends(get_lot_repository),
-) -> List[Dict[str, Optional[str]]]:
-    return repository.list_lots(auction_code=auction_code, state=state, limit=limit)
+    lot_view_service: LotViewService = Depends(get_lot_view_service),
+) -> List[LotView]:
+    return lot_view_service.list_lots(auction_code=auction_code, state=state, limit=limit)
 
 
 @app.post("/positions/batch")

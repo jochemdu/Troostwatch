@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
-from dataclasses import asdict
 from typing import Dict, Iterator, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, status
@@ -18,7 +17,9 @@ from troostwatch.infrastructure.db.config import get_path_config
 from troostwatch.infrastructure.db.repositories import BuyerRepository, LotRepository, PositionRepository
 from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
 from troostwatch.services.live_runner import LiveSyncConfig, LiveSyncRunner
-from troostwatch.services.sync import sync as sync_service
+from troostwatch.services import buyers as buyer_service
+from troostwatch.services import positions as position_service
+from troostwatch.services.sync import sync_auction
 
 
 class LotEventBus:
@@ -130,61 +131,61 @@ async def upsert_positions(
     payload: PositionBatchRequest,
     repository: PositionRepository = Depends(get_position_repository),
 ) -> Dict[str, object]:
-    processed: list[dict] = []
-    for update in payload.updates:
-        try:
-            repository.upsert(
+    try:
+        updates = [
+            position_service.PositionUpdateData(
                 buyer_label=update.buyer_label,
                 lot_code=update.lot_code,
                 auction_code=update.auction_code,
-                track_active=True if update.watch is None else update.watch,
                 max_budget_total_eur=update.max_budget_total_eur,
-                my_highest_bid_eur=update.preferred_bid_eur,
+                preferred_bid_eur=update.preferred_bid_eur,
+                watch=update.watch,
             )
-            processed.append(update.dict())
-        except ValueError as exc:  # raised when buyer or lot not found
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    await event_bus.publish({"type": "positions_updated", "count": len(processed), "items": processed})
-    return {"updated": len(processed)}
+            for update in payload.updates
+        ]
+        return await position_service.upsert_positions(
+            repository=repository, updates=updates, event_publisher=event_bus.publish
+        )
+    except ValueError as exc:  # raised when buyer or lot not found
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @app.get("/buyers")
 async def list_buyers(repository: BuyerRepository = Depends(get_buyer_repository)) -> List[Dict[str, Optional[str]]]:
-    return repository.list()
+    return buyer_service.list_buyers(repository)
 
 
 @app.post("/buyers", status_code=status.HTTP_201_CREATED)
 async def create_buyer(payload: BuyerCreateRequest, repository: BuyerRepository = Depends(get_buyer_repository)) -> Dict[str, str]:
     try:
-        repository.add(payload.label, payload.name, payload.notes)
+        return await buyer_service.create_buyer(
+            repository=repository,
+            label=payload.label,
+            name=payload.name,
+            notes=payload.notes,
+            event_publisher=event_bus.publish,
+        )
     except DuplicateBuyerError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-    await event_bus.publish({"type": "buyer_created", "label": payload.label})
-    return {"status": "created", "label": payload.label}
 
 
 @app.delete("/buyers/{label}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_buyer(label: str, repository: BuyerRepository = Depends(get_buyer_repository)) -> None:
-    repository.delete(label)
-    await event_bus.publish({"type": "buyer_deleted", "label": label})
+    await buyer_service.delete_buyer(repository=repository, label=label, event_publisher=event_bus.publish)
 
 
 @app.post("/sync", status_code=status.HTTP_202_ACCEPTED)
 async def trigger_sync(request: SyncRequest) -> Dict[str, object]:
     db_path = str(get_path_config()["db_path"])
 
-    result = await asyncio.to_thread(
-        sync_service.sync_auction_to_db,
+    return await sync_auction(
         db_path=db_path,
         auction_code=request.auction_code,
         auction_url=request.auction_url,
         max_pages=request.max_pages,
         dry_run=request.dry_run,
+        event_publisher=event_bus.publish,
     )
-
-    payload = {"type": "sync_finished", "auction_code": request.auction_code, "result": asdict(result)}
-    await event_bus.publish(payload)
-    return payload
 
 
 @app.post("/live-sync/start", status_code=status.HTTP_202_ACCEPTED)

@@ -8,8 +8,48 @@ from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerErro
 EventPublisher = Callable[[dict[str, object]], Awaitable[None]]
 
 
+class BuyerAlreadyExistsError(Exception):
+    """Raised when attempting to create a buyer with a duplicate label."""
+
+
+class BuyerService:
+    """Service layer for managing buyers and emitting related events."""
+
+    def __init__(self, repository: BuyerRepository, event_publisher: EventPublisher | None = None) -> None:
+        self._repository = repository
+        self._event_publisher = event_publisher
+
+    def list_buyers(self) -> list[dict[str, Optional[str]]]:
+        return self._repository.list()
+
+    async def create_buyer(
+        self,
+        *,
+        label: str,
+        name: Optional[str] = None,
+        notes: Optional[str] = None,
+    ) -> dict[str, str]:
+        try:
+            self._repository.add(label, name, notes)
+        except DuplicateBuyerError as exc:
+            raise BuyerAlreadyExistsError(str(exc)) from exc
+
+        payload = {"status": "created", "label": label}
+        await self._publish_event({"type": "buyer_created", "label": label})
+        return payload
+
+    async def delete_buyer(self, *, label: str) -> None:
+        self._repository.delete(label)
+        await self._publish_event({"type": "buyer_deleted", "label": label})
+
+    async def _publish_event(self, payload: dict[str, object]) -> None:
+        if self._event_publisher is None:
+            return
+        await self._event_publisher(payload)
+
+
 def list_buyers(repository: BuyerRepository) -> list[dict[str, Optional[str]]]:
-    return repository.list()
+    return BuyerService(repository).list_buyers()
 
 
 async def create_buyer(
@@ -20,21 +60,12 @@ async def create_buyer(
     notes: Optional[str] = None,
     event_publisher: EventPublisher | None = None,
 ) -> dict[str, str]:
-    try:
-        repository.add(label, name, notes)
-    except DuplicateBuyerError:
-        # Let callers translate repository-specific errors to their boundary concerns
-        raise
-
-    payload = {"status": "created", "label": label}
-    if event_publisher:
-        await event_publisher({"type": "buyer_created", "label": label})
-    return payload
+    service = BuyerService(repository, event_publisher)
+    return await service.create_buyer(label=label, name=name, notes=notes)
 
 
 async def delete_buyer(
     *, repository: BuyerRepository, label: str, event_publisher: EventPublisher | None = None
 ) -> None:
-    repository.delete(label)
-    if event_publisher:
-        await event_publisher({"type": "buyer_deleted", "label": label})
+    service = BuyerService(repository, event_publisher)
+    await service.delete_buyer(label=label)

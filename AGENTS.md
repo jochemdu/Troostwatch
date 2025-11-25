@@ -22,13 +22,18 @@ directories have been removed so each role has a single canonical file:
 Agents need precise commands to build, test and run the project.  Use the
 commands below when performing general tasks:
 
-- Install dependencies in editable mode: ``pixi run pip install -e .``
-- Run static analysis and linting: ``pixi run ruff check .`` and
-  ``pixi run mypy troostwatch``.
-- Format code: ``pixi run black .`` and ``pixi run isort .``.
-- Run the full test suite: ``pixi run pytest -q``.
-- Run integration tests: ``pixi run pytest -m integration``.
-- Start the development server: ``pixi run uvicorn troostwatch.api:app --reload``.
+- Create a virtual environment and install runtime dependencies:
+  ```bash
+  python -m venv .venv
+  source .venv/bin/activate  # on Windows use `.venv\\Scripts\\activate`
+  pip install -r requirements.txt
+  ```
+- Install development tools (linting, type checking, tests): ``pip install -e .[dev]``.
+- Run formatting: ``black .``.
+- Run linting: ``flake8 .``.
+- Run type checks: ``mypy troostwatch``.
+- Run the full test suite: ``pytest -q``.
+- Run integration tests: ``pytest -m integration``.
 
 ## Project Layout
 
@@ -43,7 +48,7 @@ commands below when performing general tasks:
 ## Git Workflow & PR expectations
 
 1. Create branches from `main` using descriptive names (`feature/<slug>`, `bugfix/<slug>`).
-2. Run the full test and lint suite locally (`ruff`, `black`, `mypy`, `pytest`) before committing.
+2. Run the full test and lint suite locally (`flake8`, `black`, `mypy`, `pytest`) before committing.
 3. Keep commits atomic and descriptive.  Use prefixes like `feat:`, `fix:`, `docs:`.
 4. Force pushing is allowed only on your feature branch; **never** force‑push `main`.
 5. A pull request should summarise the change, include evidence (tests passing,
@@ -108,7 +113,7 @@ commands below when performing general tasks:
 - Update relevant READMEs or module docstrings when adding new features or
   behaviours.  For comprehensive documentation tasks, use the
   `docs-agent.md` under `.github/agents/`.
-- Follow existing lint/format tooling (e.g., `ruff`, `black`, `mypy`) where
+- Follow existing lint/format tooling (e.g., `flake8`, `black`, `mypy`) where
   configured.  Do not wrap imports in try/except.
 - Keep commit messages descriptive and scoped to the change.
 

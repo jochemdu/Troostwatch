@@ -17,6 +17,7 @@ from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.config import get_path_config
 from troostwatch.infrastructure.db.repositories import BuyerRepository, LotRepository, PositionRepository
 from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
+from troostwatch.services.live_runner import LiveSyncConfig, LiveSyncRunner
 from troostwatch.services.sync import sync as sync_service
 
 
@@ -53,6 +54,7 @@ class LotEventBus:
 
 event_bus = LotEventBus()
 app = FastAPI(title="Troostwatch API", version="0.1.0")
+live_sync_runner = LiveSyncRunner(db_path=str(get_path_config()["db_path"]), event_publisher=event_bus.publish)
 
 
 def get_db_connection() -> Iterator[sqlite3.Connection]:
@@ -99,6 +101,18 @@ class SyncRequest(BaseModel):
     auction_url: str
     max_pages: Optional[int] = Field(None, ge=1)
     dry_run: bool = False
+
+
+class LiveSyncStartRequest(BaseModel):
+    auction_code: str
+    auction_url: str
+    max_pages: Optional[int] = Field(None, ge=1)
+    dry_run: bool = False
+    interval_seconds: Optional[float] = Field(
+        None,
+        ge=0,
+        description="Seconds between sync runs; defaults to configured worker interval.",
+    )
 
 
 @app.get("/lots")
@@ -171,6 +185,37 @@ async def trigger_sync(request: SyncRequest) -> Dict[str, object]:
     payload = {"type": "sync_finished", "auction_code": request.auction_code, "result": asdict(result)}
     await event_bus.publish(payload)
     return payload
+
+
+@app.post("/live-sync/start", status_code=status.HTTP_202_ACCEPTED)
+async def start_live_sync(request: LiveSyncStartRequest) -> Dict[str, object]:
+    state = await live_sync_runner.start(
+        LiveSyncConfig(
+            auction_code=request.auction_code,
+            auction_url=request.auction_url,
+            max_pages=request.max_pages,
+            dry_run=request.dry_run,
+            interval_seconds=request.interval_seconds,
+        )
+    )
+    return {"status": state.status, "state": state.to_dict()}
+
+
+@app.post("/live-sync/pause", status_code=status.HTTP_202_ACCEPTED)
+async def pause_live_sync() -> Dict[str, object]:
+    state = await live_sync_runner.pause()
+    return {"status": state.status, "state": state.to_dict()}
+
+
+@app.post("/live-sync/stop", status_code=status.HTTP_202_ACCEPTED)
+async def stop_live_sync() -> Dict[str, object]:
+    state = await live_sync_runner.stop()
+    return {"status": state.status, "state": state.to_dict()}
+
+
+@app.get("/live-sync/status")
+async def get_live_sync_status() -> Dict[str, object]:
+    return live_sync_runner.get_status()
 
 
 @app.websocket("/ws/lots")

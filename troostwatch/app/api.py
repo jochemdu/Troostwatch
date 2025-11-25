@@ -18,7 +18,7 @@ from troostwatch.infrastructure.db.repositories import BuyerRepository, LotRepos
 from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
 from troostwatch.services import buyers as buyer_service
 from troostwatch.services import positions as position_service
-from troostwatch.services.lots import LotViewService
+from troostwatch.services.lots import LotView, LotViewService
 from troostwatch.services.live_runner import LiveSyncConfig, LiveSyncRunner
 from troostwatch.services.sync import sync_auction
 
@@ -117,15 +117,14 @@ class LiveSyncStartRequest(BaseModel):
     )
 
 
-@app.get("/lots")
+@app.get("/lots", response_model=list[LotView])
 async def list_lots(
     auction_code: Optional[str] = None,
     state: Optional[str] = None,
     limit: Optional[int] = Query(default=None, ge=1),
     lot_view_service: LotViewService = Depends(get_lot_view_service),
-) -> List[Dict[str, object | None]]:
-    lot_views = lot_view_service.list_lots(auction_code=auction_code, state=state, limit=limit)
-    return [lot.to_dict() for lot in lot_views]
+) -> List[LotView]:
+    return lot_view_service.list_lots(auction_code=auction_code, state=state, limit=limit)
 
 
 @app.post("/positions/batch")

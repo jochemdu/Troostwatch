@@ -2,42 +2,41 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 from typing import Iterable, List, Optional
+
+from pydantic import BaseModel, Field
 
 from troostwatch.infrastructure.db.repositories import LotRepository
 
 
-@dataclass
-class LotView:
+class LotView(BaseModel):
     """DTO representing a lot summary suitable for API responses."""
 
     auction_code: str
     lot_code: str
-    title: Optional[str]
-    state: Optional[str]
-    current_bid_eur: Optional[float]
-    bid_count: Optional[int]
-    current_bidder_label: Optional[str]
-    closing_time_current: Optional[str]
-    closing_time_original: Optional[str]
+    title: Optional[str] = None
+    state: Optional[str] = None
+    current_bid_eur: Optional[float] = None
+    bid_count: Optional[int] = None
+    current_bidder_label: Optional[str] = None
+    closing_time_current: Optional[str] = Field(default=None, description="Current closing timestamp, if set.")
+    closing_time_original: Optional[str] = Field(default=None, description="Original closing timestamp, if set.")
+
+    model_config = {"from_attributes": True}
 
     @classmethod
     def from_record(cls, record: dict[str, object]) -> "LotView":
-        return cls(
-            auction_code=str(record["auction_code"]),
-            lot_code=str(record["lot_code"]),
-            title=record.get("title"),
-            state=record.get("state"),
-            current_bid_eur=record.get("current_bid_eur"),
-            bid_count=record.get("bid_count"),
-            current_bidder_label=record.get("current_bidder_label"),
-            closing_time_current=record.get("closing_time_current"),
-            closing_time_original=record.get("closing_time_original"),
-        )
-
-    def to_dict(self) -> dict[str, object | None]:
-        return asdict(self)
+        return cls.model_validate({
+            "auction_code": record["auction_code"],
+            "lot_code": record["lot_code"],
+            "title": record.get("title"),
+            "state": record.get("state"),
+            "current_bid_eur": record.get("current_bid_eur"),
+            "bid_count": record.get("bid_count"),
+            "current_bidder_label": record.get("current_bidder_label"),
+            "closing_time_current": record.get("closing_time_current"),
+            "closing_time_original": record.get("closing_time_original"),
+        })
 
 
 class LotViewService:

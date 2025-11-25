@@ -13,8 +13,10 @@ directories have been removed so each role has a single canonical file:
 - `cli-agent.md` – builds and maintains CLI entry points and supporting utilities.
 - `interfaces-agent.md` – defines and evolves shared interfaces or contracts used across services.
 - `migration-agent.md` – manages database migrations and schema evolution tasks.
+- `observability-agent.md` – configures logging and observability utilities and patterns.
 - `parser-importer-agent.md` – maintains parsers and importers for ingesting external data sources.
 - `script-agent.md` – authors utility scripts and one-off maintenance tooling.
+- `services-agent.md` – implements and orchestrates application service workflows.
 - `ui-agent.md` – implements and refines user interface components and front-end workflows.
 
 ## Build & Test

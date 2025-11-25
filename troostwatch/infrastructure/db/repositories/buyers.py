@@ -5,17 +5,24 @@ from typing import Dict, List, Optional
 from ..schema import ensure_schema
 
 
+class DuplicateBuyerError(ValueError):
+    """Raised when attempting to insert a buyer with an existing label."""
+
+
 class BuyerRepository:
     def __init__(self, conn) -> None:
         self.conn = conn
         ensure_schema(self.conn)
 
     def add(self, label: str, name: Optional[str] = None, notes: Optional[str] = None) -> None:
-        self.conn.execute(
+        cursor = self.conn.execute(
             "INSERT OR IGNORE INTO buyers (label, name, notes) VALUES (?, ?, ?)",
             (label, name, notes),
         )
         self.conn.commit()
+
+        if cursor.rowcount == 0:
+            raise DuplicateBuyerError(f"Buyer label '{label}' already exists")
 
     def list(self) -> List[Dict[str, Optional[str]]]:
         cur = self.conn.execute("SELECT id, label, name, notes FROM buyers ORDER BY id")

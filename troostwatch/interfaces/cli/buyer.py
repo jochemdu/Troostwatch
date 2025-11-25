@@ -9,6 +9,7 @@ import click
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import BuyerRepository
+from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
 
 
 @click.group()
@@ -32,7 +33,12 @@ def add_cmd(ctx: click.Context, label: str, name: str | None, notes: str | None)
     db_path = ctx.obj["db_path"]
     with get_connection(db_path) as conn:
         ensure_schema(conn)
-        BuyerRepository(conn).add(label, name, notes)
+        repo = BuyerRepository(conn)
+        try:
+            repo.add(label, name, notes)
+        except DuplicateBuyerError:
+            click.echo(f"Buyer with label '{label}' already exists.", err=True)
+            ctx.exit(1)
     click.echo(f"Added buyer {label}")
 
 

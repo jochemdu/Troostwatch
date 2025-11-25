@@ -16,9 +16,10 @@ from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.config import get_path_config
 from troostwatch.infrastructure.db.repositories import BuyerRepository, LotRepository, PositionRepository
 from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
-from troostwatch.services.live_runner import LiveSyncConfig, LiveSyncRunner
 from troostwatch.services import buyers as buyer_service
 from troostwatch.services import positions as position_service
+from troostwatch.services.lots import LotViewService
+from troostwatch.services.live_runner import LiveSyncConfig, LiveSyncRunner
 from troostwatch.services.sync import sync_auction
 
 
@@ -66,8 +67,8 @@ def get_db_connection() -> Iterator[sqlite3.Connection]:
         yield conn
 
 
-def get_lot_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> LotRepository:
-    return LotRepository(conn)
+def get_lot_view_service(conn: sqlite3.Connection = Depends(get_db_connection)) -> LotViewService:
+    return LotViewService(LotRepository(conn))
 
 
 def get_buyer_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> BuyerRepository:
@@ -121,9 +122,10 @@ async def list_lots(
     auction_code: Optional[str] = None,
     state: Optional[str] = None,
     limit: Optional[int] = Query(default=None, ge=1),
-    repository: LotRepository = Depends(get_lot_repository),
-) -> List[Dict[str, Optional[str]]]:
-    return repository.list_lots(auction_code=auction_code, state=state, limit=limit)
+    lot_view_service: LotViewService = Depends(get_lot_view_service),
+) -> List[Dict[str, object | None]]:
+    lot_views = lot_view_service.list_lots(auction_code=auction_code, state=state, limit=limit)
+    return [lot.to_dict() for lot in lot_views]
 
 
 @app.post("/positions/batch")

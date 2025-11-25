@@ -1,6 +1,7 @@
 """Service layer modules for Troostwatch."""
 
 from .bidding import BiddingService, BidError, BidResult  # noqa: F401
+from .lots import LotView, LotViewService  # noqa: F401
 from .positions import (  # noqa: F401
     PositionsService,
     add_position,
@@ -13,6 +14,8 @@ __all__ = [
     "BiddingService",
     "BidError",
     "BidResult",
+    "LotView",
+    "LotViewService",
     "PositionsService",
     "add_position",
     "delete_position",
@@ -26,6 +29,8 @@ __all__ = [
         "BidError",
         "BidResult",
         "BiddingService",
+        "LotView",
+        "LotViewService",
         "PositionsService",
         "add_position",
         "delete_position",

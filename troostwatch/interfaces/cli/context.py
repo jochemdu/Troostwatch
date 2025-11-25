@@ -12,9 +12,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, ContextManager, Iterator, TypeVar
 
+from troostwatch.http_client import TroostwatchHttpClient
 from troostwatch.infrastructure.db import ensure_schema, get_connection, get_path_config
 from troostwatch.infrastructure.db.repositories import LotRepository
 from troostwatch.services.lots import LotViewService
+
+from .auth import build_http_client
 
 RepositoryT = TypeVar("RepositoryT")
 
@@ -69,3 +72,35 @@ def build_cli_context(db_path: str | Path | None = None) -> CLIContext:
         return get_connection(resolved_db_path)
 
     return CLIContext(db_path=resolved_db_path, paths=paths, connection_factory=connection_factory)
+
+
+@dataclass(frozen=True)
+class SyncCommandContext:
+    """Context container for sync commands including HTTP client wiring."""
+
+    cli_context: CLIContext
+    http_client: TroostwatchHttpClient | None
+
+
+def build_sync_command_context(
+    *,
+    db_path: str | Path | None,
+    base_url: str,
+    login_path: str,
+    username: str | None,
+    password: str | None,
+    token_path: str | None,
+    session_timeout: float,
+) -> SyncCommandContext:
+    """Compose the CLI and HTTP context needed for sync commands."""
+
+    cli_context = build_cli_context(db_path)
+    http_client = build_http_client(
+        base_url=base_url,
+        login_path=login_path,
+        username=username,
+        password=password,
+        token_path=token_path,
+        session_timeout=session_timeout,
+    )
+    return SyncCommandContext(cli_context=cli_context, http_client=http_client)

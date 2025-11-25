@@ -116,3 +116,13 @@ Recent versions have greatly expanded the CLI. In addition to the core `sync` co
 - **debug** – inspect your local database. Subcommands let you view row counts per table, run an integrity check, or show rows from a specific table.
 
 These commands can be invoked via `python -m troostwatch.cli <command>`. Gebruik `view` om opgeslagen lots te bekijken (met filters voor veilingcode, status en limiet, plus een JSON‑uitvoeroptie), `report buyer` voor een overzicht van je exposure en `debug view` om tabellen rechtstreeks te inspecteren. See the examples above and the documentation in `docs/` for more details.
+
+## API-server starten
+
+Naast de CLI kun je de ingebouwde FastAPI-app gebruiken om lots, buyers en posities via HTTP of WebSocket te beheren. Start de server met:
+
+```bash
+uvicorn troostwatch.app.api:app --reload
+```
+
+De API gebruikt de bestaande SQLite-databasepaden uit `config.json` en publiceert live lot-updates via `/ws/lots`.

@@ -49,6 +49,8 @@ dependencies = [
   "rich>=13.4",            # fancy CLI output (tables, colours)
   "aiohttp>=3.9",          # async HTTP client for concurrent fetching
   "PyYAML>=5.0",           # YAML parsing for multi-sync
+  "fastapi>=0.110",        # REST API and WebSocket support
+  "uvicorn>=0.20",         # ASGI server for the FastAPI app
 ]
 
 [project.optional-dependencies]

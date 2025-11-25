@@ -5,22 +5,41 @@ Provides commands to add, list and remove buyers from the local database.
 
 from __future__ import annotations
 
-import click
+import asyncio
+from contextlib import contextmanager
 
-from troostwatch.infrastructure.db import ensure_schema, get_connection
+import click
+from rich.console import Console
+from rich.table import Table
+
 from troostwatch.infrastructure.db.repositories import BuyerRepository
-from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
+from troostwatch.interfaces.cli.context import CLIContext, build_cli_context
+from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
+
+console = Console()
+DEFAULT_CLI_CONTEXT = build_cli_context()
+
+
+@contextmanager
+def _buyer_service(cli_context: CLIContext):
+    with cli_context.repository(BuyerRepository) as repository:
+        yield BuyerService(repository)
 
 
 @click.group()
 @click.option(
-    "--db", "db_path", default="troostwatch.db", show_default=True, help="Path to the SQLite database."
+    "--db",
+    "db_path",
+    default=None,
+    show_default=str(DEFAULT_CLI_CONTEXT.db_path),
+    help="Path to the SQLite database.",
 )
 @click.pass_context
-def buyer(ctx: click.Context, db_path: str) -> None:
+def buyer(ctx: click.Context, db_path: str | None) -> None:
     """Manage buyers stored in the database."""
+
     ctx.ensure_object(dict)
-    ctx.obj["db_path"] = db_path
+    ctx.obj["cli_context"] = DEFAULT_CLI_CONTEXT if db_path is None else build_cli_context(db_path)
 
 
 @buyer.command("add")
@@ -30,31 +49,38 @@ def buyer(ctx: click.Context, db_path: str) -> None:
 @click.pass_context
 def add_cmd(ctx: click.Context, label: str, name: str | None, notes: str | None) -> None:
     """Add a new buyer with a unique LABEL."""
-    db_path = ctx.obj["db_path"]
-    with get_connection(db_path) as conn:
-        ensure_schema(conn)
-        repo = BuyerRepository(conn)
+
+    cli_context: CLIContext = ctx.obj["cli_context"]
+    with _buyer_service(cli_context) as service:
         try:
-            repo.add(label, name, notes)
-        except DuplicateBuyerError:
-            click.echo(f"Buyer with label '{label}' already exists.", err=True)
+            asyncio.run(service.create_buyer(label=label, name=name, notes=notes))
+        except BuyerAlreadyExistsError:
+            console.print(f"[red]Buyer with label '{label}' already exists.[/red]")
             ctx.exit(1)
-    click.echo(f"Added buyer {label}")
+
+    console.print(f"[green]Added buyer [bold]{label}[/bold]")
 
 
 @buyer.command("list")
 @click.pass_context
 def list_cmd(ctx: click.Context) -> None:
     """List all buyers."""
-    db_path = ctx.obj["db_path"]
-    with get_connection(db_path) as conn:
-        ensure_schema(conn)
-        buyers = BuyerRepository(conn).list()
+
+    cli_context: CLIContext = ctx.obj["cli_context"]
+    with _buyer_service(cli_context) as service:
+        buyers = service.list_buyers()
+
     if not buyers:
-        click.echo("No buyers found.")
-    else:
-        for buyer in buyers:
-            click.echo(f"{buyer['label']}: {buyer.get('name') or ''}")
+        console.print("[yellow]No buyers found.[/yellow]")
+        return
+
+    table = Table(title="Buyers")
+    table.add_column("Label", style="bold")
+    table.add_column("Name")
+    table.add_column("Notes")
+    for buyer_item in buyers:
+        table.add_row(buyer_item["label"], buyer_item.get("name") or "", buyer_item.get("notes") or "")
+    console.print(table)
 
 
 @buyer.command("delete")
@@ -62,8 +88,8 @@ def list_cmd(ctx: click.Context) -> None:
 @click.pass_context
 def delete_cmd(ctx: click.Context, label: str) -> None:
     """Delete a buyer by LABEL."""
-    db_path = ctx.obj["db_path"]
-    with get_connection(db_path) as conn:
-        ensure_schema(conn)
-        BuyerRepository(conn).delete(label)
-    click.echo(f"Deleted buyer {label}")
+
+    cli_context: CLIContext = ctx.obj["cli_context"]
+    with _buyer_service(cli_context) as service:
+        asyncio.run(service.delete_buyer(label=label))
+    console.print(f"[green]Deleted buyer [bold]{label}[/bold]")

@@ -9,6 +9,13 @@ directories have been removed so each role has a single canonical file:
 - `test-agent.md` – writes and maintains unit and integration tests.
 - `lint-agent.md` – enforces code style and static analysis rules.
 - `api-agent.md` – creates and maintains FastAPI routes and related logic.
+- `analytics-agent.md` – collects, models and maintains analytics pipelines and metrics logic.
+- `cli-agent.md` – builds and maintains CLI entry points and supporting utilities.
+- `interfaces-agent.md` – defines and evolves shared interfaces or contracts used across services.
+- `migration-agent.md` – manages database migrations and schema evolution tasks.
+- `parser-importer-agent.md` – maintains parsers and importers for ingesting external data sources.
+- `script-agent.md` – authors utility scripts and one-off maintenance tooling.
+- `ui-agent.md` – implements and refines user interface components and front-end workflows.
 
 ## Build & Test
 

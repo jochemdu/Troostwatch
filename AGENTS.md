@@ -37,12 +37,13 @@ commands below when performing general tasks:
 
 ## Project Layout
 
-- `troostwatch/api/` – Public API routes and service entry points.
-- `troostwatch/core/` – Domain logic and reusable business models.
-- `troostwatch/utils/` – Cross‑cutting helpers (logging, configuration, HTTP).
-- `troostwatch/tests/` – Unit and integration tests mirroring the package structure.
-- `troostwatch/alembic/` – Database migrations (modify only with approval).
-- `deploy/` – Deployment manifests and CI/CD configuration (modify only with approval).
+- `troostwatch/domain/` – Domain models, rules and reusable business logic.
+- `troostwatch/infrastructure/` – Adapters for external systems (databases, HTTP, file I/O).
+- `troostwatch/services/` – Application services orchestrating domain workflows.
+- `troostwatch/interfaces/` and `troostwatch/cli/` – Boundary contracts and CLI entry points.
+- `troostwatch/app/` – Application composition, wiring and lifecycle helpers.
+- `tests/` – Unit and integration tests mirroring the package structure.
+- `migrations/` and `schema/` – Database migrations and schema definitions.
 - `.github/agents/` – Specialized agent instruction files.
 
 ## Git Workflow & PR expectations
@@ -58,12 +59,11 @@ commands below when performing general tasks:
 ## Code organization
 
 - Prefer adding shared logic to centralised modules instead of duplicating code.
-- Use `troostwatch/api/` for public‑facing API routes and service entry points.
-- Use `troostwatch/core/` for domain logic that should be reused across APIs, CLIs,
-  and background jobs.
-- Place cross‑cutting utilities in `troostwatch/utils/` for helpers that are
-  broadly applicable (logging, configuration, validation, formatting and
-  HTTP helpers).
+- Use `troostwatch/domain/` for reusable domain logic and business rules.
+- Use `troostwatch/services/` to coordinate domain operations and application workflows.
+- Use `troostwatch/infrastructure/` for integrations and adapters to external systems.
+- Keep boundary code and entry points in `troostwatch/interfaces/` and `troostwatch/cli/`.
+- Compose application wiring and bootstrap logic in `troostwatch/app/`.
 - Keep tests colocated with functionality under `tests/`, mirroring the package
   structure.
 
@@ -119,9 +119,11 @@ commands below when performing general tasks:
 
 ## Boundaries
 
-- ✅ **Always:** Work within the designated directories (`api/`, `core/`, `tests/`)
-  and run tests and linters before committing.
-- ⚠️ **Ask first:** Before modifying database schemas (`alembic/`), changing
-  deployment configs (`deploy/`) or introducing new dependencies.
+- ✅ **Always:** Work within the designated directories (`troostwatch/domain/`,
+  `troostwatch/services/`, `troostwatch/infrastructure/`, `troostwatch/interfaces/`,
+  `troostwatch/cli/`, `troostwatch/app/`, `tests/`) and run tests and linters
+  before committing.
+- ⚠️ **Ask first:** Before modifying database migrations or schemas
+  (`migrations/`, `schema/`) or introducing new dependencies.
 - ⛔ **Never:** Commit secrets or API keys, edit `node_modules/` or vendor code,
   or modify files outside of the project scope without approval.

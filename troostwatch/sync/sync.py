@@ -432,6 +432,7 @@ def sync_auction_to_db(
             log_path=log_path,
         )
         errors.extend(page_errors)
+        pages_scanned = len(pages)
         if not pages:
             status = "failed"
             finished_at = iso_utcnow()
@@ -443,7 +444,7 @@ def sync_auction_to_db(
                     WHERE id = ?
                     """,
                 (
-                    "failed",
+                    status,
                     finished_at,
                     pages_scanned,
                     lots_scanned,
@@ -453,24 +454,18 @@ def sync_auction_to_db(
                     run_id,
                 ),
             )
-            for lot_code, listing_hash, detail_hash in cur.fetchall():
-                existing_lots[str(lot_code)] = {
-                    "listing_hash": listing_hash,
-                    "detail_hash": detail_hash,
-                }
+            conn.commit()
 
-        cards_needing_detail: list[tuple[LotCardData, str]] = []
-        now_seen = iso_utcnow()
-        url_parts = urlsplit(auction_url)
-        base_url = f"{url_parts.scheme}://{url_parts.netloc}" if url_parts.scheme and url_parts.netloc else auction_url
-
-        for page_idx, page in enumerate(pages, start=1):
-            _log(
-                f"Processing page {page_idx}/{pages_scanned}: {page.url}",
-                verbose,
+            return SyncRunResult(
+                run_id=run_id,
+                status=status,
+                pages_scanned=pages_scanned,
+                lots_scanned=lots_scanned,
+                lots_updated=lots_updated,
+                error_count=len(errors),
+                errors=errors,
             )
 
-        pages_scanned = len(pages)
         auction_title = _extract_auction_title(pages[0].html)
 
         try:
@@ -574,21 +569,19 @@ def sync_auction_to_db(
 
                     cards_needing_detail.append((card, listing_hash, detail_html))
 
-            if cards_needing_detail:
-                detail_results = asyncio.run(
-                    fetcher.fetch_many([card.url for card, _listing_hash, _prefetched in cards_needing_detail])
-                )
+            fetch_urls = [card.url for card, _listing_hash, prefetched in cards_needing_detail if prefetched is None]
+            if fetch_urls:
+                detail_results = asyncio.run(fetcher.fetch_many(fetch_urls))
             else:
                 detail_results = []
 
-            for idx, (card, listing_hash, prefetched_html) in enumerate(cards_needing_detail):
-                detail_result = detail_results[idx] if idx < len(detail_results) else None
-                detail_text: str | None = None
-                if detail_result and detail_result.ok and detail_result.text:
+            detail_results_iter = iter(detail_results)
+            for card, listing_hash, prefetched_html in cards_needing_detail:
+                detail_result = next(detail_results_iter, None) if prefetched_html is None else None
+                detail_text: str | None = prefetched_html
+                if detail_text is None and detail_result and detail_result.ok and detail_result.text:
                     detail_text = detail_result.text
-                elif prefetched_html:
-                    detail_text = prefetched_html
-                else:
+                elif detail_text is None:
                     errors.append(
                         f"Failed to fetch detail for {card.lot_code} ({card.url}): {getattr(detail_result, 'error', None) or 'empty response'}"
                     )

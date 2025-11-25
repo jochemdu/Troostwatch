@@ -52,10 +52,11 @@ class LotViewService:
         state: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> List[LotView]:
+        effective_limit = None if limit is not None and limit <= 0 else limit
         rows = self._lot_repository.list_lots(
             auction_code=auction_code,
             state=state,
-            limit=limit,
+            limit=effective_limit,
         )
         return self._to_dtos(rows)
 

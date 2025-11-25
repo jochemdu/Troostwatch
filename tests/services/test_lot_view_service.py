@@ -54,6 +54,19 @@ def test_list_lots_returns_dtos_and_forwards_filters():
     ]
 
 
+def test_list_lots_converts_non_positive_limit_to_none():
+    repository = _StubLotRepository([])
+    service = LotViewService(repository)
+
+    service.list_lots(limit=0)
+    service.list_lots(limit=-3)
+
+    assert repository.list_calls == [
+        {"auction_code": None, "state": None, "limit": None},
+        {"auction_code": None, "state": None, "limit": None},
+    ]
+
+
 def test_from_record_handles_missing_optional_fields():
     minimal = {"auction_code": "A1", "lot_code": "L2"}
 

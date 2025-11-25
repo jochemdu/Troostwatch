@@ -109,3 +109,16 @@ def test_view_cli_json_output(tmp_path: Path) -> None:
     assert isinstance(payload, list)
     assert len(payload) == 1
     assert payload[0]["lot_code"] == "0001"
+
+
+def test_view_cli_json_output_no_limit(tmp_path: Path) -> None:
+    db_file = tmp_path / "lots.db"
+    _seed_db(db_file)
+
+    runner = CliRunner()
+    result = runner.invoke(view, ["--db", str(db_file), "--limit", "0", "--json-output"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert isinstance(payload, list)
+    assert len(payload) == 2

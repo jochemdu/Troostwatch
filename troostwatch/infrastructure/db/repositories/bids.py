@@ -23,8 +23,12 @@ class BidRepository:
     ) -> None:
         buyer_id = self.buyers.get_id(buyer_label)
         lot_id = self.lots.get_id(lot_code, auction_code)
-        if lot_id is None or buyer_id is None:
-            return
+        if buyer_id is None:
+            raise ValueError(f"Buyer '{buyer_label}' does not exist")
+        if lot_id is None:
+            raise ValueError(
+                f"Lot '{lot_code}' in auction '{auction_code}' does not exist"
+            )
         self.conn.execute(
             """
             INSERT INTO my_bids (lot_id, buyer_id, amount_eur, placed_at, note)

@@ -91,10 +91,13 @@ class BiddingService:
             return
         with get_connection(db_path) as conn:
             ensure_schema(conn)
-            BidRepository(conn).record_bid(
-                buyer_label=buyer_label,
-                auction_code=auction_code,
-                lot_code=lot_code,
-                amount_eur=amount_eur,
-                note=note,
-            )
+            try:
+                BidRepository(conn).record_bid(
+                    buyer_label=buyer_label,
+                    auction_code=auction_code,
+                    lot_code=lot_code,
+                    amount_eur=amount_eur,
+                    note=note,
+                )
+            except ValueError as exc:
+                raise BidError(f"Failed to persist bid locally: {exc}")

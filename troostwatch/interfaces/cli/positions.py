@@ -11,7 +11,7 @@ from __future__ import annotations
 import click
 from typing import Optional
 
-from troostwatch.services.positions import add_position, delete_position, list_positions
+from troostwatch.services.positions import PositionsService
 
 
 @click.group()
@@ -35,9 +35,9 @@ def add(db_path: str, buyer: str, auction_code: str, lot_code: str, budget: Opti
     position as not tracked. Use ``--budget`` to set a maximum budget.
     """
     track_active = not inactive
+    service = PositionsService.from_sqlite_path(db_path)
     try:
-        add_position(
-            db_path=db_path,
+        service.add_position(
             buyer_label=buyer,
             lot_code=lot_code,
             auction_code=auction_code,
@@ -60,7 +60,7 @@ def list_positions_cmd(db_path: str, buyer: Optional[str]) -> None:
     Without arguments, lists all positions for all buyers. Use the
     ``--buyer`` option to filter by buyer label.
     """
-    positions = list_positions(db_path=db_path, buyer_label=buyer)
+    positions = PositionsService.from_sqlite_path(db_path).list_positions(buyer_label=buyer)
     if not positions:
         click.echo("No positions found.")
         return
@@ -81,13 +81,9 @@ def list_positions_cmd(db_path: str, buyer: Optional[str]) -> None:
 @click.argument("lot_code")
 def delete(db_path: str, buyer: str, auction_code: str, lot_code: str) -> None:
     """Delete a tracked position for BUYER on AUCTION_CODE/LOT_CODE."""
+    service = PositionsService.from_sqlite_path(db_path)
     try:
-        delete_position(
-            db_path=db_path,
-            buyer_label=buyer,
-            lot_code=lot_code,
-            auction_code=auction_code,
-        )
+        service.delete_position(buyer_label=buyer, lot_code=lot_code, auction_code=auction_code)
     except ValueError as exc:
         click.echo(str(exc))
         return

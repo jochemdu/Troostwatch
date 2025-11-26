@@ -80,6 +80,21 @@ All sync functionality must be imported and used via `troostwatch.services.sync`
 
 See `docs/sync.md` for service layer architecture details.
 
+### Database Migrations
+
+Troostwatch uses a custom `SchemaMigrator` (not Alembic) for SQLite schema management:
+
+- **Canonical schema:** `schema/schema.sql` – source of truth for new databases.
+- **Version tracking:** `CURRENT_SCHEMA_VERSION` in `troostwatch/infrastructure/db/schema/migrations.py`.
+- **Programmatic migrations:** `troostwatch/infrastructure/db/schema/manager.py`.
+- **SQL migrations:** optional files in `migrations/` applied by `SchemaMigrator.apply_path()`.
+
+When changing the schema, update both `schema/schema.sql` and the programmatic
+migration code, then increment `CURRENT_SCHEMA_VERSION`. Use
+`python scripts/check_schema.py` to inspect database state.
+
+See `docs/migration_policy.md` for the full workflow.
+
 ## Python best practices
 
 - Target Python 3.11+; use type hints everywhere and prefer `dataclasses` or

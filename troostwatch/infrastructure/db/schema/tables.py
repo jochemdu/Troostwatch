@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+SCHEMA_VERSION_SQL = """
+CREATE TABLE IF NOT EXISTS schema_version (
+    version INTEGER PRIMARY KEY,
+    applied_at TEXT NOT NULL
+);
+"""
+
 SCHEMA_BUYERS_SQL = """
 CREATE TABLE IF NOT EXISTS buyers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

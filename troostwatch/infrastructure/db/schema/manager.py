@@ -19,6 +19,7 @@ def ensure_schema(conn) -> None:
     migrator = SchemaMigrator(conn)
     migrator.ensure_table()
     migrator.apply_path()
+    migrator.ensure_current_version()
     _ensure_auction_columns(conn, migrator)
     _ensure_lots_columns(conn, migrator)
     _ensure_hash_columns(conn)

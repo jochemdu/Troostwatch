@@ -4,7 +4,12 @@ from pathlib import Path
 from typing import Iterable
 
 from ..connection import iso_utcnow
-from .tables import SCHEMA_MIGRATIONS_SQL
+from .tables import SCHEMA_MIGRATIONS_SQL, SCHEMA_VERSION_SQL
+
+
+# Current schema version - increment when making structural changes.
+# This must match the version comment in schema/schema.sql.
+CURRENT_SCHEMA_VERSION = 1
 
 
 class SchemaMigrator:
@@ -13,10 +18,48 @@ class SchemaMigrator:
     Migration files are applied in lexical order and each filename is recorded
     in the ``schema_migrations`` table. The class can also register ad-hoc
     migrations triggered from code paths (e.g. adding columns conditionally).
+
+    Schema versioning is tracked separately in the ``schema_version`` table
+    which holds a single integer version number that must match
+    ``CURRENT_SCHEMA_VERSION``.
     """
 
     def __init__(self, conn) -> None:
         self.conn = conn
+
+    # -------------------------------------------------------------------------
+    # Schema version tracking
+    # -------------------------------------------------------------------------
+
+    def ensure_version_table(self) -> None:
+        """Create the schema_version table if it does not exist."""
+        self.conn.executescript(SCHEMA_VERSION_SQL)
+
+    def get_version(self) -> int | None:
+        """Return the current schema version, or None if not set."""
+        self.ensure_version_table()
+        cur = self.conn.execute("SELECT version FROM schema_version LIMIT 1")
+        row = cur.fetchone()
+        return row[0] if row else None
+
+    def set_version(self, version: int) -> None:
+        """Set the schema version, replacing any existing value."""
+        self.ensure_version_table()
+        self.conn.execute("DELETE FROM schema_version")
+        self.conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?, ?)",
+            (version, iso_utcnow()),
+        )
+
+    def ensure_current_version(self) -> None:
+        """Ensure the schema_version table reflects CURRENT_SCHEMA_VERSION."""
+        current = self.get_version()
+        if current is None or current < CURRENT_SCHEMA_VERSION:
+            self.set_version(CURRENT_SCHEMA_VERSION)
+
+    # -------------------------------------------------------------------------
+    # Migration tracking (by name)
+    # -------------------------------------------------------------------------
 
     def ensure_table(self) -> None:
         self.conn.executescript(SCHEMA_MIGRATIONS_SQL)

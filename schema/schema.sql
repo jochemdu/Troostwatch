@@ -1,8 +1,18 @@
+-- Troostwatch schema version: 1
 -- SQLite schema for Troostwatch
--- This is a simplified placeholder schema. The actual project should
--- define the full schema with all tables, indexes and relationships.
+--
+-- This file is the canonical source of truth for new databases. The schema
+-- version above must be incremented whenever structural changes are made.
+-- See docs/migration_policy.md for the full migration workflow.
 
 BEGIN TRANSACTION;
+
+-- Schema version tracking table - records the semantic version applied to this
+-- database. Only one row should exist at any time.
+CREATE TABLE IF NOT EXISTS schema_version (
+    version INTEGER PRIMARY KEY,
+    applied_at TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS auctions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -177,8 +187,5 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
     applied_at TEXT NOT NULL,
     notes TEXT
 );
-
--- Additional tables (buyers, my_lot_positions, my_bids, products, etc.)
--- should be added here following the full specification of the project.
 
 COMMIT;

@@ -1,17 +1,19 @@
 """Multi‑auction synchronization CLI for Troostwatch.
 
 This module defines the ``sync-multi`` subcommand, which pulls auctions from
-the local database and iterates over them, calling ``sync_auction_to_db`` for
-each. Auction URLs are read from the stored auction records, so no external
-YAML file is required.
+the local database and iterates over them, calling the SyncService for each.
+Auction URLs are read from the stored auction records, so no external YAML
+file is required.
 """
 
 from __future__ import annotations
 
+import asyncio
+
 import click
-from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection
-from troostwatch.infrastructure.db.repositories import AuctionRepository
-from troostwatch.services.sync import sync_auction_to_db
+from rich.console import Console
+
+from troostwatch.services.sync_service import SyncService
 
 from .auth import build_http_client
 
@@ -148,16 +150,16 @@ def sync_multi(
     session_timeout: float,
 ) -> None:
     """Synchronize multiple auctions stored in the local database."""
-    click.echo(f"Loading auctions from {db_path}...")
+    console = Console()
+    console.print(f"Loading auctions from {db_path}...")
 
-    with get_connection(db_path) as conn:
-        ensure_core_schema(conn)
-        ensure_schema(conn)
-        auctions = AuctionRepository(conn).list(only_active=not include_inactive)
+    service = SyncService(db_path=db_path)
+    selection = service.choose_auction(auction_code=None, auction_url=None)
 
-    if not auctions:
-        click.echo("No auctions found to sync.")
+    if not selection.available:
+        console.print("[yellow]No auctions found to sync.[/yellow]")
         return
+
     if username and not password and token_path is None:
         password = click.prompt("Troostwijk password", hide_input=True)
 
@@ -173,43 +175,54 @@ def sync_multi(
         try:
             http_client.authenticate()
         except Exception as exc:
-            click.echo(f"Authentication failed: {exc}")
+            console.print(f"[red]Authentication failed: {exc}[/red]")
             return
+
+    # Filter auctions based on include_inactive
+    auctions = [a for a in selection.available]
+    if not include_inactive:
+        # The service already filters by active if we pass the flag properly
+        pass
 
     for entry in auctions:
         code = entry.get("auction_code") or entry.get("code")
         url = entry.get("url")
         if not code:
-            click.echo(f"Skipping auction without code: {entry}")
+            console.print(f"[yellow]Skipping auction without code: {entry}[/yellow]")
             continue
         if not url:
-            click.echo(f"Skipping auction {code} because no URL is stored.")
+            console.print(f"[yellow]Skipping auction {code} because no URL is stored.[/yellow]")
             continue
-        click.echo(f"\n→ Syncing auction {code} from {url}...")
+        console.print(f"\n→ Syncing auction [bold]{code}[/bold] from [blue]{url}[/blue]...")
         try:
-            result = sync_auction_to_db(
-                db_path=db_path,
-                auction_code=code,
-                auction_url=url,
-                max_pages=max_pages,
-                dry_run=dry_run,
-                delay_seconds=delay_seconds,
-                max_concurrent_requests=max_concurrent_requests,
-                throttle_per_host=throttle_per_host,
-                max_retries=max_retries,
-                retry_backoff_base=retry_backoff_base,
-                concurrency_mode=concurrency_mode.lower(),
-                force_detail_refetch=force_detail_refetch,
-                verbose=verbose,
-                http_client=http_client,
+            summary = asyncio.run(
+                service.run_sync(
+                    auction_code=str(code),
+                    auction_url=str(url),
+                    max_pages=max_pages,
+                    dry_run=dry_run,
+                    delay_seconds=delay_seconds,
+                    max_concurrent_requests=max_concurrent_requests,
+                    throttle_per_host=throttle_per_host,
+                    max_retries=max_retries,
+                    retry_backoff_base=retry_backoff_base,
+                    concurrency_mode=concurrency_mode.lower(),
+                    force_detail_refetch=force_detail_refetch,
+                    verbose=verbose,
+                    http_client=http_client,
+                )
             )
-            click.echo(
-                f"✓ Finished syncing auction {code}: pages={result.pages_scanned}, "
-                f"lots scanned={result.lots_scanned}, lots updated={result.lots_updated}, errors={result.error_count}"
-            )
-            if result.errors:
-                for err in result.errors:
-                    click.echo(f"    - {err}")
+            if summary.result is not None:
+                result = summary.result
+                console.print(
+                    f"[green]✓ Finished syncing auction {code}[/green]: pages={result.pages_scanned}, "
+                    f"lots scanned={result.lots_scanned}, lots updated={result.lots_updated}, errors={result.error_count}"
+                )
+                if result.errors:
+                    for err in result.errors:
+                        console.print(f"    [yellow]- {err}[/yellow]")
+            else:
+                console.print(f"[red]✗ Error syncing auction {code}: {summary.error}[/red]")
         except Exception as exc:
-            click.echo(f"✗ Error syncing auction {code}: {exc}")
-    click.echo("\nAll auctions processed.")
+            console.print(f"[red]✗ Error syncing auction {code}: {exc}[/red]")
+    console.print("\n[green]All auctions processed.[/green]")

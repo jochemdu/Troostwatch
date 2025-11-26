@@ -12,18 +12,11 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from troostwatch.infrastructure.db.repositories import BuyerRepository
-from troostwatch.interfaces.cli.context import CLIContext, build_cli_context
+from troostwatch.interfaces.cli.context import CLIContext, build_cli_context, buyer_service
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
 
 console = Console()
 DEFAULT_CLI_CONTEXT = build_cli_context()
-
-
-@contextmanager
-def _buyer_service(cli_context: CLIContext):
-    with cli_context.repository(BuyerRepository) as repository:
-        yield BuyerService(repository)
 
 
 @click.group()
@@ -51,7 +44,7 @@ def add_cmd(ctx: click.Context, label: str, name: str | None, notes: str | None)
     """Add a new buyer with a unique LABEL."""
 
     cli_context: CLIContext = ctx.obj["cli_context"]
-    with _buyer_service(cli_context) as service:
+    with buyer_service(cli_context) as service:
         try:
             asyncio.run(service.create_buyer(label=label, name=name, notes=notes))
         except BuyerAlreadyExistsError:
@@ -67,7 +60,7 @@ def list_cmd(ctx: click.Context) -> None:
     """List all buyers."""
 
     cli_context: CLIContext = ctx.obj["cli_context"]
-    with _buyer_service(cli_context) as service:
+    with buyer_service(cli_context) as service:
         buyers = service.list_buyers()
 
     if not buyers:
@@ -90,6 +83,6 @@ def delete_cmd(ctx: click.Context, label: str) -> None:
     """Delete a buyer by LABEL."""
 
     cli_context: CLIContext = ctx.obj["cli_context"]
-    with _buyer_service(cli_context) as service:
+    with buyer_service(cli_context) as service:
         asyncio.run(service.delete_buyer(label=label))
     console.print(f"[green]Deleted buyer [bold]{label}[/bold]")

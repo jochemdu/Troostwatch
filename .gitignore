@@ -4,4 +4,4 @@ __pycache__/
 snapshots/
 troostwatch.db
 node_modules/
-ui/.next/
+ui/.next/sync.log

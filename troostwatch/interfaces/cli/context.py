@@ -13,9 +13,10 @@ from pathlib import Path
 from typing import Callable, ContextManager, Iterator, TypeVar
 
 from troostwatch.infrastructure.http import TroostwatchHttpClient
-from troostwatch.infrastructure.db import ensure_schema, get_connection, get_path_config
-from troostwatch.infrastructure.db.repositories import LotRepository
-from troostwatch.services.lots import LotViewService
+from troostwatch.infrastructure.db import ensure_schema, get_connection, get_path_config, iso_utcnow
+from troostwatch.infrastructure.db.repositories import AuctionRepository, BuyerRepository, LotRepository
+from troostwatch.services.buyers import BuyerService
+from troostwatch.services.lots import LotInput, LotManagementService, LotViewService
 
 from .auth import build_http_client
 
@@ -60,6 +61,30 @@ def lot_view_service(cli_context: CLIContext) -> Iterator[LotViewService]:
 
     with lot_repository(cli_context) as repository:
         yield LotViewService(repository)
+
+
+@contextmanager
+def buyer_service(cli_context: CLIContext) -> Iterator[BuyerService]:
+    """Yield a BuyerService wired to the CLI context repository."""
+
+    with cli_context.repository(BuyerRepository) as repository:
+        yield BuyerService(repository)
+
+
+@contextmanager
+def lot_management_service(cli_context: CLIContext) -> Iterator[LotManagementService]:
+    """Yield a LotManagementService wired to the CLI context repositories."""
+
+    with cli_context.connect() as conn:
+        lot_repo = LotRepository(conn)
+        auction_repo = AuctionRepository(conn)
+        yield LotManagementService(lot_repo, auction_repo)
+        conn.commit()
+
+
+def get_current_timestamp() -> str:
+    """Return the current UTC timestamp in ISO format."""
+    return iso_utcnow()
 
 
 def build_cli_context(db_path: str | Path | None = None) -> CLIContext:

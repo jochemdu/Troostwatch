@@ -1,22 +1,27 @@
-from click.testing import CliRunner
-import importlib
+import asyncio
+from dataclasses import dataclass
 
-sync_multi_mod = importlib.import_module("troostwatch.interfaces.cli.sync_multi")
+from click.testing import CliRunner
+
 from troostwatch.interfaces.cli.sync_multi import sync_multi
 from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection
 from troostwatch.services.sync.sync import _upsert_auction
+from troostwatch.services.sync_service import SyncRunSummary, SyncService
 
 
+@dataclass
 class DummyResult:
-    def __init__(self, code: str):
-        self.run_id = 1
-        self.status = "success"
-        self.pages_scanned = 0
-        self.lots_scanned = 0
-        self.lots_updated = 0
-        self.error_count = 0
-        self.errors = []
-        self.code = code
+    run_id: int = 1
+    status: str = "success"
+    pages_scanned: int = 0
+    lots_scanned: int = 0
+    lots_updated: int = 0
+    error_count: int = 0
+    errors: list = None
+
+    def __post_init__(self):
+        if self.errors is None:
+            self.errors = []
 
 
 def test_sync_multi_uses_db_auctions(monkeypatch, tmp_path):
@@ -30,11 +35,15 @@ def test_sync_multi_uses_db_auctions(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_sync_auction_to_db(**kwargs):
+    async def fake_run_sync(self, **kwargs):
         calls.append((kwargs.get("auction_code"), kwargs.get("auction_url")))
-        return DummyResult(kwargs.get("auction_code", ""))
+        return SyncRunSummary(
+            status="success",
+            auction_code=kwargs.get("auction_code"),
+            result=DummyResult(),
+        )
 
-    monkeypatch.setattr(sync_multi_mod, "sync_auction_to_db", fake_sync_auction_to_db)
+    monkeypatch.setattr(SyncService, "run_sync", fake_run_sync)
 
     runner = CliRunner()
     result = runner.invoke(

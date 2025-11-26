@@ -53,6 +53,14 @@ class SyncRunResult:
 
 
 def _log(message: str, verbose: bool, log_path: Optional[str] = None) -> None:
+    """Log a message to file and optionally to the console via logging.
+
+    This function avoids direct print/click.echo calls to keep presentation
+    logic out of the service layer. Instead, it uses the standard logging
+    module which can be configured by the caller.
+    """
+    import logging
+
     timestamped = f"{iso_utcnow()} {message}"
 
     if log_path:
@@ -66,12 +74,9 @@ def _log(message: str, verbose: bool, log_path: Optional[str] = None) -> None:
 
     if not verbose:
         return
-    try:
-        import click
 
-        click.echo(timestamped)
-    except ImportError:
-        print(timestamped)
+    logger = logging.getLogger("troostwatch.sync")
+    logger.info(message)
 
 
 def _fetch_url(

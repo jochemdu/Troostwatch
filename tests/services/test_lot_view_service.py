@@ -23,7 +23,7 @@ def test_list_lots_returns_dtos_and_forwards_filters():
             "auction_code": "A1",
             "lot_code": "L1",
             "title": "Lot 1",
-            "state": "open",
+            "state": "running",  # Use "running" which maps to LotState.RUNNING
             "current_bid_eur": 100.0,
             "bid_count": 2,
             "current_bidder_label": "BID123",
@@ -34,22 +34,24 @@ def test_list_lots_returns_dtos_and_forwards_filters():
     repository = _StubLotRepository(rows)
     service = LotViewService(repository)
 
-    result = service.list_lots(auction_code="A1", state="open", limit=5)
+    result = service.list_lots(auction_code="A1", state="running", limit=5)
 
     assert repository.list_calls == [
-        {"auction_code": "A1", "state": "open", "limit": 5}
+        {"auction_code": "A1", "state": "running", "limit": 5}
     ]
     assert result == [
         LotView(
             auction_code="A1",
             lot_code="L1",
             title="Lot 1",
-            state="open",
+            state="running",
             current_bid_eur=100.0,
             bid_count=2,
             current_bidder_label="BID123",
             closing_time_current="2024-01-01T00:00:00Z",
             closing_time_original="2023-12-31T23:00:00Z",
+            is_active=True,  # Domain logic: running lots are active
+            effective_price=100.0,  # Domain logic: current_bid is effective price
         )
     ]
 
@@ -77,3 +79,5 @@ def test_from_record_handles_missing_optional_fields():
     assert view.title is None
     assert view.closing_time_current is None
     assert view.closing_time_original is None
+    assert view.is_active is False  # Unknown state is not active
+    assert view.effective_price is None  # No price data

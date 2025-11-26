@@ -3,4 +3,7 @@
 This package contains domain model classes for Troostwatch.
 """
 
-__all__: list = []
+from .auction import Auction
+from .lot import Lot, LotState
+
+__all__ = ["Auction", "Lot", "LotState"]

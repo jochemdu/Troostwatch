@@ -155,8 +155,11 @@ class LotManagementService:
 
         Returns the lot_code of the added/updated lot.
         """
-        from troostwatch.services.sync import compute_detail_hash, compute_listing_hash
-        from troostwatch.services.sync.sync import _listing_detail_from_card
+        from troostwatch.services.sync import (
+            _listing_detail_from_card,
+            compute_detail_hash,
+            compute_listing_hash,
+        )
 
         card = LotCardData(
             auction_code=lot_input.auction_code,

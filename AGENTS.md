@@ -69,6 +69,17 @@ commands below when performing general tasks:
 - Keep tests colocated with functionality under `tests/`, mirroring the package
   structure.
 
+### Sync Layer Boundaries
+
+All sync functionality must be imported and used via `troostwatch.services.sync`:
+
+- **Public API:** `sync_auction_to_db()`, `SyncRunResult`, `HttpFetcher`, hashing functions
+- **Private modules:** `troostwatch/services/sync/sync.py`, `fetcher.py`, `service.py`
+- **Rule:** Import only from `troostwatch.services.sync`, not submodules
+- **Tests:** Test-only helpers like `_upsert_auction` are available but not in `__all__`
+
+See `docs/sync.md` for service layer architecture details.
+
 ## Python best practices
 
 - Target Python 3.11+; use type hints everywhere and prefer `dataclasses` or

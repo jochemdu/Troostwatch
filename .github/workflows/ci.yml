@@ -18,7 +18,35 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
-          pip install pytest
+          pip install -e ".[dev]"
       - name: Run tests
         run: pytest -q
+
+  arch-check:
+    runs-on: ubuntu-latest
+    # This job does NOT block the build - it's informational only
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Run architecture check (import-linter)
+        run: |
+          echo "=== Architecture Check ===" | tee architecture_report.txt
+          echo "" >> architecture_report.txt
+          lint-imports 2>&1 | tee -a architecture_report.txt || true
+          echo "" >> architecture_report.txt
+          echo "=== Legacy Import Check ===" >> architecture_report.txt
+          python scripts/check_imports.py 2>&1 | tee -a architecture_report.txt || true
+      - name: Upload architecture report
+        uses: actions/upload-artifact@v4
+        with:
+          name: architecture-report
+          path: architecture_report.txt
+          retention-days: 30

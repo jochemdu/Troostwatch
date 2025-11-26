@@ -12,6 +12,7 @@ pytest>=7.0
 black>=23.0
 flake8>=6.0
 mypy>=1.2
+import-linter>=2.0
 
 [docs]
 markdown-it-py>=2.2

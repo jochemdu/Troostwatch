@@ -19,6 +19,46 @@ directories have been removed so each role has a single canonical file:
 - `services-agent.md` – implements and orchestrates application service workflows.
 - `ui-agent.md` – implements and refines user interface components and front-end workflows.
 
+## Architecture at a Glance
+
+Troostwatch follows a layered architecture with strict import rules:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         ui/ (Next.js)                       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│              app/ & interfaces/cli/ (boundary)              │
+│         FastAPI routes, CLI commands, request/response      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                     services/ (use cases)                   │
+│      SyncService, BiddingService, LotViewService, etc.      │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│                   domain/ (business rules)                  │
+│           Lot, Auction, analytics, pure functions           │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                infrastructure/ (side layer)                 │
+│    db/, http/, web/parsers/, observability/, persistence/   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Import rules:**
+- `domain/` → no external imports (pure Python only)
+- `services/` → may import `domain/` and `infrastructure/`
+- `app/` and `interfaces/` → may import `services/` and `domain/`
+- `infrastructure/` → may import `domain/` only
+- `ui/` → talks to `app/` via HTTP/WebSocket
+
+See `docs/architecture.md` for full details and `docs/review_checklist.md`
+for PR review guidelines.
+
 ## Build & Test
 
 Agents need precise commands to build, test and run the project.  Use the

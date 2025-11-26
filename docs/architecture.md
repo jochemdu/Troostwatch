@@ -146,3 +146,69 @@ Buyer management:
 
 Always run `python scripts/check_imports.py` before committing to verify architectural boundaries.
 
+## Architecture Enforcement
+
+### Automated Checks
+
+Troostwatch uses `import-linter` to verify architectural boundaries. The tool
+runs in CI and produces a report, but **does not block builds** in the current
+phase.
+
+#### Running locally
+
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run import-linter
+lint-imports
+
+# Run legacy check script
+python scripts/check_imports.py
+```
+
+#### Reading the report
+
+The `lint-imports` output shows:
+
+1. **Contract name** – Which architectural rule was checked
+2. **KEPT/BROKEN** – Whether the contract passed or failed
+3. **Forbidden imports** – If broken, shows the violating import chains
+
+Example output (all contracts pass):
+```
+=============
+Import Linter
+=============
+
+Contracts: 6 kept, 0 broken.
+```
+
+Example output (contract broken):
+```
+-----
+BROKEN: Domain layer must not import infrastructure
+
+troostwatch.domain.models.lot -> troostwatch.infrastructure.db
+```
+
+#### Contracts enforced
+
+| Contract | Description |
+|----------|-------------|
+| `domain-purity` | Domain layer has no infrastructure/services/app imports |
+| `services-no-interfaces` | Services don't import from interfaces or app |
+| `cli-no-infrastructure` | CLI uses services, not infrastructure directly |
+| `api-no-infrastructure` | API routes use services, not infrastructure directly |
+| `infrastructure-isolation` | Infrastructure doesn't import from higher layers |
+| `layers` | Overall layered architecture validation |
+
+#### Policy for violations
+
+1. **New PRs**: Reviewers should note any new violations in review comments.
+2. **Existing violations**: May be merged with documented exceptions.
+3. **Resolution**: Prefer refactoring before merge; if not feasible, create a
+   TODO/issue for follow-up.
+
+See `docs/review_checklist.md` for the full PR review process.
+

@@ -19,6 +19,7 @@ Requires-Dist: pytest>=7.0; extra == "dev"
 Requires-Dist: black>=23.0; extra == "dev"
 Requires-Dist: flake8>=6.0; extra == "dev"
 Requires-Dist: mypy>=1.2; extra == "dev"
+Requires-Dist: import-linter>=2.0; extra == "dev"
 Provides-Extra: docs
 Requires-Dist: markdown-it-py>=2.2; extra == "docs"
 
@@ -81,6 +82,16 @@ python -m troostwatch.cli view --db troostwatch.db --state open
 # Toon alle lots zonder limiet en formatteer als tekst
 python -m troostwatch.cli view --db troostwatch.db --limit 0
 ```
+
+## Architecture and Agents
+
+Troostwatch uses a layered architecture (`domain` → `services` → `app`/`interfaces` → `ui`) with `infrastructure` as a side-layer for adapters. This separation keeps business logic testable and independent from I/O concerns.
+
+Contributor guidelines and role-specific instructions live in:
+- `AGENTS.md` – project-wide rules, build commands, and architecture overview
+- `.github/agents/*.md` – specialised agent files for docs, tests, API, CLI, etc.
+
+See `docs/architecture.md` for layer rules and `docs/review_checklist.md` for PR review guidelines.
 
 ## Requirements and installation
 

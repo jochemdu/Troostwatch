@@ -1,0 +1,107 @@
+# Import Linter Configuration for Troostwatch
+# See https://import-linter.readthedocs.io/
+#
+# These contracts enforce the layered architecture described in docs/architecture.md.
+# Run with: lint-imports (or python -m importlinter)
+
+[importlinter]
+root_package = troostwatch
+include_external_packages = False
+
+
+# =============================================================================
+# Contract 1: Domain layer is pure (no infrastructure dependencies)
+# =============================================================================
+[importlinter:contract:domain-purity]
+name = Domain layer must not import infrastructure
+type = forbidden
+source_modules =
+    troostwatch.domain
+forbidden_modules =
+    troostwatch.infrastructure
+    troostwatch.services
+    troostwatch.app
+    troostwatch.interfaces
+
+
+# =============================================================================
+# Contract 2: Services cannot import from interfaces/app
+# =============================================================================
+[importlinter:contract:services-no-interfaces]
+name = Services must not import from interfaces or app
+type = forbidden
+source_modules =
+    troostwatch.services
+forbidden_modules =
+    troostwatch.interfaces
+    troostwatch.app
+
+
+# =============================================================================
+# Contract 3: CLI should not import infrastructure directly
+# =============================================================================
+[importlinter:contract:cli-no-infrastructure]
+name = CLI must not import infrastructure directly
+type = forbidden
+source_modules =
+    troostwatch.interfaces.cli
+forbidden_modules =
+    troostwatch.infrastructure.db.repositories
+    troostwatch.infrastructure.http
+allow_indirect_imports = True
+ignore_imports =
+    # Allowed adapters that bridge CLI to infrastructure
+    troostwatch.interfaces.cli.context -> troostwatch.infrastructure.http
+    troostwatch.interfaces.cli.context -> troostwatch.infrastructure.db
+    troostwatch.interfaces.cli.context -> troostwatch.infrastructure.db.repositories
+    troostwatch.interfaces.cli.context_helpers -> troostwatch.infrastructure.db.repositories
+    troostwatch.interfaces.cli.auth -> troostwatch.infrastructure.http
+    troostwatch.interfaces.cli.debug -> troostwatch.infrastructure.diagnostics.debug_tools
+    troostwatch.interfaces.cli.bid -> troostwatch.infrastructure.http
+
+
+# =============================================================================
+# Contract 4: API routes should use services, not infrastructure
+# =============================================================================
+[importlinter:contract:api-no-infrastructure]
+name = API must not import infrastructure directly
+type = forbidden
+source_modules =
+    troostwatch.app.api
+forbidden_modules =
+    troostwatch.infrastructure.db.repositories
+    troostwatch.infrastructure.http
+allow_indirect_imports = True
+ignore_imports =
+    # dependencies.py is the designated wiring module
+    troostwatch.app.dependencies -> troostwatch.infrastructure.db.repositories
+    troostwatch.app.dependencies -> troostwatch.infrastructure.db
+
+
+# =============================================================================
+# Contract 5: Infrastructure cannot import from higher layers
+# =============================================================================
+[importlinter:contract:infrastructure-isolation]
+name = Infrastructure must not import from services or interfaces
+type = forbidden
+source_modules =
+    troostwatch.infrastructure
+forbidden_modules =
+    troostwatch.services
+    troostwatch.interfaces
+    troostwatch.app
+
+
+# =============================================================================
+# Contract 6: Layered architecture (informational)
+# =============================================================================
+[importlinter:contract:layers]
+name = Layered architecture
+type = layers
+layers =
+    interfaces
+    app
+    services
+    domain
+containers =
+    troostwatch

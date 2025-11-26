@@ -58,6 +58,16 @@ python -m troostwatch.cli view --db troostwatch.db --state open
 python -m troostwatch.cli view --db troostwatch.db --limit 0
 ```
 
+## Architecture and Agents
+
+Troostwatch uses a layered architecture (`domain` → `services` → `app`/`interfaces` → `ui`) with `infrastructure` as a side-layer for adapters. This separation keeps business logic testable and independent from I/O concerns.
+
+Contributor guidelines and role-specific instructions live in:
+- `AGENTS.md` – project-wide rules, build commands, and architecture overview
+- `.github/agents/*.md` – specialised agent files for docs, tests, API, CLI, etc.
+
+See `docs/architecture.md` for layer rules and `docs/review_checklist.md` for PR review guidelines.
+
 ## Requirements and installation
 
 This project depends on a small number of third‑party libraries. To use the

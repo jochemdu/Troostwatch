@@ -1,5 +1,8 @@
 # Contributing to Troostwatch
 
+> **See also:** [docs/review_checklist.md](review_checklist.md) for the PR
+> review checklist that reviewers use when evaluating pull requests.
+
 ## Code Review Checklist
 
 ### Architecture Compliance

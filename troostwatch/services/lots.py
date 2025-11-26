@@ -7,6 +7,7 @@ from typing import Iterable, List, Optional
 
 from pydantic import BaseModel, Field
 
+from troostwatch.domain.models import Lot
 from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
 from troostwatch.infrastructure.web.parsers import LotCardData, LotDetailData
 
@@ -23,11 +24,17 @@ class LotView(BaseModel):
     current_bidder_label: Optional[str] = None
     closing_time_current: Optional[str] = Field(default=None, description="Current closing timestamp, if set.")
     closing_time_original: Optional[str] = Field(default=None, description="Original closing timestamp, if set.")
+    is_active: bool = False
+    effective_price: Optional[float] = None
 
     model_config = {"from_attributes": True}
 
     @classmethod
     def from_record(cls, record: dict[str, object]) -> "LotView":
+        """Create a LotView from a database record."""
+        # Use domain model for business logic
+        lot = Lot.from_dict(record)
+
         return cls.model_validate({
             "auction_code": record["auction_code"],
             "lot_code": record["lot_code"],
@@ -38,6 +45,25 @@ class LotView(BaseModel):
             "current_bidder_label": record.get("current_bidder_label"),
             "closing_time_current": record.get("closing_time_current"),
             "closing_time_original": record.get("closing_time_original"),
+            "is_active": lot.is_active,
+            "effective_price": lot.effective_price,
+        })
+
+    @classmethod
+    def from_domain(cls, lot: Lot) -> "LotView":
+        """Create a LotView from a domain Lot model."""
+        return cls.model_validate({
+            "auction_code": lot.auction_code,
+            "lot_code": lot.lot_code,
+            "title": lot.title,
+            "state": lot.state.value,
+            "current_bid_eur": lot.current_bid_eur,
+            "bid_count": lot.bid_count,
+            "current_bidder_label": lot.current_bidder_label,
+            "closing_time_current": lot.closing_time_current.isoformat() if lot.closing_time_current else None,
+            "closing_time_original": lot.closing_time_original.isoformat() if lot.closing_time_original else None,
+            "is_active": lot.is_active,
+            "effective_price": lot.effective_price,
         })
 
 
@@ -54,6 +80,7 @@ class LotViewService:
         state: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> List[LotView]:
+        """List lots as LotView DTOs for presentation."""
         effective_limit = None if limit is not None and limit <= 0 else limit
         rows = self._lot_repository.list_lots(
             auction_code=auction_code,
@@ -61,6 +88,32 @@ class LotViewService:
             limit=effective_limit,
         )
         return self._to_dtos(rows)
+
+    def list_domain_lots(
+        self,
+        *,
+        auction_code: Optional[str] = None,
+        state: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Lot]:
+        """List lots as domain models for business logic."""
+        effective_limit = None if limit is not None and limit <= 0 else limit
+        rows = self._lot_repository.list_lots(
+            auction_code=auction_code,
+            state=state,
+            limit=effective_limit,
+        )
+        return [Lot.from_dict(row) for row in rows]
+
+    def get_active_lots(
+        self,
+        *,
+        auction_code: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[Lot]:
+        """Get only active (running or scheduled) lots as domain models."""
+        lots = self.list_domain_lots(auction_code=auction_code, limit=limit)
+        return [lot for lot in lots if lot.is_active]
 
     def _to_dtos(self, rows: Iterable[dict[str, object]]) -> List[LotView]:
         return [LotView.from_record(row) for row in rows]

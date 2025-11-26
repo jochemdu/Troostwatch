@@ -14,7 +14,7 @@ from typing import Awaitable, Callable, Dict, Literal
 
 from troostwatch.infrastructure.db import iso_utcnow
 from troostwatch.infrastructure.observability.logging import get_logger
-from troostwatch.sync.sync import SyncRunResult, sync_auction_to_db
+from troostwatch.services.sync import SyncRunResult, sync_auction_to_db
 
 logger = get_logger(__name__)
 

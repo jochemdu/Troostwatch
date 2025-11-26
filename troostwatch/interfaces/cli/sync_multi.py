@@ -11,7 +11,7 @@ from __future__ import annotations
 import click
 from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import AuctionRepository
-from troostwatch.sync.sync import sync_auction_to_db
+from troostwatch.services.sync import sync_auction_to_db
 
 from .auth import build_http_client
 

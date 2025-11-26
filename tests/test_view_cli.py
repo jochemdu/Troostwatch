@@ -7,7 +7,8 @@ from pathlib import Path
 from click.testing import CliRunner
 
 from troostwatch.interfaces.cli.view import view
-from troostwatch.db import ensure_schema, list_lots
+from troostwatch.infrastructure.db import ensure_schema
+from troostwatch.infrastructure.db.repositories import LotRepository
 
 
 def _seed_db(db_path: Path) -> None:
@@ -70,13 +71,14 @@ def test_list_lots_filters(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(db_file)
     try:
-        all_lots = list_lots(conn)
+        lot_repo = LotRepository(conn)
+        all_lots = lot_repo.list_lots()
         assert len(all_lots) == 2
 
-        open_lots = list_lots(conn, state="open")
+        open_lots = lot_repo.list_lots(state="open")
         assert [lot["lot_code"] for lot in open_lots] == ["0001"]
 
-        limited = list_lots(conn, limit=1)
+        limited = lot_repo.list_lots(limit=1)
         assert len(limited) == 1
     finally:
         conn.close()

@@ -9,8 +9,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.sync import sync as sync_module
-from troostwatch.sync.sync import PageResult, sync_auction_to_db, LotCardData, RequestResult
+from troostwatch.services.sync import sync as sync_module
+from troostwatch.services.sync.sync import PageResult, sync_auction_to_db
+from troostwatch.services.sync.fetcher import RequestResult
+from troostwatch.infrastructure.web.parsers import LotCardData
 
 
 def test_sync_stores_lots_even_when_detail_fetch_fails(monkeypatch, tmp_path):

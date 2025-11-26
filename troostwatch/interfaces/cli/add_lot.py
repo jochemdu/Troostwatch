@@ -7,7 +7,8 @@ import click
 from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection, iso_utcnow
 from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
 from troostwatch.infrastructure.web.parsers import LotCardData, LotDetailData
-from troostwatch.sync.sync import _listing_detail_from_card, compute_detail_hash, compute_listing_hash
+from troostwatch.services.sync import compute_detail_hash, compute_listing_hash
+from troostwatch.services.sync.sync import _listing_detail_from_card
 
 
 @click.command()

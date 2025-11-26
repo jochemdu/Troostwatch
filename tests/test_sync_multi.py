@@ -3,8 +3,8 @@ import importlib
 
 sync_multi_mod = importlib.import_module("troostwatch.interfaces.cli.sync_multi")
 from troostwatch.interfaces.cli.sync_multi import sync_multi
-from troostwatch.db import ensure_core_schema, ensure_schema, get_connection
-from troostwatch.sync.sync import _upsert_auction
+from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection
+from troostwatch.services.sync.sync import _upsert_auction
 
 
 class DummyResult:

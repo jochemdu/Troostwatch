@@ -21,13 +21,31 @@ belongs exclusively in the documentation.
 
 ## Project knowledge
 
-- **Tech stack:** Python 3.11, FastAPI, Pydantic, SQLAlchemy.  The project
-  uses Pixi for package management and `pytest` for tests.
-- **File structure:**
-  - `troostwatch/api/` – Application routes and service entry points (read only)
-  - `troostwatch/core/` – Domain logic and data models (read only)
+- **Tech stack:** Python 3.11, FastAPI, Pydantic, SQLite.  The project
+  uses pip/pyproject.toml for package management and `pytest` for tests.
+- **File structure:**
+  - `troostwatch/app/` – FastAPI application and wiring (read only)
+  - `troostwatch/services/` – Business logic and services (read only)
+  - `troostwatch/domain/` – Domain models (read only)
+  - `troostwatch/infrastructure/` – DB, HTTP, observability (read only)
+  - `schema/schema.sql` – Canonical database schema (read only)
   - `docs/` – Documentation output (write here)
-  - `troostwatch/tests/` – Unit and integration tests (for reference)
+  - `tests/` – Unit and integration tests (for reference)
+
+## Document Ownership
+
+Core documentation files and their collaborating agents:
+
+| Document | Owner | Collaborators |
+|----------|-------|---------------|
+| `docs/api.md` | `docs_agent` | `api_agent` |
+| `docs/db.md` | `docs_agent` | `migration_agent` |
+| `docs/sync.md` | `docs_agent` | `services_agent`, `parser_importer_agent` |
+| `docs/architecture.md` | `docs_agent` | all agents |
+| `docs/observability.md` | `docs_agent` | `observability_agent` |
+
+When updating these documents, coordinate with the listed collaborators to
+ensure accuracy.
 
 ## Tools you can use
 

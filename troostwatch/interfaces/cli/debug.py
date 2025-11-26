@@ -19,8 +19,8 @@ from __future__ import annotations
 import json
 
 import click
-from troostwatch.db import get_connection
-from troostwatch.debug_tools import db_integrity, db_stats, db_view
+from troostwatch.infrastructure.db import get_connection
+from troostwatch.infrastructure.diagnostics.debug_tools import db_integrity, db_stats, db_view
 
 
 @click.group()

@@ -1,14 +1,21 @@
-"""HTTP adapter facade.
+"""HTTP adapters for Troostwatch.
 
-Exposes the legacy :class:`troostwatch.http_client.TroostwatchHttpClient` and
-related errors under the infrastructure layer namespace.
+This package provides authenticated HTTP client functionality for interacting
+with the Troostwijk website.
 """
 
-import troostwatch.http_client as _legacy_http
-from troostwatch.http_client import *  # noqa: F401,F403
+from .client import (
+    AuthenticationError,
+    LoginCredentials,
+    SessionExpiredError,
+    StoredSession,
+    TroostwatchHttpClient,
+)
 
-__all__ = getattr(_legacy_http, "__all__", []) or [
-    name
-    for name in dir(_legacy_http)
-    if not name.startswith("_")
+__all__ = [
+    "AuthenticationError",
+    "LoginCredentials",
+    "SessionExpiredError",
+    "StoredSession",
+    "TroostwatchHttpClient",
 ]

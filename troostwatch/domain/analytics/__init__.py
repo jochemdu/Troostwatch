@@ -1,18 +1,9 @@
-"""Domain analytics facade.
+"""Analytics tools for Troostwatch.
 
-This wrapper re-exports the legacy :mod:`troostwatch.analytics` package so
-imports can move to ``troostwatch.domain.analytics`` during the layered
-migration without changing behaviour.
+This package contains functions to compute statistics and summaries
+over auctions and lots from the local database.
 """
-
-import troostwatch.analytics as _legacy_analytics
-from troostwatch.analytics import *  # noqa: F401,F403
 
 from .summary import BuyerSummary, TrackedLotSummary
 
-__all__ = getattr(_legacy_analytics, "__all__", []) or [
-    name
-    for name in dir(_legacy_analytics)
-    if not name.startswith("_")
-]
-__all__ += ["BuyerSummary", "TrackedLotSummary"]
+__all__ = ["BuyerSummary", "TrackedLotSummary"]

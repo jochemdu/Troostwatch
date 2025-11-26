@@ -8,7 +8,7 @@ from urllib.parse import urljoin
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import BidRepository
-from ..http_client import AuthenticationError, TroostwatchHttpClient
+from troostwatch.infrastructure.http import AuthenticationError, TroostwatchHttpClient
 
 
 class BidError(Exception):

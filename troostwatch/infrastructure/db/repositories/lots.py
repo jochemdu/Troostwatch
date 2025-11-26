@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from ..schema import ensure_schema
-from troostwatch.parsers.lot_card import LotCardData
-from troostwatch.parsers.lot_detail import LotDetailData
+from troostwatch.infrastructure.web.parsers.lot_card import LotCardData
+from troostwatch.infrastructure.web.parsers.lot_detail import LotDetailData
 
 
 class LotRepository:

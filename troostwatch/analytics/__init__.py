@@ -1,5 +1,18 @@
-"""Analytics tools for Troostwatch.
+"""Legacy analytics namespace - deprecated.
 
-This package will contain functions to compute statistics and summaries
-over auctions and lots from the local database.
+This package is deprecated. Import from ``troostwatch.domain.analytics``
+instead.
 """
+
+import warnings
+
+warnings.warn(
+    "`troostwatch.analytics` is deprecated; import from "
+    "`troostwatch.domain.analytics` instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+from troostwatch.domain.analytics import BuyerSummary, TrackedLotSummary
+
+__all__ = ["BuyerSummary", "TrackedLotSummary"]

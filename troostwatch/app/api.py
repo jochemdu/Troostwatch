@@ -6,20 +6,21 @@ Run with ``uvicorn troostwatch.app.api:app``.
 from __future__ import annotations
 
 import asyncio
-import sqlite3
-from typing import Dict, Iterator, List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, Field
 
-from troostwatch.infrastructure.db import ensure_schema, get_connection
-from troostwatch.infrastructure.db.config import get_path_config
+from troostwatch.app.dependencies import (
+    get_buyer_repository,
+    get_lot_repository,
+    get_position_repository,
+)
 from troostwatch.infrastructure.db.repositories import BuyerRepository, LotRepository, PositionRepository
-from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
-from troostwatch.services.live_runner import LiveSyncConfig, LiveSyncRunner
-from troostwatch.services import buyers as buyer_service
 from troostwatch.services import positions as position_service
-from troostwatch.services.sync import sync_auction
+from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
+from troostwatch.services.lots import LotView, LotViewService
+from troostwatch.services.sync_service import SyncService
 
 
 class LotEventBus:
@@ -54,34 +55,38 @@ class LotEventBus:
 
 
 event_bus = LotEventBus()
+sync_service = SyncService(event_publisher=event_bus.publish)
 app = FastAPI(title="Troostwatch API", version="0.1.0")
-live_sync_runner = LiveSyncRunner(db_path=str(get_path_config()["db_path"]), event_publisher=event_bus.publish)
 
 
-def get_db_connection() -> Iterator[sqlite3.Connection]:
-    """Provide a SQLite connection with the required schema ensured."""
-
-    with get_connection() as conn:
-        ensure_schema(conn)
-        yield conn
+def get_buyer_service(repository: BuyerRepository = Depends(get_buyer_repository)) -> BuyerService:
+    return BuyerService(repository=repository, event_publisher=event_bus.publish)
 
 
-def get_lot_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> LotRepository:
-    return LotRepository(conn)
+def get_lot_view_service(lot_repository: LotRepository = Depends(get_lot_repository)) -> LotViewService:
+    return LotViewService(lot_repository)
 
 
-def get_buyer_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> BuyerRepository:
-    return BuyerRepository(conn)
-
-
-def get_position_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> PositionRepository:
-    return PositionRepository(conn)
+def get_sync_service() -> SyncService:
+    return sync_service
 
 
 class BuyerCreateRequest(BaseModel):
     label: str
     name: Optional[str] = None
     notes: Optional[str] = None
+
+
+class BuyerResponse(BaseModel):
+    id: int
+    label: str
+    name: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class BuyerCreateResponse(BaseModel):
+    status: str
+    label: str
 
 
 class PositionUpdate(BaseModel):
@@ -116,14 +121,14 @@ class LiveSyncStartRequest(BaseModel):
     )
 
 
-@app.get("/lots")
+@app.get("/lots", response_model=list[LotView])
 async def list_lots(
     auction_code: Optional[str] = None,
     state: Optional[str] = None,
     limit: Optional[int] = Query(default=None, ge=1),
-    repository: LotRepository = Depends(get_lot_repository),
-) -> List[Dict[str, Optional[str]]]:
-    return repository.list_lots(auction_code=auction_code, state=state, limit=limit)
+    lot_view_service: LotViewService = Depends(get_lot_view_service),
+) -> List[LotView]:
+    return lot_view_service.list_lots(auction_code=auction_code, state=state, limit=limit)
 
 
 @app.post("/positions/batch")
@@ -150,73 +155,67 @@ async def upsert_positions(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
-@app.get("/buyers")
-async def list_buyers(repository: BuyerRepository = Depends(get_buyer_repository)) -> List[Dict[str, Optional[str]]]:
-    return buyer_service.list_buyers(repository)
+@app.get("/buyers", response_model=List[BuyerResponse])
+async def list_buyers(service: BuyerService = Depends(get_buyer_service)) -> List[BuyerResponse]:
+    buyers = service.list_buyers()
+    return [BuyerResponse(**buyer) for buyer in buyers]
 
 
-@app.post("/buyers", status_code=status.HTTP_201_CREATED)
-async def create_buyer(payload: BuyerCreateRequest, repository: BuyerRepository = Depends(get_buyer_repository)) -> Dict[str, str]:
+@app.post("/buyers", status_code=status.HTTP_201_CREATED, response_model=BuyerCreateResponse)
+async def create_buyer(
+    payload: BuyerCreateRequest, service: BuyerService = Depends(get_buyer_service)
+) -> BuyerCreateResponse:
     try:
-        return await buyer_service.create_buyer(
-            repository=repository,
+        result = await service.create_buyer(
             label=payload.label,
             name=payload.name,
             notes=payload.notes,
-            event_publisher=event_bus.publish,
         )
-    except DuplicateBuyerError as exc:
+    except BuyerAlreadyExistsError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return BuyerCreateResponse(**result)
 
 
 @app.delete("/buyers/{label}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_buyer(label: str, repository: BuyerRepository = Depends(get_buyer_repository)) -> None:
-    await buyer_service.delete_buyer(repository=repository, label=label, event_publisher=event_bus.publish)
+async def delete_buyer(label: str, service: BuyerService = Depends(get_buyer_service)) -> None:
+    await service.delete_buyer(label=label)
 
 
 @app.post("/sync", status_code=status.HTTP_202_ACCEPTED)
-async def trigger_sync(request: SyncRequest) -> Dict[str, object]:
-    db_path = str(get_path_config()["db_path"])
-
-    return await sync_auction(
-        db_path=db_path,
+async def trigger_sync(request: SyncRequest, service: SyncService = Depends(get_sync_service)) -> Dict[str, object]:
+    summary = await service.run_sync(
         auction_code=request.auction_code,
         auction_url=request.auction_url,
         max_pages=request.max_pages,
         dry_run=request.dry_run,
-        event_publisher=event_bus.publish,
     )
+    return summary.to_dict()
 
 
 @app.post("/live-sync/start", status_code=status.HTTP_202_ACCEPTED)
-async def start_live_sync(request: LiveSyncStartRequest) -> Dict[str, object]:
-    state = await live_sync_runner.start(
-        LiveSyncConfig(
-            auction_code=request.auction_code,
-            auction_url=request.auction_url,
-            max_pages=request.max_pages,
-            dry_run=request.dry_run,
-            interval_seconds=request.interval_seconds,
-        )
+async def start_live_sync(request: LiveSyncStartRequest, service: SyncService = Depends(get_sync_service)) -> Dict[str, object]:
+    return await service.start_live_sync(
+        auction_code=request.auction_code,
+        auction_url=request.auction_url,
+        max_pages=request.max_pages,
+        dry_run=request.dry_run,
+        interval_seconds=request.interval_seconds,
     )
-    return {"status": state.status, "state": state.to_dict()}
 
 
 @app.post("/live-sync/pause", status_code=status.HTTP_202_ACCEPTED)
-async def pause_live_sync() -> Dict[str, object]:
-    state = await live_sync_runner.pause()
-    return {"status": state.status, "state": state.to_dict()}
+async def pause_live_sync(service: SyncService = Depends(get_sync_service)) -> Dict[str, object]:
+    return await service.pause_live_sync()
 
 
 @app.post("/live-sync/stop", status_code=status.HTTP_202_ACCEPTED)
-async def stop_live_sync() -> Dict[str, object]:
-    state = await live_sync_runner.stop()
-    return {"status": state.status, "state": state.to_dict()}
+async def stop_live_sync(service: SyncService = Depends(get_sync_service)) -> Dict[str, object]:
+    return await service.stop_live_sync()
 
 
 @app.get("/live-sync/status")
-async def get_live_sync_status() -> Dict[str, object]:
-    return live_sync_runner.get_status()
+async def get_live_sync_status(service: SyncService = Depends(get_sync_service)) -> Dict[str, object]:
+    return service.get_live_sync_status()
 
 
 @app.websocket("/ws/lots")

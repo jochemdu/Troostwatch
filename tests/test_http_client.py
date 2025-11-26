@@ -2,7 +2,7 @@ import time
 
 from requests import Response
 
-from troostwatch.http_client import TroostwatchHttpClient
+from troostwatch.infrastructure.http import TroostwatchHttpClient
 
 
 def _make_response(text: str, headers: dict | None = None) -> Response:

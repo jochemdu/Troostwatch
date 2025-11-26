@@ -1,28 +1,15 @@
-"""Synchronization CLI for Troostwatch.
+"""Synchronization CLI for Troostwatch."""
 
-This module defines the ``sync`` subcommand that downloads auction data
-from Troostwijk and stores it into a local SQLite database. It wraps the
-``sync_auction_to_db`` function from :mod:`troostwatch.sync.sync`.
+from __future__ import annotations
 
-Example usage::
-
-    python -m troostwatch.interfaces.cli sync \
-        --db troostwatch.db \
-        --auction-code A1-39499 \
-        --auction-url https://www.troostwijkauctions.com/auction/1234 \
-        --max-pages 2
-
-The command will fetch up to two pages of lot listings for auction ``A1-39499``
-from the given URL and persist the lots and auction metadata into
-``troostwatch.db``.
-"""
+import asyncio
 
 import click
-from troostwatch.infrastructure.db import ensure_schema, get_connection
-from troostwatch.infrastructure.db.repositories import AuctionRepository, PreferenceRepository
-from troostwatch.sync.sync import sync_auction_to_db
+from rich.console import Console
+from rich.prompt import IntPrompt, Prompt
 
-from .auth import build_http_client
+from troostwatch.interfaces.cli.context import build_sync_command_context
+from troostwatch.services.sync_service import SyncRunSummary, SyncService
 
 
 @click.command(name="sync")
@@ -176,65 +163,12 @@ def sync(
     If ``--dry-run`` is specified, the command parses the pages but skips
     database writes.
     """
-    from troostwatch.db import get_connection, get_preference, list_auctions
-
-    resolved_code = auction_code
-    resolved_url = auction_url
-
-    if not resolved_code or not resolved_url:
-        preferred_code = None
-        with get_connection(db_path) as conn:
-            ensure_schema(conn)
-            repo = AuctionRepository(conn)
-            available = repo.list(only_active=False)
-            preferred_code = PreferenceRepository(conn).get("preferred_auction")
-
-        if available and not resolved_code:
-            click.echo("Select an auction to sync:")
-            default_index = 0
-            for idx, auction in enumerate(available, start=1):
-                title = auction.get("title") or "(geen titel)"
-                url = auction.get("url") or "(geen url bekend)"
-                click.echo(f"{idx}) {auction['auction_code']} - {title} - {url}")
-                if auction.get("auction_code") == preferred_code:
-                    default_index = idx - 1
-            default_choice_num = default_index + 1
-            click.echo(
-                "Standaard keuze: "
-                f"{default_choice_num}) {available[default_index]['auction_code']}"
-            )
-            choice = click.prompt(
-                "Keuze",
-                type=click.IntRange(1, len(available)),
-                show_choices=False,
-                default=default_choice_num,
-                show_default=True,
-            )
-            selected = available[choice - 1]
-            resolved_code = selected.get("auction_code") or resolved_code
-            resolved_url = selected.get("url") or resolved_url
-
-        if available and resolved_code and not resolved_url:
-            match = next(
-                (a for a in available if a.get("auction_code") == resolved_code), None
-            )
-            if match:
-                resolved_url = match.get("url") or resolved_url
-
-    if not resolved_code:
-        click.echo("Auction code ontbreekt; geef --auction-code op of kies een bestaande.")
-        return
-
-    if not resolved_url:
-        resolved_url = click.prompt("Auction URL")
-
-    click.echo(
-        f"Syncing auction {resolved_code} from {resolved_url} into {db_path}..."
-    )
+    console = Console()
     if username and not password and token_path is None:
-        password = click.prompt("Troostwijk password", hide_input=True)
+        password = Prompt.ask("Troostwijk password", password=True, console=console)
 
-    http_client = build_http_client(
+    command_context = build_sync_command_context(
+        db_path=db_path,
         base_url=base_url,
         login_path=login_path,
         username=username,
@@ -243,40 +177,93 @@ def sync(
         session_timeout=session_timeout,
     )
 
-    if http_client is not None:
-        try:
-            http_client.authenticate()
-        except Exception as exc:
-            click.echo(f"Authentication failed: {exc}")
-            return
+    service = SyncService(db_path=str(command_context.cli_context.db_path))
+    selection = service.choose_auction(auction_code=auction_code, auction_url=auction_url)
 
-    try:
-        result = sync_auction_to_db(
-            db_path=db_path,
-            auction_code=resolved_code,
-            auction_url=resolved_url,
-            max_pages=max_pages,
-            dry_run=dry_run,
-            delay_seconds=delay_seconds,
-            max_concurrent_requests=max_concurrent_requests,
-            throttle_per_host=throttle_per_host,
-            max_retries=max_retries,
-            retry_backoff_base=retry_backoff_base,
-            concurrency_mode=concurrency_mode.lower(),
-            force_detail_refetch=force_detail_refetch,
-            verbose=verbose,
-            log_path=log_path,
-            http_client=http_client,
+    resolved_code = selection.resolved_code
+    resolved_url = selection.resolved_url
+
+    if not resolved_code and selection.available:
+        console.print("Select an auction to sync:")
+        for idx, auction in enumerate(selection.available, start=1):
+            title = auction.get("title") or "(geen titel)"
+            url = auction.get("url") or "(geen url bekend)"
+            console.print(f"{idx}) {auction['auction_code']} - {title} - {url}")
+        default_choice_num = selection.default_choice_number or 1
+        console.print(
+            "Standaard keuze: "
+            f"{default_choice_num}) {selection.available[default_choice_num - 1]['auction_code']}"
         )
-    except Exception as exc:
-        click.echo(f"Error during sync: {exc}")
+        choice = IntPrompt.ask(
+            "Keuze",
+            default=default_choice_num,
+            console=console,
+        )
+        try:
+            selected = selection.available[int(choice) - 1]
+        except Exception:
+            console.print("[red]Ongeldige keuze; aborting sync.[/red]")
+            return
+        resolved_code = selected.get("auction_code") or resolved_code
+        resolved_url = selected.get("url") or resolved_url
+
+    if not resolved_code:
+        console.print(
+            "[red]Auction code ontbreekt; geef --auction-code op of kies een bestaande.[/red]"
+        )
         return
 
-    click.echo(
-        f"Sync {result.status} (run #{result.run_id}): pages={result.pages_scanned}, "
+    if not resolved_url:
+        resolved_url = Prompt.ask("Auction URL", console=console)
+
+    console.print(
+        f"[bold]Syncing auction {resolved_code}[/bold] from [blue]{resolved_url}[/blue] into {command_context.cli_context.db_path}..."
+    )
+    if dry_run:
+        console.print("[yellow]Dry-run enabled; no database writes will occur.[/yellow]")
+
+    if command_context.http_client is not None:
+        try:
+            with console.status("Authenticating..."):
+                command_context.http_client.authenticate()
+        except Exception as exc:
+            console.print(f"[red]Authentication failed: {exc}[/red]")
+            return
+
+    with console.status("Running sync..."):
+        summary = asyncio.run(
+            service.run_sync(
+                auction_code=resolved_code,
+                auction_url=resolved_url,
+                max_pages=max_pages,
+                dry_run=dry_run,
+                delay_seconds=delay_seconds,
+                max_concurrent_requests=max_concurrent_requests,
+                throttle_per_host=throttle_per_host,
+                max_retries=max_retries,
+                retry_backoff_base=retry_backoff_base,
+                concurrency_mode=concurrency_mode.lower(),
+                force_detail_refetch=force_detail_refetch,
+                verbose=verbose,
+                log_path=log_path,
+                http_client=command_context.http_client,
+            )
+        )
+
+    if (
+        not isinstance(summary, SyncRunSummary)
+        or summary.result is None
+        or summary.status != "success"
+    ):
+        console.print(f"[red]Error during sync: {getattr(summary, 'error', 'onbekende fout')}[/red]")
+        return
+
+    result = summary.result
+    console.print(
+        f"[green]Sync {result.status}[/green] (run #{result.run_id}): pages={result.pages_scanned}, "
         f"lots scanned={result.lots_scanned}, lots updated={result.lots_updated}, errors={result.error_count}"
     )
     if result.errors:
-        click.echo("Errors:")
+        console.print("[yellow]Errors:[/yellow]")
         for err in result.errors:
-            click.echo(f"  - {err}")
+            console.print(f"  - {err}")

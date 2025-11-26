@@ -1,10 +1,28 @@
-"""Logging utilities facade for the infrastructure layer."""
+"""Logging utilities for Troostwatch.
 
-import troostwatch.logging_utils as _legacy_logging
-from troostwatch.logging_utils import *  # noqa: F401,F403
+This module provides placeholders for setting up and using loggers
+consistently throughout the project.
+"""
 
-__all__ = getattr(_legacy_logging, "__all__", []) or [
-    name
-    for name in dir(_legacy_logging)
-    if not name.startswith("_")
-]
+import logging
+
+
+def get_logger(name: str) -> logging.Logger:
+    """Return a logger configured with a default format.
+
+    Args:
+        name: Name of the logger.
+
+    Returns:
+        A logging.Logger instance.
+    """
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+    return logger

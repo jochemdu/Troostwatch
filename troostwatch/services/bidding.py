@@ -9,6 +9,9 @@ from urllib.parse import urljoin
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import BidRepository
 from troostwatch.infrastructure.http import AuthenticationError, TroostwatchHttpClient
+from troostwatch.infrastructure.observability import get_logger, log_context
+
+_logger = get_logger(__name__)
 
 
 class BidError(Exception):
@@ -53,30 +56,38 @@ class BiddingService:
         if amount_eur <= 0:
             raise ValueError("Bid amount must be positive")
 
-        payload: Dict[str, Any] = {
-            "auctionCode": auction_code,
-            "lotCode": lot_code,
-            "amountEur": amount_eur,
-            "buyerLabel": buyer_label,
-        }
-        if note:
-            payload["note"] = note
+        with log_context(
+            auction_code=auction_code, lot_code=lot_code, buyer=buyer_label
+        ):
+            _logger.info("Submitting bid for %.2f EUR", amount_eur)
 
-        try:
-            response = self.client.post_json(self._resolve("bids"), payload)
-        except AuthenticationError:
-            raise
-        except Exception as exc:  # pragma: no cover - runtime safety
-            raise BidError(f"Failed to submit bid: {exc}")
+            payload: Dict[str, Any] = {
+                "auctionCode": auction_code,
+                "lotCode": lot_code,
+                "amountEur": amount_eur,
+                "buyerLabel": buyer_label,
+            }
+            if note:
+                payload["note"] = note
 
-        self._persist_bid(db_path, buyer_label, auction_code, lot_code, amount_eur, note)
+            try:
+                response = self.client.post_json(self._resolve("bids"), payload)
+            except AuthenticationError:
+                _logger.error("Authentication failed during bid submission")
+                raise
+            except Exception as exc:  # pragma: no cover - runtime safety
+                _logger.error("Bid submission failed: %s", exc)
+                raise BidError(f"Failed to submit bid: {exc}")
 
-        return BidResult(
-            lot_code=lot_code,
-            auction_code=auction_code,
-            amount_eur=amount_eur,
-            raw_response=response,
-        )
+            self._persist_bid(db_path, buyer_label, auction_code, lot_code, amount_eur, note)
+            _logger.info("Bid submitted successfully for %.2f EUR", amount_eur)
+
+            return BidResult(
+                lot_code=lot_code,
+                auction_code=auction_code,
+                amount_eur=amount_eur,
+                raw_response=response,
+            )
 
     def _persist_bid(
         self,

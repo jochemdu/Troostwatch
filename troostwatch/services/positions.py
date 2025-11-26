@@ -8,6 +8,9 @@ from typing import Awaitable, Callable, Dict, List, Optional
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import PositionRepository
+from troostwatch.infrastructure.observability import get_logger, log_context
+
+_logger = get_logger(__name__)
 
 ConnectionFactory = Callable[[], AbstractContextManager]
 EventPublisher = Callable[[dict[str, object]], Awaitable[None]]
@@ -50,16 +53,20 @@ class PositionsService:
         max_budget_total_eur: Optional[float] = None,
     ) -> None:
         """Create or update a tracked position."""
-
-        with self._connection_factory() as conn:
-            ensure_schema(conn)
-            PositionRepository(conn).upsert(
-                buyer_label=buyer_label,
-                lot_code=lot_code,
-                auction_code=auction_code,
-                track_active=track_active,
-                max_budget_total_eur=max_budget_total_eur,
-            )
+        with log_context(
+            buyer=buyer_label, auction_code=auction_code, lot_code=lot_code
+        ):
+            _logger.info("Adding position")
+            with self._connection_factory() as conn:
+                ensure_schema(conn)
+                PositionRepository(conn).upsert(
+                    buyer_label=buyer_label,
+                    lot_code=lot_code,
+                    auction_code=auction_code,
+                    track_active=track_active,
+                    max_budget_total_eur=max_budget_total_eur,
+                )
+            _logger.debug("Position added successfully")
 
     def list_positions(
         self, *, buyer_label: Optional[str] = None
@@ -159,6 +166,7 @@ async def upsert_positions(
     Raises:
         ValueError: If a buyer or lot referenced in an update is not found.
     """
+    _logger.info("Batch upserting %d positions", len(updates))
     updated_positions: List[Dict[str, object]] = []
 
     for update in updates:
@@ -184,4 +192,5 @@ async def upsert_positions(
             "positions": updated_positions,
         })
 
+    _logger.info("Successfully upserted %d positions", len(updated_positions))
     return {"updated": len(updated_positions), "positions": updated_positions}

@@ -95,6 +95,22 @@ migration code, then increment `CURRENT_SCHEMA_VERSION`. Use
 
 See `docs/migration_policy.md` for the full workflow.
 
+### Observability
+
+Troostwatch provides centralised logging and metrics via
+`troostwatch/infrastructure/observability/`:
+
+- **Logging**: Call `configure_logging()` at startup (CLI or FastAPI).
+  Use `get_logger(__name__)` and `log_context()` for structured logs.
+- **Metrics**: Use `record_api_request()`, `record_sync_run()`, `record_bid()`
+  to track operations. Metrics can be exported via `format_prometheus()`.
+- **Agent responsibilities**:
+  - `observability_agent` owns logging config and metrics helpers.
+  - `services_agent` calls metrics hooks at operation boundaries.
+  - `api_agent` / `cli_agent` use shared logging helpers.
+
+See `docs/observability.md` for the full strategy.
+
 ## Python best practices
 
 - Target Python 3.11+; use type hints everywhere and prefer `dataclasses` or

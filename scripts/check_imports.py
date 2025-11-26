@@ -1,0 +1,175 @@
+#!/usr/bin/env python3
+"""Check for forbidden imports in the codebase.
+
+This script enforces architectural boundaries by checking that:
+1. CLI commands don't import directly from infrastructure (except designated adapters)
+2. App layer doesn't import from infrastructure
+3. Domain layer doesn't import from infrastructure
+
+Usage:
+    python scripts/check_imports.py
+    python scripts/check_imports.py --verbose
+    python scripts/check_imports.py --fix-suggestions
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Set
+
+
+@dataclass
+class ImportViolation:
+    """Represents a forbidden import."""
+    file_path: Path
+    line_number: int
+    import_statement: str
+    forbidden_module: str
+    reason: str
+
+
+@dataclass
+class ImportRule:
+    """Defines forbidden imports for a directory."""
+    directory: str
+    forbidden_patterns: List[str]
+    exceptions: List[str] = field(default_factory=list)
+    reason: str = ""
+
+
+# Define architectural rules
+IMPORT_RULES: List[ImportRule] = [
+    ImportRule(
+        directory="troostwatch/interfaces/cli",
+        forbidden_patterns=[
+            "troostwatch.infrastructure.db",
+            "troostwatch.infrastructure.http",
+        ],
+        exceptions=[
+            # Allowed adapter files
+            "troostwatch/interfaces/cli/context.py",
+            "troostwatch/interfaces/cli/context_helpers.py",
+            "troostwatch/interfaces/cli/auth.py",
+            "troostwatch/interfaces/cli/debug.py",  # Diagnostics are allowed
+            "troostwatch/interfaces/cli/bid.py",  # Only imports AuthenticationError exception
+        ],
+        reason="CLI commands should use services, not infrastructure directly",
+    ),
+    ImportRule(
+        directory="troostwatch/app",
+        forbidden_patterns=[
+            "troostwatch.infrastructure.db.repositories",
+            "troostwatch.infrastructure.http",
+        ],
+        exceptions=[
+            "troostwatch/app/api/routes.py",  # Routes wire things together
+            "troostwatch/app/api.py",  # Main API wiring
+            "troostwatch/app/dependencies.py",  # Dependency injection wiring
+        ],
+        reason="App layer should use services, not infrastructure directly",
+    ),
+    ImportRule(
+        directory="troostwatch/domain",
+        forbidden_patterns=[
+            "troostwatch.infrastructure",
+        ],
+        exceptions=[],
+        reason="Domain layer must be independent of infrastructure",
+    ),
+]
+
+
+def extract_imports(file_path: Path) -> List[tuple[int, str]]:
+    """Extract all import statements from a Python file."""
+    try:
+        content = file_path.read_text(encoding="utf-8")
+        tree = ast.parse(content)
+    except (SyntaxError, UnicodeDecodeError):
+        return []
+
+    imports = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append((node.lineno, alias.name))
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imports.append((node.lineno, node.module))
+    return imports
+
+
+def check_file(file_path: Path, rule: ImportRule) -> List[ImportViolation]:
+    """Check a single file against an import rule."""
+    violations = []
+    
+    # Skip exception files
+    rel_path = str(file_path)
+    if any(exc in rel_path for exc in rule.exceptions):
+        return violations
+
+    for line_no, module in extract_imports(file_path):
+        for forbidden in rule.forbidden_patterns:
+            if module.startswith(forbidden) or f".{forbidden}" in module:
+                violations.append(ImportViolation(
+                    file_path=file_path,
+                    line_number=line_no,
+                    import_statement=module,
+                    forbidden_module=forbidden,
+                    reason=rule.reason,
+                ))
+    return violations
+
+
+def check_directory(base_path: Path, rule: ImportRule) -> List[ImportViolation]:
+    """Check all Python files in a directory against an import rule."""
+    violations = []
+    dir_path = base_path / rule.directory
+    
+    if not dir_path.exists():
+        return violations
+
+    for py_file in dir_path.rglob("*.py"):
+        if "__pycache__" in str(py_file):
+            continue
+        violations.extend(check_file(py_file, rule))
+    
+    return violations
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Check for forbidden imports")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show all files checked")
+    parser.add_argument("--fix-suggestions", action="store_true", help="Show fix suggestions")
+    args = parser.parse_args()
+
+    base_path = Path(__file__).parent.parent
+    all_violations: List[ImportViolation] = []
+
+    for rule in IMPORT_RULES:
+        violations = check_directory(base_path, rule)
+        all_violations.extend(violations)
+
+    if not all_violations:
+        print("✅ No import violations found!")
+        return 0
+
+    print(f"❌ Found {len(all_violations)} import violation(s):\n")
+    
+    for v in all_violations:
+        print(f"  {v.file_path}:{v.line_number}")
+        print(f"    Import: {v.import_statement}")
+        print(f"    Reason: {v.reason}")
+        if args.fix_suggestions:
+            print(f"    Suggestion: Use a service or move to an adapter file")
+        print()
+
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+

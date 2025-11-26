@@ -23,8 +23,6 @@ from troostwatch.app.dependencies import (
     get_buyer_repository,
     get_lot_repository,
     get_position_repository,
-)
-from troostwatch.infrastructure.db.repositories import (
     BuyerRepository,
     LotRepository,
     PositionRepository,

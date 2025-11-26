@@ -8,7 +8,23 @@ from typing import Iterator
 from fastapi import Depends
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
-from troostwatch.infrastructure.db.repositories import BuyerRepository, LotRepository, PositionRepository
+from troostwatch.infrastructure.db.repositories import (
+    BuyerRepository,
+    LotRepository,
+    PositionRepository,
+)
+
+# Re-export repository types for use in api.py type hints
+# This keeps infrastructure imports centralized in the dependencies layer
+__all__ = [
+    "get_db_connection",
+    "get_lot_repository",
+    "get_buyer_repository",
+    "get_position_repository",
+    "BuyerRepository",
+    "LotRepository",
+    "PositionRepository",
+]
 
 
 def get_db_connection() -> Iterator[sqlite3.Connection]:

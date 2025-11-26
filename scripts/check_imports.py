@@ -63,12 +63,13 @@ IMPORT_RULES: List[ImportRule] = [
         directory="troostwatch/app",
         forbidden_patterns=[
             "troostwatch.infrastructure.db.repositories",
+            "troostwatch.infrastructure.db",
             "troostwatch.infrastructure.http",
         ],
         exceptions=[
-            "troostwatch/app/api/routes.py",  # Routes wire things together
-            "troostwatch/app/api.py",  # Main API wiring
-            "troostwatch/app/dependencies.py",  # Dependency injection wiring
+            # Only dependencies.py is allowed to import infrastructure
+            # It re-exports types for use in route type hints
+            "troostwatch/app/dependencies.py",
         ],
         reason="App layer should use services, not infrastructure directly",
     ),

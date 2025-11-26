@@ -1,8 +1,18 @@
+import type { LotView, Buyer, SyncRunResult, LiveSyncStatus } from './types';
+
+/**
+ * Filter option for lot queries.
+ * UI-specific type for filter dropdowns.
+ */
 export interface LotFilter {
   name: string;
   values: string[];
 }
 
+/**
+ * @deprecated Use LotView from types.ts instead.
+ * Kept for backward compatibility during migration.
+ */
 export interface LotSummary {
   id: string;
   title?: string;
@@ -12,11 +22,18 @@ export interface LotSummary {
   updated_at?: string;
 }
 
+/**
+ * Request payload for batch lot updates.
+ */
 export interface LotUpdateBody {
   lot_ids: string[];
   updates: Record<string, unknown>;
 }
 
+/**
+ * @deprecated Use Buyer from types.ts instead.
+ * Kept for backward compatibility during migration.
+ */
 export interface BuyerPayload {
   id?: string;
   name: string;

@@ -1,9 +1,22 @@
 /**
  * Shared TypeScript types for Troostwatch UI.
- * 
- * These types correspond to the API response schemas and domain models.
- * Keep in sync with the Python models in troostwatch/domain/models/ and
- * the API DTOs in troostwatch/services/.
+ *
+ * ## Type Generation Workflow
+ *
+ * API response types are generated from the FastAPI OpenAPI schema:
+ *
+ * 1. Start the API server: `uvicorn troostwatch.app.api:app`
+ * 2. Generate types: `npm run generate:api-types`
+ * 3. Types are written to `lib/generated/api-types.ts`
+ *
+ * The types below are kept in sync with:
+ * - Python models in `troostwatch/domain/models/`
+ * - API DTOs in `troostwatch/app/api.py`
+ * - Service DTOs in `troostwatch/services/`
+ *
+ * When the generated types are available, prefer importing from
+ * `lib/generated/api-types.ts` for API request/response types.
+ * Keep only UI-specific types (e.g., component props) in this file.
  */
 
 // =============================================================================

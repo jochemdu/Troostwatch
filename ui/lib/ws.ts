@@ -1,3 +1,9 @@
+import type { LotEvent as LotEventType } from './types';
+
+/**
+ * @deprecated Use LotEvent from types.ts instead.
+ * Kept for backward compatibility during migration.
+ */
 export type LotEvent = {
   id: string;
   status: string;

@@ -116,11 +116,56 @@ class PositionBatchRequest(BaseModel):
     updates: List[PositionUpdate]
 
 
+class PositionBatchResponse(BaseModel):
+    """Response for batch position updates."""
+
+    updated: int
+    created: int = 0
+    errors: List[str] = Field(default_factory=list)
+
+
 class SyncRequest(BaseModel):
     auction_code: str
     auction_url: str
     max_pages: Optional[int] = Field(None, ge=1)
     dry_run: bool = False
+
+
+class SyncRunResultResponse(BaseModel):
+    """Result of a single sync run."""
+
+    run_id: Optional[int] = None
+    status: str  # 'success', 'failed', 'running'
+    pages_scanned: int = 0
+    lots_scanned: int = 0
+    lots_updated: int = 0
+    error_count: int = 0
+    errors: List[str] = Field(default_factory=list)
+
+
+class SyncSummaryResponse(BaseModel):
+    """Summary response for a sync operation."""
+
+    status: str  # 'success', 'failed', 'error'
+    auction_code: Optional[str] = None
+    result: Optional[SyncRunResultResponse] = None
+    error: Optional[str] = None
+
+
+class LiveSyncStatusResponse(BaseModel):
+    """Status of the live sync worker."""
+
+    state: str  # 'idle', 'running', 'paused', 'stopping'
+    last_sync: Optional[str] = None
+    next_sync: Optional[str] = None
+    current_auction: Optional[str] = None
+
+
+class LiveSyncControlResponse(BaseModel):
+    """Response for live sync control actions."""
+
+    state: str
+    detail: Optional[str] = None
 
 
 class LiveSyncStartRequest(BaseModel):
@@ -147,11 +192,11 @@ async def list_lots(
     )
 
 
-@app.post("/positions/batch")
+@app.post("/positions/batch", response_model=PositionBatchResponse)
 async def upsert_positions(
     payload: PositionBatchRequest,
     repository: PositionRepository = Depends(get_position_repository),
-) -> Dict[str, object]:
+) -> PositionBatchResponse:
     try:
         updates = [
             position_service.PositionUpdateData(
@@ -164,8 +209,13 @@ async def upsert_positions(
             )
             for update in payload.updates
         ]
-        return await position_service.upsert_positions(
+        result = await position_service.upsert_positions(
             repository=repository, updates=updates, event_publisher=event_bus.publish
+        )
+        return PositionBatchResponse(
+            updated=result.get("updated", 0),
+            created=result.get("created", 0),
+            errors=result.get("errors", []),
         )
     except ValueError as exc:  # raised when buyer or lot not found
         raise HTTPException(
@@ -221,51 +271,80 @@ async def delete_buyer(
     await service.delete_buyer(label=label)
 
 
-@app.post("/sync", status_code=status.HTTP_202_ACCEPTED)
+@app.post("/sync", status_code=status.HTTP_202_ACCEPTED, response_model=SyncSummaryResponse)
 async def trigger_sync(
     request: SyncRequest, service: SyncService = Depends(get_sync_service)
-) -> Dict[str, object]:
+) -> SyncSummaryResponse:
     summary = await service.run_sync(
         auction_code=request.auction_code,
         auction_url=request.auction_url,
         max_pages=request.max_pages,
         dry_run=request.dry_run,
     )
-    return summary.to_dict()
+    summary_dict = summary.to_dict()
+    # Convert nested result if present
+    result_data = summary_dict.get("result")
+    result = None
+    if result_data:
+        result = SyncRunResultResponse(**result_data)
+    return SyncSummaryResponse(
+        status=summary_dict.get("status", "error"),
+        auction_code=summary_dict.get("auction_code"),
+        result=result,
+        error=summary_dict.get("error"),
+    )
 
 
-@app.post("/live-sync/start", status_code=status.HTTP_202_ACCEPTED)
+@app.post("/live-sync/start", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
 async def start_live_sync(
     request: LiveSyncStartRequest, service: SyncService = Depends(get_sync_service)
-) -> Dict[str, object]:
-    return await service.start_live_sync(
+) -> LiveSyncControlResponse:
+    result = await service.start_live_sync(
         auction_code=request.auction_code,
         auction_url=request.auction_url,
         max_pages=request.max_pages,
         dry_run=request.dry_run,
         interval_seconds=request.interval_seconds,
     )
+    return LiveSyncControlResponse(
+        state=result.get("state", "unknown"),
+        detail=result.get("detail"),
+    )
 
 
-@app.post("/live-sync/pause", status_code=status.HTTP_202_ACCEPTED)
+@app.post("/live-sync/pause", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
 async def pause_live_sync(
     service: SyncService = Depends(get_sync_service),
-) -> Dict[str, object]:
-    return await service.pause_live_sync()
+) -> LiveSyncControlResponse:
+    result = await service.pause_live_sync()
+    return LiveSyncControlResponse(
+        state=result.get("state", "unknown"),
+        detail=result.get("detail"),
+    )
 
 
-@app.post("/live-sync/stop", status_code=status.HTTP_202_ACCEPTED)
+@app.post("/live-sync/stop", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
 async def stop_live_sync(
     service: SyncService = Depends(get_sync_service),
-) -> Dict[str, object]:
-    return await service.stop_live_sync()
+) -> LiveSyncControlResponse:
+    result = await service.stop_live_sync()
+    return LiveSyncControlResponse(
+        state=result.get("state", "unknown"),
+        detail=result.get("detail"),
+    )
 
 
-@app.get("/live-sync/status")
+@app.get("/live-sync/status", response_model=LiveSyncStatusResponse)
 async def get_live_sync_status(
     service: SyncService = Depends(get_sync_service),
-) -> Dict[str, object]:
-    return service.get_live_sync_status()
+) -> LiveSyncStatusResponse:
+    status_dict = service.get_live_sync_status()
+    return LiveSyncStatusResponse(
+        state=status_dict.get("state", "idle"),
+        last_sync=status_dict.get("last_sync"),
+        next_sync=status_dict.get("next_sync"),
+        current_auction=status_dict.get("current_auction"),
+    )
 
 
 @app.websocket("/ws/lots")

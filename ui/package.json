@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "generate:api-types": "openapi-typescript http://localhost:8000/openapi.json -o lib/generated/api-types.ts",
+    "generate:api-types:file": "openapi-typescript ../openapi.json -o lib/generated/api-types.ts"
   },
   "dependencies": {
     "next": "14.2.5",
@@ -19,6 +21,7 @@
     "@types/react-dom": "18.3.0",
     "eslint": "8.57.0",
     "eslint-config-next": "14.2.5",
+    "openapi-typescript": "^7.0.0",
     "typescript": "5.4.5"
   }
 }

@@ -57,11 +57,34 @@ Ask these questions for every PR:
 Run the import checker before approving:
 
 ```bash
+# Primary check (used by CI)
+lint-imports
+
+# Legacy check script
 python scripts/check_imports.py
 ```
 
-This script scans for common boundary violations.  A clean run is recommended
-but not blocking—document any intentional exceptions.
+Both tools scan for architectural boundary violations. CI will **fail** if any
+contract is broken.
+
+---
+
+## No New Violations Policy
+
+The codebase currently has **zero architecture violations**. CI will **block**
+PRs that introduce new violations.
+
+### What this means for PRs:
+
+1. **New code must follow layer rules** – No exceptions for new modules.
+2. **Run `lint-imports` locally** before pushing.
+3. **If CI fails on arch-check**, fix the violation before merging.
+
+### If you believe a violation is justified:
+
+1. Add an `ignore_imports` entry to `.importlinter` with a comment explaining why.
+2. Document the exception in the PR description.
+3. Get explicit approval from a maintainer.
 
 ---
 

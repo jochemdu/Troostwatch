@@ -56,6 +56,15 @@ Troostwatch follows a layered architecture with strict import rules:
 - `infrastructure/` → may import `domain/` only
 - `ui/` → talks to `app/` via HTTP/WebSocket
 
+**Enforcement status:**
+- Architecture rules are **automatically enforced** via `import-linter` in CI.
+- The codebase currently has **zero violations** – new code must maintain this.
+- Designated adapter modules (`context.py`, `dependencies.py`, `debug.py`) are
+  explicitly allowed to bridge layers via `ignore_imports` in `.importlinter`.
+- These rules are a *means to maintainability*, not an end in themselves – if a
+  rule blocks legitimate work, propose updating the rule rather than working
+  around it.
+
 See `docs/architecture.md` for full details and `docs/review_checklist.md`
 for PR review guidelines.
 

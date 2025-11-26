@@ -24,8 +24,8 @@ jobs:
 
   arch-check:
     runs-on: ubuntu-latest
-    # This job does NOT block the build - it's informational only
-    continue-on-error: true
+    # Architecture check now BLOCKS the build for new violations.
+    # The codebase currently has 0 violations - keep it that way!
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
@@ -40,11 +40,12 @@ jobs:
         run: |
           echo "=== Architecture Check ===" | tee architecture_report.txt
           echo "" >> architecture_report.txt
-          lint-imports 2>&1 | tee -a architecture_report.txt || true
+          lint-imports 2>&1 | tee -a architecture_report.txt
           echo "" >> architecture_report.txt
           echo "=== Legacy Import Check ===" >> architecture_report.txt
-          python scripts/check_imports.py 2>&1 | tee -a architecture_report.txt || true
+          python scripts/check_imports.py 2>&1 | tee -a architecture_report.txt
       - name: Upload architecture report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: architecture-report

@@ -8,7 +8,15 @@ from __future__ import annotations
 import asyncio
 from typing import Dict, List, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from pydantic import BaseModel, Field
 
 from troostwatch.app.dependencies import (
@@ -16,7 +24,11 @@ from troostwatch.app.dependencies import (
     get_lot_repository,
     get_position_repository,
 )
-from troostwatch.infrastructure.db.repositories import BuyerRepository, LotRepository, PositionRepository
+from troostwatch.infrastructure.db.repositories import (
+    BuyerRepository,
+    LotRepository,
+    PositionRepository,
+)
 from troostwatch.services import positions as position_service
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
 from troostwatch.services.lots import LotView, LotViewService
@@ -59,11 +71,15 @@ sync_service = SyncService(event_publisher=event_bus.publish)
 app = FastAPI(title="Troostwatch API", version="0.1.0")
 
 
-def get_buyer_service(repository: BuyerRepository = Depends(get_buyer_repository)) -> BuyerService:
+def get_buyer_service(
+    repository: BuyerRepository = Depends(get_buyer_repository),
+) -> BuyerService:
     return BuyerService(repository=repository, event_publisher=event_bus.publish)
 
 
-def get_lot_view_service(lot_repository: LotRepository = Depends(get_lot_repository)) -> LotViewService:
+def get_lot_view_service(
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> LotViewService:
     return LotViewService(lot_repository)
 
 
@@ -128,7 +144,9 @@ async def list_lots(
     limit: Optional[int] = Query(default=None, ge=1),
     lot_view_service: LotViewService = Depends(get_lot_view_service),
 ) -> List[LotView]:
-    return lot_view_service.list_lots(auction_code=auction_code, state=state, limit=limit)
+    return lot_view_service.list_lots(
+        auction_code=auction_code, state=state, limit=limit
+    )
 
 
 @app.post("/positions/batch")
@@ -152,16 +170,36 @@ async def upsert_positions(
             repository=repository, updates=updates, event_publisher=event_bus.publish
         )
     except ValueError as exc:  # raised when buyer or lot not found
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @app.get("/buyers", response_model=List[BuyerResponse])
-async def list_buyers(service: BuyerService = Depends(get_buyer_service)) -> List[BuyerResponse]:
+async def list_buyers(
+    service: BuyerService = Depends(get_buyer_service),
+) -> List[BuyerResponse]:
     buyers = service.list_buyers()
-    return [BuyerResponse(**buyer) for buyer in buyers]
+    result: List[BuyerResponse] = []
+    for buyer in buyers:
+        buyer_id = buyer.get("id")
+        buyer_label = buyer.get("label")
+        if buyer_id is None or buyer_label is None:
+            continue
+        result.append(
+            BuyerResponse(
+                id=int(buyer_id),
+                label=str(buyer_label),
+                name=str(buyer.get("name")) if buyer.get("name") else None,
+                notes=str(buyer.get("notes")) if buyer.get("notes") else None,
+            )
+        )
+    return result
 
 
-@app.post("/buyers", status_code=status.HTTP_201_CREATED, response_model=BuyerCreateResponse)
+@app.post(
+    "/buyers", status_code=status.HTTP_201_CREATED, response_model=BuyerCreateResponse
+)
 async def create_buyer(
     payload: BuyerCreateRequest, service: BuyerService = Depends(get_buyer_service)
 ) -> BuyerCreateResponse:
@@ -172,17 +210,23 @@ async def create_buyer(
             notes=payload.notes,
         )
     except BuyerAlreadyExistsError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
     return BuyerCreateResponse(**result)
 
 
 @app.delete("/buyers/{label}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_buyer(label: str, service: BuyerService = Depends(get_buyer_service)) -> None:
+async def delete_buyer(
+    label: str, service: BuyerService = Depends(get_buyer_service)
+) -> None:
     await service.delete_buyer(label=label)
 
 
 @app.post("/sync", status_code=status.HTTP_202_ACCEPTED)
-async def trigger_sync(request: SyncRequest, service: SyncService = Depends(get_sync_service)) -> Dict[str, object]:
+async def trigger_sync(
+    request: SyncRequest, service: SyncService = Depends(get_sync_service)
+) -> Dict[str, object]:
     summary = await service.run_sync(
         auction_code=request.auction_code,
         auction_url=request.auction_url,
@@ -193,7 +237,9 @@ async def trigger_sync(request: SyncRequest, service: SyncService = Depends(get_
 
 
 @app.post("/live-sync/start", status_code=status.HTTP_202_ACCEPTED)
-async def start_live_sync(request: LiveSyncStartRequest, service: SyncService = Depends(get_sync_service)) -> Dict[str, object]:
+async def start_live_sync(
+    request: LiveSyncStartRequest, service: SyncService = Depends(get_sync_service)
+) -> Dict[str, object]:
     return await service.start_live_sync(
         auction_code=request.auction_code,
         auction_url=request.auction_url,
@@ -204,17 +250,23 @@ async def start_live_sync(request: LiveSyncStartRequest, service: SyncService = 
 
 
 @app.post("/live-sync/pause", status_code=status.HTTP_202_ACCEPTED)
-async def pause_live_sync(service: SyncService = Depends(get_sync_service)) -> Dict[str, object]:
+async def pause_live_sync(
+    service: SyncService = Depends(get_sync_service),
+) -> Dict[str, object]:
     return await service.pause_live_sync()
 
 
 @app.post("/live-sync/stop", status_code=status.HTTP_202_ACCEPTED)
-async def stop_live_sync(service: SyncService = Depends(get_sync_service)) -> Dict[str, object]:
+async def stop_live_sync(
+    service: SyncService = Depends(get_sync_service),
+) -> Dict[str, object]:
     return await service.stop_live_sync()
 
 
 @app.get("/live-sync/status")
-async def get_live_sync_status(service: SyncService = Depends(get_sync_service)) -> Dict[str, object]:
+async def get_live_sync_status(
+    service: SyncService = Depends(get_sync_service),
+) -> Dict[str, object]:
     return service.get_live_sync_status()
 
 

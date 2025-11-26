@@ -14,7 +14,9 @@ class BuyerRepository:
         self.conn = conn
         ensure_schema(self.conn)
 
-    def add(self, label: str, name: Optional[str] = None, notes: Optional[str] = None) -> None:
+    def add(
+        self, label: str, name: Optional[str] = None, notes: Optional[str] = None
+    ) -> None:
         cursor = self.conn.execute(
             "INSERT OR IGNORE INTO buyers (label, name, notes) VALUES (?, ?, ?)",
             (label, name, notes),
@@ -24,7 +26,7 @@ class BuyerRepository:
         if cursor.rowcount == 0:
             raise DuplicateBuyerError(f"Buyer label '{label}' already exists")
 
-    def list(self) -> List[Dict[str, Optional[str]]]:
+    def list(self) -> List[Dict[str, int | str | None]]:
         cur = self.conn.execute("SELECT id, label, name, notes FROM buyers ORDER BY id")
         columns = [c[0] for c in cur.description]
         return [dict(zip(columns, row)) for row in cur.fetchall()]

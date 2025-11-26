@@ -15,11 +15,13 @@ class BuyerAlreadyExistsError(Exception):
 class BuyerService:
     """Service layer for managing buyers and emitting related events."""
 
-    def __init__(self, repository: BuyerRepository, event_publisher: EventPublisher | None = None) -> None:
+    def __init__(
+        self, repository: BuyerRepository, event_publisher: EventPublisher | None = None
+    ) -> None:
         self._repository = repository
         self._event_publisher = event_publisher
 
-    def list_buyers(self) -> list[dict[str, Optional[str]]]:
+    def list_buyers(self) -> list[dict[str, int | str | None]]:
         return self._repository.list()
 
     async def create_buyer(
@@ -48,7 +50,7 @@ class BuyerService:
         await self._event_publisher(payload)
 
 
-def list_buyers(repository: BuyerRepository) -> list[dict[str, Optional[str]]]:
+def list_buyers(repository: BuyerRepository) -> list[dict[str, int | str | None]]:
     return BuyerService(repository).list_buyers()
 
 
@@ -65,7 +67,10 @@ async def create_buyer(
 
 
 async def delete_buyer(
-    *, repository: BuyerRepository, label: str, event_publisher: EventPublisher | None = None
+    *,
+    repository: BuyerRepository,
+    label: str,
+    event_publisher: EventPublisher | None = None,
 ) -> None:
     service = BuyerService(repository, event_publisher)
     await service.delete_buyer(label=label)

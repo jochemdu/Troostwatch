@@ -35,11 +35,57 @@ Troostwijk Website
 └───────────────────┘
 ```
 
+## Service Layer Architecture
+
+### Import Guidelines
+
+All sync functionality **must be imported from `troostwatch.services.sync`**, not from submodules:
+
+```python
+# ✅ Correct
+from troostwatch.services.sync import (
+    sync_auction_to_db,
+    SyncRunResult,
+    HttpFetcher,
+    compute_detail_hash,
+    compute_listing_hash,
+)
+
+# ❌ Avoid
+from troostwatch.services.sync.sync import sync_auction_to_db
+from troostwatch.services.sync.fetcher import HttpFetcher
+```
+
+### Public API
+
+The `troostwatch.services.sync` module exports:
+
+**Core Functions:**
+- `sync_auction_to_db()` – Synchronize a single auction
+- `sync_auction()` – Async wrapper for sync operations
+
+**Result Types:**
+- `SyncRunResult` – Structured result with status, counts, errors
+- `PageResult` – Individual page fetch result
+
+**HTTP Utilities:**
+- `HttpFetcher` – HTTP client with rate limiting
+- `RateLimiter` – Per-host request throttling
+- `RequestResult` – Individual request result
+
+**Hashing:**
+- `compute_listing_hash()` – Hash lot card for change detection
+- `compute_detail_hash()` – Hash lot detail for change detection
+
+### Implementation Detail
+
+Internal modules (`.sync`, `.fetcher`, `.service`) are implementation details that may change. Use only the public API exported from `__init__.py`.
+
 ## Components
 
 ### SyncService (`services/sync_service.py`)
 
-The main service for sync operations:
+The main high-level service for sync operations (uses `services.sync` internally):
 
 ```python
 from troostwatch.services.sync_service import SyncService

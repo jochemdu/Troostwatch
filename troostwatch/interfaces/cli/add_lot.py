@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import click
+from rich.console import Console
 
-from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection, iso_utcnow
-from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
-from troostwatch.infrastructure.web.parsers import LotCardData, LotDetailData
-from troostwatch.services.sync import compute_detail_hash, compute_listing_hash
-from troostwatch.services.sync.sync import _listing_detail_from_card
+from troostwatch.interfaces.cli.context import (
+    build_cli_context,
+    get_current_timestamp,
+    lot_management_service,
+)
+from troostwatch.services.lots import LotInput
+
+console = Console()
 
 
 @click.command()
@@ -47,68 +51,29 @@ def add_lot(
     """Manually insert or update a lot in the configured database."""
 
     normalized_state = state or None
+    cli_context = build_cli_context(db_path)
 
-    card = LotCardData(
+    lot_input = LotInput(
         auction_code=auction_code,
         lot_code=lot_code,
         title=title,
-        url=lot_url or "",
+        url=lot_url,
         state=normalized_state,
         opens_at=opens_at,
-        closing_time_current=closing_time,
-        location_city=city,
-        location_country=country,
-        bid_count=bid_count,
-        price_eur=current_bid or opening_bid,
-        is_price_opening_bid=opening_bid is not None and (current_bid is None or opening_bid == current_bid),
-    )
-
-    detail = LotDetailData(
-        lot_code=lot_code,
-        title=title,
-        url=lot_url or "",
-        state=normalized_state,
-        opens_at=opens_at,
-        closing_time_current=closing_time,
+        closing_time=closing_time,
         bid_count=bid_count,
         opening_bid_eur=opening_bid,
         current_bid_eur=current_bid,
         location_city=city,
         location_country=country,
+        auction_title=auction_title,
+        auction_url=auction_url,
     )
 
-    listing_hash = compute_listing_hash(card)
-    detail_hash = compute_detail_hash(detail)
-    seen_at = iso_utcnow()
+    seen_at = get_current_timestamp()
 
-    with get_connection(db_path) as conn:
-        ensure_core_schema(conn)
-        ensure_schema(conn)
-        auction_repo = AuctionRepository(conn)
-        lot_repo = LotRepository(conn)
+    with lot_management_service(cli_context) as service:
+        service.add_lot(lot_input, seen_at)
 
-        auction_id = auction_repo.upsert(
-            auction_code,
-            auction_url or auction_code,
-            auction_title,
-            pagination_pages=None,
-        )
-
-        # If there is no detail info at all, fall back to listing-only detail so the lot still persists.
-        if not (opening_bid or current_bid or bid_count or city or country or lot_url):
-            detail = _listing_detail_from_card(card)
-            detail_hash = compute_detail_hash(detail)
-
-        lot_repo.upsert_from_parsed(
-            auction_id,
-            card,
-            detail,
-            listing_hash=listing_hash,
-            detail_hash=detail_hash,
-            last_seen_at=seen_at,
-            detail_last_seen_at=seen_at,
-        )
-        conn.commit()
-
-    click.echo(f"Stored lot {lot_code} for auction {auction_code} in {db_path}")
+    console.print(f"[green]Stored lot {lot_code} for auction {auction_code} in {db_path}[/green]")
 

@@ -16,11 +16,13 @@ More commands can be added here in the future as needed.
 
 from __future__ import annotations
 
-import json
-
 import click
-from troostwatch.infrastructure.db import get_connection
+from rich.console import Console
+
+from troostwatch.interfaces.cli.context import build_cli_context
 from troostwatch.infrastructure.diagnostics.debug_tools import db_integrity, db_stats, db_view
+
+console = Console()
 
 
 @click.group()
@@ -47,9 +49,10 @@ def debug(ctx: click.Context, db_path: str) -> None:
 def stats_cmd(ctx: click.Context) -> None:
     """Show row counts for all tables in the database."""
     db_path = ctx.obj["db_path"]
-    with get_connection(db_path) as conn:
+    cli_context = build_cli_context(db_path)
+    with cli_context.connect() as conn:
         for entry in db_stats(conn):
-            click.echo(f"{entry['table']}: {entry['rows']}")
+            console.print(f"{entry['table']}: {entry['rows']}")
 
 
 @debug.command(name="integrity")
@@ -57,10 +60,11 @@ def stats_cmd(ctx: click.Context) -> None:
 def integrity_cmd(ctx: click.Context) -> None:
     """Run the SQLite integrity check and report problems."""
     db_path = ctx.obj["db_path"]
-    with get_connection(db_path) as conn:
+    cli_context = build_cli_context(db_path)
+    with cli_context.connect() as conn:
         results = db_integrity(conn)
         for line in results:
-            click.echo(line)
+            console.print(line)
 
 
 @debug.command(name="view")
@@ -80,17 +84,18 @@ def view_cmd(ctx: click.Context, table: str, limit: int) -> None:
         python -m troostwatch.interfaces.cli debug view buyers
     """
     db_path = ctx.obj["db_path"]
-    with get_connection(db_path) as conn:
+    cli_context = build_cli_context(db_path)
+    with cli_context.connect() as conn:
         try:
             rows = db_view(conn, table, limit)
         except ValueError as exc:
-            click.echo(str(exc))
+            console.print(f"[red]{exc}[/red]")
             return
         if not rows:
-            click.echo(f"(No rows in table {table})")
+            console.print(f"[yellow](No rows in table {table})[/yellow]")
             return
         # Print header
         headers = list(rows[0].keys())
-        click.echo("\t".join(headers))
+        console.print("\t".join(headers))
         for row in rows:
-            click.echo("\t".join(str(row[h]) if row[h] is not None else "" for h in headers))
+            console.print("\t".join(str(row[h]) if row[h] is not None else "" for h in headers))

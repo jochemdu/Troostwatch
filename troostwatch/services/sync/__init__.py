@@ -25,7 +25,7 @@ Implementation Note:
 """
 
 from .fetcher import HttpFetcher, RateLimiter, RequestResult
-from .sync import (
+from .sync import (  # noqa: F401
     PageResult,
     SyncRunResult,
     _listing_detail_from_card,

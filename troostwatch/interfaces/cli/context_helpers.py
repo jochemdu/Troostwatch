@@ -63,7 +63,7 @@ def get_preference(db_path: str, key: str) -> Optional[str]:
 
 def set_preference(db_path: str, key: str, value: Optional[str]) -> None:
     """Set a preference value in the database.
-    
+
     Args:
         db_path: Path to the database file.
         key: The preference key.
@@ -73,4 +73,3 @@ def set_preference(db_path: str, key: str, value: Optional[str]) -> None:
     with cli_context.connect() as conn:
         PreferenceRepository(conn).set(key, value)
         conn.commit()
-

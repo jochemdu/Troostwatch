@@ -16,7 +16,7 @@ from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.db import ensure_schema, get_connection, get_path_config, iso_utcnow
 from troostwatch.infrastructure.db.repositories import AuctionRepository, BuyerRepository, LotRepository
 from troostwatch.services.buyers import BuyerService
-from troostwatch.services.lots import LotInput, LotManagementService, LotViewService
+from troostwatch.services.lots import LotManagementService, LotViewService
 
 from .auth import build_http_client
 

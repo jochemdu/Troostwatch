@@ -6,14 +6,13 @@ Provides commands to add, list and remove buyers from the local database.
 from __future__ import annotations
 
 import asyncio
-from contextlib import contextmanager
 
 import click
 from rich.console import Console
 from rich.table import Table
 
 from troostwatch.interfaces.cli.context import CLIContext, build_cli_context, buyer_service
-from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
+from troostwatch.services.buyers import BuyerAlreadyExistsError
 
 console = Console()
 DEFAULT_CLI_CONTEXT = build_cli_context()

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import html
 import json
@@ -174,7 +173,6 @@ def _collect_pages(
     def _fetch_html(
         url: str, *, apply_delay: bool
     ) -> Tuple[Optional[str], Optional[str]]:
-        nonlocal last_fetch
         if http_client is not None:
             return _wait_and_fetch(
                 url,
@@ -591,4 +589,3 @@ __all__ = [
     "compute_listing_hash",
     "sync_auction_to_db",
 ]
-

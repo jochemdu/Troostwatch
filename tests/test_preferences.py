@@ -3,7 +3,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from troostwatch.db import ensure_schema, get_preference, set_preference, list_auctions
+from troostwatch.infrastructure.db import ensure_schema
+from troostwatch.infrastructure.db.repositories import PreferenceRepository, AuctionRepository
 
 
 def _seed_auctions(conn: sqlite3.Connection) -> None:
@@ -37,11 +38,12 @@ def test_preferences_round_trip(tmp_path: Path) -> None:
     conn = sqlite3.connect(db_path)
     try:
         ensure_schema(conn)
-        assert get_preference(conn, "preferred_auction") is None
-        set_preference(conn, "preferred_auction", "A1-OPEN")
-        assert get_preference(conn, "preferred_auction") == "A1-OPEN"
-        set_preference(conn, "preferred_auction", None)
-        assert get_preference(conn, "preferred_auction") is None
+        pref_repo = PreferenceRepository(conn)
+        assert pref_repo.get("preferred_auction") is None
+        pref_repo.set("preferred_auction", "A1-OPEN")
+        assert pref_repo.get("preferred_auction") == "A1-OPEN"
+        pref_repo.set("preferred_auction", None)
+        assert pref_repo.get("preferred_auction") is None
     finally:
         conn.close()
 
@@ -52,9 +54,10 @@ def test_list_auctions_active_filter(tmp_path: Path) -> None:
     try:
         ensure_schema(conn)
         _seed_auctions(conn)
-        active = list_auctions(conn)
+        auction_repo = AuctionRepository(conn)
+        active = auction_repo.list(only_active=True)
         assert [a["auction_code"] for a in active] == ["A1-OPEN"]
-        all_auctions = list_auctions(conn, only_active=False)
+        all_auctions = auction_repo.list(only_active=False)
         assert len(all_auctions) == 2
     finally:
         conn.close()

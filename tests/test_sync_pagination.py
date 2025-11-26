@@ -9,6 +9,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from troostwatch.services.sync import PageResult, sync_auction_to_db
 
+# Import the internal sync module for monkeypatching internals.
+# This is intentional for test purposes – see scripts/check_imports.py exceptions.
+from troostwatch.services.sync import sync as sync_module
+
 
 def test_sync_records_discovered_pages(monkeypatch, tmp_path):
     base_url = "https://example.com/a/test"

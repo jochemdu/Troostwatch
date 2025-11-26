@@ -19,7 +19,7 @@ import ast
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Set
+from typing import List
 
 
 @dataclass
@@ -83,6 +83,61 @@ IMPORT_RULES: List[ImportRule] = [
 ]
 
 
+# Sync layer boundary rules: enforce imports from troostwatch.services.sync only
+SYNC_FORBIDDEN_PATTERNS = [
+    "troostwatch.sync",  # Legacy sync location (should not exist)
+    "troostwatch.services.sync.sync",  # Direct submodule import
+    "troostwatch.services.sync.fetcher",  # Direct submodule import
+    "troostwatch.services.sync.service",  # Direct submodule import
+]
+
+SYNC_EXCEPTIONS = [
+    # The services/sync package itself can import from submodules
+    "troostwatch/services/sync/__init__.py",
+    "troostwatch/services/sync/sync.py",
+    "troostwatch/services/sync/fetcher.py",
+    "troostwatch/services/sync/service.py",
+    # Test files that need to patch internal sync functions
+    "tests/test_sync_failures.py",
+    "tests/test_sync_logging.py",
+    "tests/test_sync_pagination.py",
+]
+
+
+def check_sync_imports(base_path: Path) -> List[ImportViolation]:
+    """Check that sync imports go through troostwatch.services.sync, not submodules."""
+    violations = []
+
+    # Check all Python files in troostwatch/ and tests/
+    for search_dir in ["troostwatch", "tests"]:
+        dir_path = base_path / search_dir
+        if not dir_path.exists():
+            continue
+
+        for py_file in dir_path.rglob("*.py"):
+            if "__pycache__" in str(py_file):
+                continue
+
+            rel_path = str(py_file.relative_to(base_path))
+
+            # Skip exception files
+            if any(exc in rel_path for exc in SYNC_EXCEPTIONS):
+                continue
+
+            for line_no, module in extract_imports(py_file):
+                for forbidden in SYNC_FORBIDDEN_PATTERNS:
+                    if module == forbidden or module.startswith(forbidden + "."):
+                        violations.append(ImportViolation(
+                            file_path=py_file,
+                            line_number=line_no,
+                            import_statement=module,
+                            forbidden_module=forbidden,
+                            reason="Import sync from troostwatch.services.sync, not submodules",
+                        ))
+
+    return violations
+
+
 def extract_imports(file_path: Path) -> List[tuple[int, str]]:
     """Extract all import statements from a Python file."""
     try:
@@ -105,7 +160,7 @@ def extract_imports(file_path: Path) -> List[tuple[int, str]]:
 def check_file(file_path: Path, rule: ImportRule) -> List[ImportViolation]:
     """Check a single file against an import rule."""
     violations = []
-    
+
     # Skip exception files
     rel_path = str(file_path)
     if any(exc in rel_path for exc in rule.exceptions):
@@ -128,7 +183,7 @@ def check_directory(base_path: Path, rule: ImportRule) -> List[ImportViolation]:
     """Check all Python files in a directory against an import rule."""
     violations = []
     dir_path = base_path / rule.directory
-    
+
     if not dir_path.exists():
         return violations
 
@@ -136,7 +191,7 @@ def check_directory(base_path: Path, rule: ImportRule) -> List[ImportViolation]:
         if "__pycache__" in str(py_file):
             continue
         violations.extend(check_file(py_file, rule))
-    
+
     return violations
 
 
@@ -153,18 +208,22 @@ def main():
         violations = check_directory(base_path, rule)
         all_violations.extend(violations)
 
+    # Check sync layer boundaries
+    sync_violations = check_sync_imports(base_path)
+    all_violations.extend(sync_violations)
+
     if not all_violations:
         print("✅ No import violations found!")
         return 0
 
     print(f"❌ Found {len(all_violations)} import violation(s):\n")
-    
+
     for v in all_violations:
         print(f"  {v.file_path}:{v.line_number}")
         print(f"    Import: {v.import_statement}")
         print(f"    Reason: {v.reason}")
         if args.fix_suggestions:
-            print(f"    Suggestion: Use a service or move to an adapter file")
+            print("    Suggestion: Use a service or move to an adapter file")
         print()
 
     return 1
@@ -172,4 +231,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

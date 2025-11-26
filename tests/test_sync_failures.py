@@ -12,6 +12,10 @@ if str(PROJECT_ROOT) not in sys.path:
 from troostwatch.services.sync import PageResult, RequestResult, sync_auction_to_db
 from troostwatch.infrastructure.web.parsers import LotCardData
 
+# Import the internal sync module for monkeypatching internals.
+# This is intentional for test purposes – see scripts/check_imports.py exceptions.
+from troostwatch.services.sync import sync as sync_impl_module
+
 
 def test_sync_stores_lots_even_when_detail_fetch_fails(monkeypatch, tmp_path):
     base_url = "https://example.com/a/test"
@@ -29,11 +33,11 @@ def test_sync_stores_lots_even_when_detail_fetch_fails(monkeypatch, tmp_path):
         async def fetch_many(self, urls):
             return [RequestResult(url=u, text=None, error="fail", status=500) for u in urls]
 
-    monkeypatch.setattr(sync_module, "_collect_pages", fake_collect_pages)
-    monkeypatch.setattr(sync_module, "HttpFetcher", DummyFetcher)
-    monkeypatch.setattr(sync_module, "_wait_and_fetch", lambda *args, **kwargs: ("<html></html>", None, time.time()))
+    monkeypatch.setattr(sync_impl_module, "_collect_pages", fake_collect_pages)
+    monkeypatch.setattr(sync_impl_module, "HttpFetcher", DummyFetcher)
+    monkeypatch.setattr(sync_impl_module, "_wait_and_fetch", lambda *args, **kwargs: ("<html></html>", None, time.time()))
     monkeypatch.setattr(
-        sync_module,
+        sync_impl_module,
         "parse_auction_page",
         lambda *_args, **_kwargs: [
             LotCardData(
@@ -45,7 +49,7 @@ def test_sync_stores_lots_even_when_detail_fetch_fails(monkeypatch, tmp_path):
             )
         ],
     )
-    monkeypatch.setattr(sync_module, "_iter_lot_card_blocks", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(sync_impl_module, "_iter_lot_card_blocks", lambda *_args, **_kwargs: [])
 
     db_path = tmp_path / "sync.db"
     result = sync_auction_to_db(
@@ -80,8 +84,8 @@ def test_sync_run_updated_when_processing_raises(monkeypatch, tmp_path):
     def explode_parse(*_args, **_kwargs):
         raise RuntimeError("boom during lot parsing")
 
-    monkeypatch.setattr(sync_module, "_collect_pages", fake_collect_pages)
-    monkeypatch.setattr(sync_module, "parse_auction_page", explode_parse)
+    monkeypatch.setattr(sync_impl_module, "_collect_pages", fake_collect_pages)
+    monkeypatch.setattr(sync_impl_module, "parse_auction_page", explode_parse)
 
     db_path = tmp_path / "sync.db"
     result = sync_auction_to_db(

@@ -7,9 +7,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.services.sync import sync as sync_module
-from troostwatch.services.sync.fetcher import RequestResult
-from troostwatch.services.sync.sync import sync_auction_to_db
+from troostwatch.services.sync import RequestResult, sync_auction_to_db
 
 
 def test_verbose_navigation_logging(monkeypatch, tmp_path):

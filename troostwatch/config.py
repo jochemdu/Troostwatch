@@ -1,25 +1,18 @@
-"""Configuration utilities for Troostwatch.
+"""Legacy config utilities - deprecated.
 
-Provides helper functions for loading and parsing configuration from JSON files.
-This is a placeholder implementation; actual functions should be added based
-on project requirements.
+This module re-exports from ``troostwatch.app.config``.
+Import from the new location instead.
 """
 
-from __future__ import annotations
+import warnings
 
-import json
-from pathlib import Path
-from typing import Any, Dict
+warnings.warn(
+    "`troostwatch.config` is deprecated; import from "
+    "`troostwatch.app.config` instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
+from troostwatch.app.config import load_config
 
-def load_config(path: str) -> Dict[str, Any]:
-    """Load configuration from a JSON file.
-
-    Args:
-        path: Path to the JSON configuration file.
-
-    Returns:
-        A dictionary of configuration values.
-    """
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+__all__ = ["load_config"]

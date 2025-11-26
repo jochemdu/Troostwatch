@@ -7,13 +7,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.parsers.lot_card import (
+from troostwatch.infrastructure.web.parsers import (
     extract_page_urls,
     parse_auction_page,
+    parse_eur_to_float,
     parse_lot_card,
+    parse_lot_detail,
+    parse_nl_datetime,
 )
-from troostwatch.parsers.utils import parse_eur_to_float, parse_nl_datetime
-from troostwatch.parsers.lot_detail import parse_lot_detail
 
 
 def test_parse_eur_to_float():

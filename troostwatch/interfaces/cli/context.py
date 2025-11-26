@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, ContextManager, Iterator, TypeVar
 
-from troostwatch.http_client import TroostwatchHttpClient
+from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.db import ensure_schema, get_connection, get_path_config
 from troostwatch.infrastructure.db.repositories import LotRepository
 from troostwatch.services.lots import LotViewService

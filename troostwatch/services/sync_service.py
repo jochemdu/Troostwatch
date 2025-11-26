@@ -4,7 +4,7 @@ import asyncio
 from dataclasses import asdict, dataclass
 from typing import Awaitable, Callable, Dict, List, Optional
 
-from troostwatch.http_client import TroostwatchHttpClient
+from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection, get_path_config
 from troostwatch.infrastructure.db.repositories import AuctionRepository, PreferenceRepository
 from troostwatch.services.live_runner import LiveSyncConfig, LiveSyncRunner, LiveSyncState

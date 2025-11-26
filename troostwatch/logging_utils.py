@@ -1,28 +1,18 @@
-"""Logging utilities for Troostwatch.
+"""Legacy logging utilities - deprecated.
 
-This module provides placeholders for setting up and using loggers
-consistently throughout the project.
+This module re-exports from ``troostwatch.infrastructure.observability.logging``.
+Import from the new location instead.
 """
 
-import logging
+import warnings
 
+warnings.warn(
+    "`troostwatch.logging_utils` is deprecated; import from "
+    "`troostwatch.infrastructure.observability.logging` instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-def get_logger(name: str) -> logging.Logger:
-    """Return a logger configured with a default format.
+from troostwatch.infrastructure.observability.logging import get_logger
 
-    Args:
-        name: Name of the logger.
-
-    Returns:
-        A logging.Logger instance.
-    """
-    logger = logging.getLogger(name)
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
-    return logger
+__all__ = ["get_logger"]

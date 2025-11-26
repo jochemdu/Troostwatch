@@ -17,14 +17,15 @@ from urllib.request import Request, urlopen
 
 from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection, iso_utcnow
 from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
-from ..http_client import TroostwatchHttpClient
-from ..parsers.lot_card import (
+from troostwatch.infrastructure.http import TroostwatchHttpClient
+from troostwatch.infrastructure.web.parsers import (
     LotCardData,
+    LotDetailData,
     extract_page_urls,
     parse_auction_page,
     parse_lot_card,
+    parse_lot_detail,
 )
-from ..parsers.lot_detail import LotDetailData, parse_lot_detail
 from .fetcher import HttpFetcher, RequestResult
 
 

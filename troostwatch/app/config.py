@@ -1,10 +1,26 @@
-"""Application configuration facade."""
+"""Configuration utilities for Troostwatch.
 
-import troostwatch.config as _legacy_config
-from troostwatch.config import *  # noqa: F401,F403
+Provides helper functions for loading and parsing configuration from JSON files.
+"""
 
-__all__ = getattr(_legacy_config, "__all__", []) or [
-    name
-    for name in dir(_legacy_config)
-    if not name.startswith("_")
-]
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, Dict
+
+
+def load_config(path: str) -> Dict[str, Any]:
+    """Load configuration from a JSON file.
+
+    Args:
+        path: Path to the JSON configuration file.
+
+    Returns:
+        A dictionary of configuration values.
+    """
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+__all__ = ["load_config"]

@@ -1,5 +1,0 @@
-examples
-schema
-scripts
-tests
-troostwatch

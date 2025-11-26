@@ -5,3 +5,5 @@ snapshots/
 troostwatch.db
 node_modules/
 ui/.next/sync.log
+.venv/
+*.egg-info/

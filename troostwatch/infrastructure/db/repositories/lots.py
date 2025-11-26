@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+import sqlite3
+from typing import Any, Dict, List, Optional
 
 from ..schema import ensure_schema
 from troostwatch.infrastructure.web.parsers.lot_card import LotCardData
@@ -8,7 +9,7 @@ from troostwatch.infrastructure.web.parsers.lot_detail import LotDetailData
 
 
 class LotRepository:
-    def __init__(self, conn) -> None:
+    def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn = conn
         ensure_schema(self.conn)
 

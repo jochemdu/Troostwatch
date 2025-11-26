@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import sqlite3
 from typing import Optional
 
 from ..schema import ensure_schema
 
 
 class PreferenceRepository:
-    def __init__(self, conn) -> None:
+    def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn = conn
         ensure_schema(self.conn)
 

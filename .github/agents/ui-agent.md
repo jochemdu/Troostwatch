@@ -18,10 +18,30 @@ for future or existing user interfaces.
 
 ## Project knowledge
 
-- Troostwatch currently lacks a dedicated UI layer; proposed assets or code
-  should live under a future `ui/` (or similar) directory.
-- Align UX flows with existing API capabilities in `troostwatch/api/` and domain
-  models in `troostwatch/core/`.
+- Troostwatch has a Next.js UI layer under `ui/`.
+- TypeScript types are auto-generated from the FastAPI OpenAPI schema.
+- Align UX flows with existing API capabilities in `troostwatch/app/api.py` and
+  domain models in `troostwatch/domain/`.
+
+## TypeScript Type Generation
+
+The UI uses generated TypeScript types to stay in sync with the backend:
+
+- **Generated types:** `ui/lib/generated/api-types.ts`
+- **Convenience re-exports:** `ui/lib/generated/index.ts`
+- **Legacy types:** `ui/lib/types.ts` (deprecated)
+
+**Preferred imports:**
+```typescript
+import type { LotView, BuyerResponse, SyncSummaryResponse } from '@/lib/generated';
+```
+
+**When API changes:**
+1. Regenerate types: `cd ui && npm run generate:api-types`
+2. Add re-exports to `ui/lib/generated/index.ts` if needed
+3. Commit both schema and generated types
+
+**CI enforcement:** The `ui-types` job validates types match the backend.
 
 ## Tools you can use
 

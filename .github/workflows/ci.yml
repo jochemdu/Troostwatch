@@ -51,3 +51,46 @@ jobs:
           name: architecture-report
           path: architecture_report.txt
           retention-days: 30
+
+  ui-types:
+    runs-on: ubuntu-latest
+    # Validates that UI types are in sync with the backend OpenAPI schema.
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Install UI dependencies
+        run: |
+          cd ui && npm ci
+      - name: Export OpenAPI schema
+        run: |
+          python -c "import json; from troostwatch.app.api import app; print(json.dumps(app.openapi(), indent=2))" > openapi.json
+      - name: Generate types from schema
+        run: |
+          cd ui && npm run generate:api-types:file
+      - name: Check for uncommitted type changes
+        run: |
+          if git diff --exit-code ui/lib/generated/api-types.ts openapi.json; then
+            echo "✅ Generated types are in sync with backend"
+          else
+            echo "❌ Generated types are out of sync!"
+            echo ""
+            echo "To fix:"
+            echo "  1. Start the API: uvicorn troostwatch.app.api:app"
+            echo "  2. Regenerate types: cd ui && npm run generate:api-types"
+            echo "  3. Commit the changes"
+            exit 1
+          fi
+      - name: TypeScript check
+        run: |
+          cd ui && npx tsc --noEmit

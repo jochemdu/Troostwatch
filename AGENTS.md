@@ -160,6 +160,30 @@ Troostwatch provides centralised logging and metrics via
 
 See `docs/observability.md` for the full strategy.
 
+### UI Type Generation
+
+TypeScript types for the UI are auto-generated from the FastAPI OpenAPI schema:
+
+- **Schema source:** `openapi.json` (exported from `troostwatch.app.api`)
+- **Generated types:** `ui/lib/generated/api-types.ts`
+- **Convenience re-exports:** `ui/lib/generated/index.ts`
+- **Legacy types:** `ui/lib/types.ts` (deprecated, use generated types)
+
+**Workflow for API changes:**
+1. Add/update Pydantic response models in `troostwatch/app/api.py`
+2. Regenerate types: `uvicorn troostwatch.app.api:app` then `cd ui && npm run generate:api-types`
+3. Add re-exports to `ui/lib/generated/index.ts` if needed
+4. Commit both `openapi.json` and generated types
+
+**Agent responsibilities:**
+- `api_agent` owns FastAPI routes and Pydantic response models.
+- `ui_agent` owns TypeScript components and uses generated types.
+- Both should regenerate and commit types when API contracts change.
+
+**CI enforcement:** The `ui-types` job validates types match the backend schema.
+
+See `docs/api.md` for the full TypeScript types documentation.
+
 ## Python best practices
 
 - Target Python 3.11+; use type hints everywhere and prefer `dataclasses` or

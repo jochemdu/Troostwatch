@@ -1,4 +1,10 @@
-import type { LotView, Buyer, SyncRunResult, LiveSyncStatus } from './types';
+import type {
+  LotView,
+  BuyerResponse,
+  BuyerCreateRequest,
+  BuyerCreateResponse,
+  LiveSyncControlResponse,
+} from './generated';
 
 /**
  * Filter option for lot queries.
@@ -10,7 +16,7 @@ export interface LotFilter {
 }
 
 /**
- * @deprecated Use LotView from types.ts instead.
+ * @deprecated Use LotView from generated types instead.
  * Kept for backward compatibility during migration.
  */
 export interface LotSummary {
@@ -31,7 +37,7 @@ export interface LotUpdateBody {
 }
 
 /**
- * @deprecated Use Buyer from types.ts instead.
+ * @deprecated Use BuyerResponse/BuyerCreateRequest from generated types.
  * Kept for backward compatibility during migration.
  */
 export interface BuyerPayload {

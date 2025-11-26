@@ -352,3 +352,53 @@ uvicorn troostwatch.app.api:app --host 0.0.0.0 --port 8000
 - [Database Schema](db.md) – Table definitions
 - [Sync Service](sync.md) – Synchronization details
 - [Observability](observability.md) – Logging and metrics
+
+---
+
+## TypeScript Types
+
+The UI uses TypeScript types generated from this API's OpenAPI schema. This
+ensures type safety across the frontend-backend boundary.
+
+### Generating Types
+
+```bash
+# 1. Start the API server
+uvicorn troostwatch.app.api:app --reload
+
+# 2. Generate types from live server
+cd ui && npm run generate:api-types
+
+# Or generate from the committed schema file
+cd ui && npm run generate:api-types:file
+```
+
+Generated types are in `ui/lib/generated/api-types.ts`.
+
+### Using Generated Types
+
+```typescript
+import type { LotView, BuyerResponse, SyncSummaryResponse } from '@/lib/generated';
+
+// Types match API responses exactly
+const lot: LotView = await fetchLot(lotCode);
+```
+
+### CI Validation
+
+The `ui-types` CI job validates that generated types match the backend:
+
+1. Exports fresh OpenAPI schema from `troostwatch.app.api`
+2. Regenerates TypeScript types
+3. Fails if changes are detected (means types are out of sync)
+4. Runs TypeScript compiler to catch type errors
+
+### Adding New Response Models
+
+When adding a new API endpoint:
+
+1. Define a Pydantic response model in `troostwatch/app/api.py`
+2. Use it as the `response_model` parameter
+3. Regenerate types: `npm run generate:api-types`
+4. Add re-export to `ui/lib/generated/index.ts` for convenience
+5. Commit both the schema and generated types

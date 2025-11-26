@@ -14,13 +14,38 @@
  * - API DTOs in `troostwatch/app/api.py`
  * - Service DTOs in `troostwatch/services/`
  *
- * When the generated types are available, prefer importing from
- * `lib/generated/api-types.ts` for API request/response types.
- * Keep only UI-specific types (e.g., component props) in this file.
+ * ## Preferred Imports
+ *
+ * For API request/response types, import from generated types:
+ *   import type { LotView, BuyerResponse } from '@/lib/generated';
+ *
+ * For UI-only types (component props, etc.), use this file.
  */
 
 // =============================================================================
-// Lot Types
+// Re-export Generated Types (preferred for API contracts)
+// =============================================================================
+
+import type { LotView as GeneratedLotView } from './generated';
+
+export type {
+  LotView,
+  BuyerResponse,
+  BuyerCreateRequest,
+  BuyerCreateResponse,
+  SyncRequest,
+  SyncSummaryResponse,
+  SyncRunResultResponse,
+  LiveSyncStatusResponse,
+  LiveSyncControlResponse,
+  LiveSyncStartRequest,
+  PositionUpdate,
+  PositionBatchRequest,
+  PositionBatchResponse,
+} from './generated';
+
+// =============================================================================
+// Lot Types (deprecated - use generated LotView instead)
 // =============================================================================
 
 /**
@@ -30,10 +55,11 @@
 export type LotState = 'scheduled' | 'running' | 'closed' | 'unknown';
 
 /**
+ * @deprecated Use LotView from generated types.
  * Lot view as returned by the API.
  * Corresponds to LotView in troostwatch/services/lots.py
  */
-export interface LotView {
+export interface LotViewLegacy {
   auction_code: string;
   lot_code: string;
   title?: string;
@@ -87,10 +113,11 @@ export interface LotDetailData {
 }
 
 // =============================================================================
-// Buyer Types
+// Buyer Types (deprecated - use generated BuyerResponse/BuyerCreateRequest)
 // =============================================================================
 
 /**
+ * @deprecated Use BuyerResponse from generated types.
  * Buyer as returned by the API.
  */
 export interface Buyer {
@@ -101,19 +128,21 @@ export interface Buyer {
 }
 
 /**
+ * @deprecated Use BuyerCreateRequest from generated types.
  * Request payload for creating/updating a buyer.
  */
-export interface BuyerCreateRequest {
+export interface BuyerCreateRequestLegacy {
   label: string;
   name?: string;
   notes?: string;
 }
 
 // =============================================================================
-// Sync Types
+// Sync Types (deprecated - use generated SyncSummaryResponse etc.)
 // =============================================================================
 
 /**
+ * @deprecated Use SyncRunResultResponse from generated types.
  * Result of a sync operation.
  */
 export interface SyncRunResult {
@@ -127,6 +156,7 @@ export interface SyncRunResult {
 }
 
 /**
+ * @deprecated Use SyncSummaryResponse from generated types.
  * Summary of a sync run.
  */
 export interface SyncRunSummary {
@@ -137,6 +167,7 @@ export interface SyncRunSummary {
 }
 
 /**
+ * @deprecated Use LiveSyncStatusResponse from generated types.
  * Live sync status.
  */
 export interface LiveSyncStatus {
@@ -151,6 +182,7 @@ export interface LiveSyncStatus {
 // =============================================================================
 
 /**
+ * @deprecated Prefer PositionUpdate from generated types for API contracts.
  * A tracked position (buyer interest in a lot).
  */
 export interface Position {
@@ -163,7 +195,7 @@ export interface Position {
 }
 
 // =============================================================================
-// Event Types (WebSocket)
+// Event Types (WebSocket - UI-only, not in OpenAPI)
 // =============================================================================
 
 /**
@@ -173,12 +205,13 @@ export interface LotEvent {
   type: 'lot_update' | 'lot_created' | 'lot_closed';
   lot_code: string;
   auction_code: string;
-  data: Partial<LotView>;
+  data: Partial<GeneratedLotView>;
   timestamp: string;
 }
 
 /**
  * Sync event from WebSocket.
+ * Note: Uses deprecated SyncRunResult; update when WebSocket types are generated.
  */
 export interface SyncEvent {
   type: 'sync_started' | 'sync_completed' | 'sync_failed';

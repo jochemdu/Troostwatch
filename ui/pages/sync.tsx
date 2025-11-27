@@ -16,10 +16,19 @@ export default function SyncPage() {
   const handleUrlChange = (url: string) => {
     setAuctionUrl(url);
     // Extract auction code from Troostwijk URL pattern
-    // e.g., https://www.troostwijkauctions.com/nl/c/ABC123 or /a/ABC123
-    const match = url.match(/\/[ac]\/([A-Za-z0-9-]+)/);
-    if (match && !auctionCode) {
-      setAuctionCode(match[1]);
+    // The code is the last segment after the final hyphen, e.g.:
+    // /a/goederen-opgekocht-uit-faillissement-max-ict-(2-2)-A1-39500 → A1-39500
+    // /nl/c/ABC123 → ABC123
+    const pathMatch = url.match(/\/[ac]\/([A-Za-z0-9-]+)/);
+    if (pathMatch) {
+      const fullPath = pathMatch[1];
+      // The auction code is typically at the end: look for pattern like A1-39500, ABC123
+      // Match the last segment that looks like an auction code (letter(s) + optional digit + hyphen + digits)
+      const codeMatch = fullPath.match(/([A-Z]\d*-\d+)$/i);
+      const extractedCode = codeMatch ? codeMatch[1] : fullPath;
+      if (!auctionCode) {
+        setAuctionCode(extractedCode);
+      }
     }
   };
 

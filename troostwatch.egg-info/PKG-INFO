@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: troostwatch
-Version: 0.6.2
+Version: 0.7.0
 Summary: Scrape Troostwijk auctions, track bids, analyse exposure and view results via a CLI.
 Author-email: Jochem <jochem@example.com>
 License: MIT
@@ -28,6 +28,17 @@ Requires-Dist: markdown-it-py>=2.2; extra == "docs"
 This repository hosts the code for the Troostwatch project.
 
 It provides a set of tools to scrape Troostwijk auctions, store the data in a SQLite database, analyse your bidding exposure and display a live overview via a command‑line interface.
+
+## Key Features
+
+- **Auction sync**: Scrape lots from Troostwijk auction pages with concurrent fetching and rate limiting
+- **Brand extraction**: Automatically extract brand/manufacturer from lot specifications
+- **Bid history**: Track historical bids on lots as scraped from detail pages
+- **Buyer management**: Create and manage buyer identities for bidding
+- **Position tracking**: Track which lots you're interested in with budget limits
+- **Exposure reporting**: Calculate your minimum/maximum exposure across tracked lots
+- **Web UI**: Filter and browse lots with brand filtering support
+- **Real-time updates**: WebSocket support for live lot updates
 
 ## Project structure
 
@@ -151,6 +162,15 @@ Recent versions have greatly expanded the CLI. In addition to the core `sync` co
 - **debug** – inspect your local database. Subcommands let you view row counts per table, run an integrity check, or show rows from a specific table.
 
 These commands can be invoked via `python -m troostwatch.cli <command>`. Gebruik `view` om opgeslagen lots te bekijken (met filters voor veilingcode, status en limiet, plus een JSON‑uitvoeroptie), `report buyer` voor een overzicht van je exposure en `debug view` om tabellen rechtstreeks te inspecteren. See the examples above and the documentation in `docs/` for more details.
+
+### New in version 0.7.0
+
+Version 0.7.0 adds brand and bid history support:
+
+- **Brand extraction**: The lot detail parser extracts brand/manufacturer from lot specifications (supports `Merk`, `Brand`, `Fabricaat` keys).
+- **Bid history tracking**: Historical bids are scraped from lot detail pages and stored in the new `bid_history` table.
+- **Brand filtering**: The UI and API now support filtering lots by brand via the `brand` query parameter.
+- **Schema update**: Database schema version 2 adds the `brand` column to `lots` and creates the `bid_history` table. Existing databases are migrated automatically.
 
 ## API-server starten
 

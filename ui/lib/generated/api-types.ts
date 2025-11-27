@@ -34,7 +34,231 @@ export interface paths {
         /** List Lots */
         get: operations["list_lots_lots_get"];
         put?: never;
+        /**
+         * Create Lot
+         * @description Manually add or update a lot in the database.
+         */
+        post: operations["create_lot_lots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Lots
+         * @description Search lots by title, brand, lot code, or EAN.
+         */
+        get: operations["search_lots_search_get"];
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lots/{lot_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Lot Detail
+         * @description Get detailed lot information including specs and reference prices.
+         */
+        get: operations["get_lot_detail_lots__lot_code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Lot
+         * @description Update lot notes and EAN.
+         */
+        patch: operations["update_lot_lots__lot_code__patch"];
+        trace?: never;
+    };
+    "/lots/{lot_code}/reference-prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reference Prices
+         * @description Get all reference prices for a lot.
+         */
+        get: operations["list_reference_prices_lots__lot_code__reference_prices_get"];
+        put?: never;
+        /**
+         * Create Reference Price
+         * @description Add a reference price for a lot.
+         */
+        post: operations["create_reference_price_lots__lot_code__reference_prices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lots/{lot_code}/reference-prices/{ref_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Reference Price
+         * @description Delete a reference price.
+         */
+        delete: operations["delete_reference_price_lots__lot_code__reference_prices__ref_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Reference Price
+         * @description Update a reference price.
+         */
+        patch: operations["update_reference_price_lots__lot_code__reference_prices__ref_id__patch"];
+        trace?: never;
+    };
+    "/lots/{lot_code}/bid-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Lot Bid History
+         * @description Get bid history for a lot, ordered by most recent first.
+         */
+        get: operations["get_lot_bid_history_lots__lot_code__bid_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lots/{lot_code}/specs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Lot Spec
+         * @description Add or update a specification for a lot.
+         */
+        post: operations["create_lot_spec_lots__lot_code__specs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lots/{lot_code}/specs/{spec_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Lot Spec
+         * @description Delete a lot specification.
+         */
+        delete: operations["delete_lot_spec_lots__lot_code__specs__spec_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spec-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Spec Templates
+         * @description List all spec templates, optionally filtered by parent.
+         */
+        get: operations["list_spec_templates_spec_templates_get"];
+        put?: never;
+        /**
+         * Create Spec Template
+         * @description Create a new spec template.
+         */
+        post: operations["create_spec_template_spec_templates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/spec-templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Spec Template
+         * @description Delete a spec template.
+         */
+        delete: operations["delete_spec_template_spec_templates__template_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Spec Template
+         * @description Update a spec template.
+         */
+        patch: operations["update_spec_template_spec_templates__template_id__patch"];
+        trace?: never;
+    };
+    "/lots/{lot_code}/apply-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Template To Lot
+         * @description Apply a spec template to a lot.
+         */
+        post: operations["apply_template_to_lot_lots__lot_code__apply_template_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -53,6 +277,46 @@ export interface paths {
         /** Upsert Positions */
         post: operations["upsert_positions_positions_batch_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/positions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Positions
+         * @description List all tracked positions, optionally filtered by buyer.
+         */
+        get: operations["list_positions_positions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/positions/{buyer_label}/{lot_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Position
+         * @description Delete a tracked position.
+         */
+        delete: operations["delete_position_positions__buyer_label___lot_code__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -91,6 +355,118 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/bids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Bids
+         * @description List recorded bids with optional filters.
+         */
+        get: operations["list_bids_bids_get"];
+        put?: never;
+        /**
+         * Create Bid
+         * @description Record a new bid (local only, does not submit to Troostwijk).
+         */
+        post: operations["create_bid_bids_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/buyer/{buyer_label}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Buyer Report
+         * @description Get exposure and position summary for a buyer.
+         */
+        get: operations["get_buyer_report_reports_buyer__buyer_label__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dashboard Stats
+         * @description Get dashboard statistics overview.
+         */
+        get: operations["get_dashboard_stats_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auctions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Auctions
+         * @description List all auctions, optionally including those without active lots.
+         */
+        get: operations["list_auctions_auctions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auctions/{auction_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Auction
+         * @description Get a single auction by code.
+         */
+        get: operations["get_auction_auctions__auction_code__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Auction
+         * @description Delete an auction. Optionally delete all associated lots.
+         */
+        delete: operations["delete_auction_auctions__auction_code__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Auction
+         * @description Update an auction.
+         */
+        patch: operations["update_auction_auctions__auction_code__patch"];
         trace?: never;
     };
     "/sync": {
@@ -182,6 +558,143 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ApplyTemplateRequest
+         * @description Request to apply a template to a lot.
+         */
+        ApplyTemplateRequest: {
+            /** Template Id */
+            template_id: number;
+            /** Parent Id */
+            parent_id?: number | null;
+        };
+        /**
+         * AuctionDeleteResponse
+         * @description Response after deleting an auction.
+         */
+        AuctionDeleteResponse: {
+            /** Status */
+            status: string;
+            /** Auction Deleted */
+            auction_deleted: number;
+            /** Lots Deleted */
+            lots_deleted: number;
+        };
+        /**
+         * AuctionDetailResponse
+         * @description Detailed auction information.
+         */
+        AuctionDetailResponse: {
+            /** Auction Code */
+            auction_code: string;
+            /** Title */
+            title?: string | null;
+            /** Url */
+            url?: string | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At Planned */
+            ends_at_planned?: string | null;
+            /**
+             * Lot Count
+             * @default 0
+             */
+            lot_count: number;
+        };
+        /**
+         * AuctionResponse
+         * @description Auction summary.
+         */
+        AuctionResponse: {
+            /** Auction Code */
+            auction_code: string;
+            /** Title */
+            title?: string | null;
+            /** Url */
+            url?: string | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At Planned */
+            ends_at_planned?: string | null;
+            /**
+             * Active Lots
+             * @default 0
+             */
+            active_lots: number;
+            /**
+             * Lot Count
+             * @default 0
+             */
+            lot_count: number;
+        };
+        /**
+         * AuctionUpdateRequest
+         * @description Request to update an auction.
+         */
+        AuctionUpdateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Url */
+            url?: string | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At Planned */
+            ends_at_planned?: string | null;
+        };
+        /**
+         * BidCreateRequest
+         * @description Request to record a new bid.
+         */
+        BidCreateRequest: {
+            /** Buyer Label */
+            buyer_label: string;
+            /** Auction Code */
+            auction_code: string;
+            /** Lot Code */
+            lot_code: string;
+            /** Amount Eur */
+            amount_eur: number;
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * BidHistoryEntryResponse
+         * @description A single bid in the lot's bid history.
+         */
+        BidHistoryEntryResponse: {
+            /** Id */
+            id: number;
+            /** Bidder Label */
+            bidder_label: string;
+            /** Amount Eur */
+            amount_eur: number;
+            /** Timestamp */
+            timestamp?: string | null;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /**
+         * BidResponse
+         * @description A recorded bid.
+         */
+        BidResponse: {
+            /** Id */
+            id: number;
+            /** Buyer Label */
+            buyer_label: string;
+            /** Lot Code */
+            lot_code: string;
+            /** Auction Code */
+            auction_code: string;
+            /** Lot Title */
+            lot_title?: string | null;
+            /** Amount Eur */
+            amount_eur: number;
+            /** Placed At */
+            placed_at: string;
+            /** Note */
+            note?: string | null;
+        };
         /** BuyerCreateRequest */
         BuyerCreateRequest: {
             /** Label */
@@ -208,6 +721,67 @@ export interface components {
             name?: string | null;
             /** Notes */
             notes?: string | null;
+        };
+        /**
+         * BuyerSummaryResponse
+         * @description Buyer exposure and position summary.
+         */
+        BuyerSummaryResponse: {
+            /** Buyer Label */
+            buyer_label: string;
+            /**
+             * Tracked Count
+             * @default 0
+             */
+            tracked_count: number;
+            /**
+             * Open Count
+             * @default 0
+             */
+            open_count: number;
+            /**
+             * Closed Count
+             * @default 0
+             */
+            closed_count: number;
+            /**
+             * Open Exposure Min Eur
+             * @default 0
+             */
+            open_exposure_min_eur: number;
+            /**
+             * Open Exposure Max Eur
+             * @default 0
+             */
+            open_exposure_max_eur: number;
+            /** Open Tracked Lots */
+            open_tracked_lots?: components["schemas"]["TrackedLotSummaryResponse"][];
+            /** Won Lots */
+            won_lots?: components["schemas"]["TrackedLotSummaryResponse"][];
+        };
+        /**
+         * DashboardStatsResponse
+         * @description Dashboard statistics overview.
+         */
+        DashboardStatsResponse: {
+            /** Total Auctions */
+            total_auctions: number;
+            /** Active Auctions */
+            active_auctions: number;
+            /** Total Lots */
+            total_lots: number;
+            /** Running Lots */
+            running_lots: number;
+            /** Scheduled Lots */
+            scheduled_lots: number;
+            /** Closed Lots */
+            closed_lots: number;
+            /** Total Bids */
+            total_bids: number;
+            /** Total Positions */
+            total_positions: number;
+            /** Total Buyers */
+            total_buyers: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -256,6 +830,151 @@ export interface components {
             next_sync?: string | null;
             /** Current Auction */
             current_auction?: string | null;
+        };
+        /**
+         * LotCreateRequest
+         * @description Request to manually add or update a lot.
+         */
+        LotCreateRequest: {
+            /** Auction Code */
+            auction_code: string;
+            /** Lot Code */
+            lot_code: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url?: string | null;
+            /** State */
+            state?: string | null;
+            /** Opens At */
+            opens_at?: string | null;
+            /** Closing Time */
+            closing_time?: string | null;
+            /** Bid Count */
+            bid_count?: number | null;
+            /** Opening Bid Eur */
+            opening_bid_eur?: number | null;
+            /** Current Bid Eur */
+            current_bid_eur?: number | null;
+            /** Location City */
+            location_city?: string | null;
+            /** Location Country */
+            location_country?: string | null;
+            /** Auction Title */
+            auction_title?: string | null;
+            /** Auction Url */
+            auction_url?: string | null;
+        };
+        /**
+         * LotCreateResponse
+         * @description Response after creating/updating a lot.
+         */
+        LotCreateResponse: {
+            /** Status */
+            status: string;
+            /** Lot Code */
+            lot_code: string;
+            /** Auction Code */
+            auction_code: string;
+        };
+        /**
+         * LotDetailResponse
+         * @description Detailed lot information including specs and reference prices.
+         */
+        LotDetailResponse: {
+            /** Auction Code */
+            auction_code: string;
+            /** Lot Code */
+            lot_code: string;
+            /** Title */
+            title?: string | null;
+            /** Url */
+            url?: string | null;
+            /** State */
+            state?: string | null;
+            /** Current Bid Eur */
+            current_bid_eur?: number | null;
+            /** Bid Count */
+            bid_count?: number | null;
+            /** Opening Bid Eur */
+            opening_bid_eur?: number | null;
+            /** Closing Time Current */
+            closing_time_current?: string | null;
+            /** Closing Time Original */
+            closing_time_original?: string | null;
+            /** Brand */
+            brand?: string | null;
+            /** Ean */
+            ean?: string | null;
+            /** Location City */
+            location_city?: string | null;
+            /** Location Country */
+            location_country?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Specs */
+            specs?: components["schemas"]["LotSpecResponse"][];
+            /** Reference Prices */
+            reference_prices?: components["schemas"]["ReferencePriceResponse"][];
+        };
+        /**
+         * LotSpecCreateRequest
+         * @description Request to add or update a lot specification.
+         */
+        LotSpecCreateRequest: {
+            /** Key */
+            key: string;
+            /**
+             * Value
+             * @default
+             */
+            value: string;
+            /** Parent Id */
+            parent_id?: number | null;
+            /** Ean */
+            ean?: string | null;
+            /** Price Eur */
+            price_eur?: number | null;
+            /** Template Id */
+            template_id?: number | null;
+            /** Release Date */
+            release_date?: string | null;
+            /** Category */
+            category?: string | null;
+        };
+        /**
+         * LotSpecResponse
+         * @description A specification key-value pair for a lot.
+         */
+        LotSpecResponse: {
+            /** Id */
+            id: number;
+            /** Parent Id */
+            parent_id?: number | null;
+            /** Template Id */
+            template_id?: number | null;
+            /** Key */
+            key: string;
+            /** Value */
+            value?: string | null;
+            /** Ean */
+            ean?: string | null;
+            /** Price Eur */
+            price_eur?: number | null;
+            /** Release Date */
+            release_date?: string | null;
+            /** Category */
+            category?: string | null;
+        };
+        /**
+         * LotUpdateRequest
+         * @description Request to update lot fields (notes, ean).
+         */
+        LotUpdateRequest: {
+            /** Notes */
+            notes?: string | null;
+            /** Ean */
+            ean?: string | null;
         };
         /**
          * LotView
@@ -319,6 +1038,35 @@ export interface components {
             /** Errors */
             errors?: string[];
         };
+        /**
+         * PositionResponse
+         * @description A tracked position linking a buyer to a lot.
+         */
+        PositionResponse: {
+            /** Id */
+            id: number;
+            /** Buyer Label */
+            buyer_label: string;
+            /** Lot Code */
+            lot_code: string;
+            /** Auction Code */
+            auction_code?: string | null;
+            /** Max Budget Total Eur */
+            max_budget_total_eur?: number | null;
+            /** Preferred Bid Eur */
+            preferred_bid_eur?: number | null;
+            /**
+             * Track Active
+             * @default true
+             */
+            track_active: boolean;
+            /** Lot Title */
+            lot_title?: string | null;
+            /** Current Bid Eur */
+            current_bid_eur?: number | null;
+            /** Closing Time */
+            closing_time?: string | null;
+        };
         /** PositionUpdate */
         PositionUpdate: {
             /** Buyer Label */
@@ -333,6 +1081,143 @@ export interface components {
             preferred_bid_eur?: number | null;
             /** Watch */
             watch?: boolean | null;
+        };
+        /**
+         * ReferencePriceCreateRequest
+         * @description Request to add a reference price.
+         */
+        ReferencePriceCreateRequest: {
+            /**
+             * Condition
+             * @default used
+             */
+            condition: string;
+            /** Price Eur */
+            price_eur: number;
+            /** Source */
+            source?: string | null;
+            /** Url */
+            url?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * ReferencePriceResponse
+         * @description A reference price for a lot.
+         */
+        ReferencePriceResponse: {
+            /** Id */
+            id: number;
+            /** Condition */
+            condition: string;
+            /** Price Eur */
+            price_eur: number;
+            /** Source */
+            source?: string | null;
+            /** Url */
+            url?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /**
+         * ReferencePriceUpdateRequest
+         * @description Request to update a reference price.
+         */
+        ReferencePriceUpdateRequest: {
+            /** Condition */
+            condition?: string | null;
+            /** Price Eur */
+            price_eur?: number | null;
+            /** Source */
+            source?: string | null;
+            /** Url */
+            url?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * SearchResultResponse
+         * @description A search result with lot details and match info.
+         */
+        SearchResultResponse: {
+            /** Auction Code */
+            auction_code: string;
+            /** Lot Code */
+            lot_code: string;
+            /** Title */
+            title?: string | null;
+            /** State */
+            state?: string | null;
+            /** Current Bid Eur */
+            current_bid_eur?: number | null;
+            /** Brand */
+            brand?: string | null;
+            /** Match Field */
+            match_field: string;
+        };
+        /**
+         * SpecTemplateCreateRequest
+         * @description Request to create a spec template.
+         */
+        SpecTemplateCreateRequest: {
+            /** Title */
+            title: string;
+            /** Value */
+            value?: string | null;
+            /** Ean */
+            ean?: string | null;
+            /** Price Eur */
+            price_eur?: number | null;
+            /** Parent Id */
+            parent_id?: number | null;
+            /** Release Date */
+            release_date?: string | null;
+            /** Category */
+            category?: string | null;
+        };
+        /**
+         * SpecTemplateResponse
+         * @description A reusable specification template.
+         */
+        SpecTemplateResponse: {
+            /** Id */
+            id: number;
+            /** Parent Id */
+            parent_id?: number | null;
+            /** Title */
+            title: string;
+            /** Value */
+            value?: string | null;
+            /** Ean */
+            ean?: string | null;
+            /** Price Eur */
+            price_eur?: number | null;
+            /** Release Date */
+            release_date?: string | null;
+            /** Category */
+            category?: string | null;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /**
+         * SpecTemplateUpdateRequest
+         * @description Request to update a spec template.
+         */
+        SpecTemplateUpdateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Value */
+            value?: string | null;
+            /** Ean */
+            ean?: string | null;
+            /** Price Eur */
+            price_eur?: number | null;
+            /** Release Date */
+            release_date?: string | null;
+            /** Category */
+            category?: string | null;
         };
         /** SyncRequest */
         SyncRequest: {
@@ -392,6 +1277,27 @@ export interface components {
             result?: components["schemas"]["SyncRunResultResponse"] | null;
             /** Error */
             error?: string | null;
+        };
+        /**
+         * TrackedLotSummaryResponse
+         * @description Summary of a tracked lot in buyer report.
+         */
+        TrackedLotSummaryResponse: {
+            /** Lot Code */
+            lot_code: string;
+            /** Title */
+            title: string;
+            /** State */
+            state: string;
+            /** Current Bid Eur */
+            current_bid_eur?: number | null;
+            /** Max Budget Total Eur */
+            max_budget_total_eur?: number | null;
+            /**
+             * Track Active
+             * @default true
+             */
+            track_active: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -465,6 +1371,546 @@ export interface operations {
             };
         };
     };
+    create_lot_lots_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LotCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_lots_search_get: {
+        parameters: {
+            query: {
+                /** @description Search query (min 2 chars) */
+                q: string;
+                /** @description Filter by state */
+                state?: string | null;
+                /** @description Max results */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResultResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_lot_detail_lots__lot_code__get: {
+        parameters: {
+            query?: {
+                auction_code?: string | null;
+            };
+            header?: never;
+            path: {
+                lot_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_lot_lots__lot_code__patch: {
+        parameters: {
+            query?: {
+                auction_code?: string | null;
+            };
+            header?: never;
+            path: {
+                lot_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LotUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reference_prices_lots__lot_code__reference_prices_get: {
+        parameters: {
+            query?: {
+                auction_code?: string | null;
+            };
+            header?: never;
+            path: {
+                lot_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferencePriceResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_reference_price_lots__lot_code__reference_prices_post: {
+        parameters: {
+            query?: {
+                auction_code?: string | null;
+            };
+            header?: never;
+            path: {
+                lot_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferencePriceCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferencePriceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_reference_price_lots__lot_code__reference_prices__ref_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lot_code: string;
+                ref_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_reference_price_lots__lot_code__reference_prices__ref_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lot_code: string;
+                ref_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferencePriceUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferencePriceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_lot_bid_history_lots__lot_code__bid_history_get: {
+        parameters: {
+            query?: {
+                auction_code?: string | null;
+            };
+            header?: never;
+            path: {
+                lot_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidHistoryEntryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_lot_spec_lots__lot_code__specs_post: {
+        parameters: {
+            query?: {
+                auction_code?: string | null;
+            };
+            header?: never;
+            path: {
+                lot_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LotSpecCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotSpecResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_lot_spec_lots__lot_code__specs__spec_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lot_code: string;
+                spec_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_spec_templates_spec_templates_get: {
+        parameters: {
+            query?: {
+                parent_id?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecTemplateResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_spec_template_spec_templates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpecTemplateCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecTemplateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_spec_template_spec_templates__template_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_spec_template_spec_templates__template_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpecTemplateUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecTemplateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_template_to_lot_lots__lot_code__apply_template_post: {
+        parameters: {
+            query?: {
+                auction_code?: string | null;
+            };
+            header?: never;
+            path: {
+                lot_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LotSpecResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     upsert_positions_positions_batch_post: {
         parameters: {
             query?: never;
@@ -486,6 +1932,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PositionBatchResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_positions_positions_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by buyer label */
+                buyer?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositionResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_position_positions__buyer_label___lot_code__delete: {
+        parameters: {
+            query?: {
+                auction_code?: string | null;
+            };
+            header?: never;
+            path: {
+                buyer_label: string;
+                lot_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -568,6 +2078,257 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_bids_bids_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by buyer label */
+                buyer?: string | null;
+                /** @description Filter by lot code */
+                lot_code?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_bid_bids_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BidCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BidResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_buyer_report_reports_buyer__buyer_label__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                buyer_label: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuyerSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dashboard_stats_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardStatsResponse"];
+                };
+            };
+        };
+    };
+    list_auctions_auctions_get: {
+        parameters: {
+            query?: {
+                /** @description Include auctions without active lots */
+                include_inactive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuctionResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_auction_auctions__auction_code__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                auction_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuctionDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_auction_auctions__auction_code__delete: {
+        parameters: {
+            query?: {
+                /** @description Also delete all lots in this auction */
+                delete_lots?: boolean;
+            };
+            header?: never;
+            path: {
+                auction_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuctionDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_auction_auctions__auction_code__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                auction_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuctionUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuctionDetailResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

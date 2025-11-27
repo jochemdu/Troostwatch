@@ -38,6 +38,19 @@ export interface LotSpec {
 }
 
 /**
+ * A reference price for a lot from an external source.
+ */
+export interface ReferencePrice {
+  id: number;
+  condition: 'new' | 'used' | 'refurbished';
+  price_eur: number;
+  source?: string | null;
+  url?: string | null;
+  notes?: string | null;
+  created_at?: string | null;
+}
+
+/**
  * Detailed lot information including specs and reference prices.
  */
 export interface LotDetailResponse {
@@ -54,22 +67,37 @@ export interface LotDetailResponse {
   brand?: string | null;
   location_city?: string | null;
   location_country?: string | null;
-  reference_price_new_eur?: number | null;
-  reference_price_used_eur?: number | null;
-  reference_source?: string | null;
-  reference_url?: string | null;
   notes?: string | null;
   specs: LotSpec[];
+  reference_prices: ReferencePrice[];
 }
 
 /**
- * Request to update lot reference prices and notes.
+ * Request to update lot notes.
  */
 export interface LotUpdateRequest {
-  reference_price_new_eur?: number | null;
-  reference_price_used_eur?: number | null;
-  reference_source?: string | null;
-  reference_url?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Request to add a reference price.
+ */
+export interface ReferencePriceCreateRequest {
+  condition: 'new' | 'used' | 'refurbished';
+  price_eur: number;
+  source?: string | null;
+  url?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Request to update a reference price.
+ */
+export interface ReferencePriceUpdateRequest {
+  condition?: 'new' | 'used' | 'refurbished';
+  price_eur?: number;
+  source?: string | null;
+  url?: string | null;
   notes?: string | null;
 }
 
@@ -144,7 +172,7 @@ export async function fetchLotDetail(lotCode: string, auctionCode?: string): Pro
 }
 
 /**
- * Update lot reference prices and notes.
+ * Update lot notes.
  * @see PATCH /lots/{lot_code} in troostwatch/app/api.py
  */
 export async function updateLot(lotCode: string, updates: LotUpdateRequest, auctionCode?: string): Promise<LotDetailResponse> {
@@ -158,6 +186,58 @@ export async function updateLot(lotCode: string, updates: LotUpdateRequest, auct
     body: JSON.stringify(updates),
   });
   return handleResponse<LotDetailResponse>(response);
+}
+
+/**
+ * Add a reference price for a lot.
+ * @see POST /lots/{lot_code}/reference-prices in troostwatch/app/api.py
+ */
+export async function addReferencePrice(
+  lotCode: string,
+  data: ReferencePriceCreateRequest,
+  auctionCode?: string
+): Promise<ReferencePrice> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}/reference-prices`);
+  if (auctionCode) {
+    url.searchParams.append('auction_code', auctionCode);
+  }
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ReferencePrice>(response);
+}
+
+/**
+ * Update a reference price.
+ * @see PATCH /lots/{lot_code}/reference-prices/{ref_id} in troostwatch/app/api.py
+ */
+export async function updateReferencePrice(
+  lotCode: string,
+  refId: number,
+  data: ReferencePriceUpdateRequest
+): Promise<ReferencePrice> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}/reference-prices/${refId}`);
+  const response = await fetch(url.toString(), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ReferencePrice>(response);
+}
+
+/**
+ * Delete a reference price.
+ * @see DELETE /lots/{lot_code}/reference-prices/{ref_id} in troostwatch/app/api.py
+ */
+export async function deleteReferencePrice(lotCode: string, refId: number): Promise<void> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}/reference-prices/${refId}`);
+  const response = await fetch(url.toString(), { method: 'DELETE' });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || 'Delete failed');
+  }
 }
 
 // =============================================================================

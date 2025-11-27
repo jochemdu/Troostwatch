@@ -307,12 +307,8 @@ class LotCreateRequest(BaseModel):
 
 
 class LotUpdateRequest(BaseModel):
-    """Request to update lot fields (user-editable fields only)."""
+    """Request to update lot fields (notes only, reference prices have own endpoints)."""
 
-    reference_price_new_eur: Optional[float] = Field(None, ge=0)
-    reference_price_used_eur: Optional[float] = Field(None, ge=0)
-    reference_source: Optional[str] = None
-    reference_url: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -322,6 +318,38 @@ class LotSpecResponse(BaseModel):
     id: int
     key: str
     value: Optional[str] = None
+
+
+class ReferencePriceResponse(BaseModel):
+    """A reference price for a lot."""
+
+    id: int
+    condition: str  # 'new', 'used', 'refurbished'
+    price_eur: float
+    source: Optional[str] = None
+    url: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class ReferencePriceCreateRequest(BaseModel):
+    """Request to add a reference price."""
+
+    condition: str = Field(default="used", pattern="^(new|used|refurbished)$")
+    price_eur: float = Field(ge=0)
+    source: Optional[str] = None
+    url: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ReferencePriceUpdateRequest(BaseModel):
+    """Request to update a reference price."""
+
+    condition: Optional[str] = Field(None, pattern="^(new|used|refurbished)$")
+    price_eur: Optional[float] = Field(None, ge=0)
+    source: Optional[str] = None
+    url: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class LotDetailResponse(BaseModel):
@@ -340,12 +368,9 @@ class LotDetailResponse(BaseModel):
     brand: Optional[str] = None
     location_city: Optional[str] = None
     location_country: Optional[str] = None
-    reference_price_new_eur: Optional[float] = None
-    reference_price_used_eur: Optional[float] = None
-    reference_source: Optional[str] = None
-    reference_url: Optional[str] = None
     notes: Optional[str] = None
     specs: List[LotSpecResponse] = Field(default_factory=list)
+    reference_prices: List[ReferencePriceResponse] = Field(default_factory=list)
 
 
 class LotCreateResponse(BaseModel):
@@ -381,6 +406,7 @@ async def get_lot_detail(
         raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' not found")
     
     specs = lot_repository.get_lot_specs(lot_code, auction_code)
+    ref_prices = lot_repository.get_reference_prices(lot_code, auction_code)
     
     return LotDetailResponse(
         auction_code=str(lot.get("auction_code", "")),
@@ -396,14 +422,22 @@ async def get_lot_detail(
         brand=lot.get("brand"),
         location_city=lot.get("location_city"),
         location_country=lot.get("location_country"),
-        reference_price_new_eur=lot.get("reference_price_new_eur"),
-        reference_price_used_eur=lot.get("reference_price_used_eur"),
-        reference_source=lot.get("reference_source"),
-        reference_url=lot.get("reference_url"),
         notes=lot.get("notes"),
         specs=[
             LotSpecResponse(id=int(s.get("id", 0)), key=str(s.get("key", "")), value=s.get("value"))
             for s in specs
+        ],
+        reference_prices=[
+            ReferencePriceResponse(
+                id=int(r.get("id", 0)),
+                condition=str(r.get("condition", "used")),
+                price_eur=float(r.get("price_eur", 0)),
+                source=r.get("source"),
+                url=r.get("url"),
+                notes=r.get("notes"),
+                created_at=r.get("created_at"),
+            )
+            for r in ref_prices
         ],
     )
 
@@ -415,21 +449,119 @@ async def update_lot(
     auction_code: Optional[str] = Query(None),
     lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> LotDetailResponse:
-    """Update user-editable lot fields (reference prices, notes)."""
+    """Update lot notes."""
     success = lot_repository.update_lot(
         lot_code,
         auction_code,
-        reference_price_new_eur=payload.reference_price_new_eur,
-        reference_price_used_eur=payload.reference_price_used_eur,
-        reference_source=payload.reference_source,
-        reference_url=payload.reference_url,
         notes=payload.notes,
     )
     if not success:
         raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' not found")
     
-    # Return updated lot
     return await get_lot_detail(lot_code, auction_code, lot_repository)
+
+
+# =============================================================================
+# Reference Prices Endpoints
+# =============================================================================
+
+
+@app.get("/lots/{lot_code}/reference-prices", response_model=List[ReferencePriceResponse])
+async def list_reference_prices(
+    lot_code: str,
+    auction_code: Optional[str] = Query(None),
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> List[ReferencePriceResponse]:
+    """Get all reference prices for a lot."""
+    prices = lot_repository.get_reference_prices(lot_code, auction_code)
+    return [
+        ReferencePriceResponse(
+            id=int(r.get("id", 0)),
+            condition=str(r.get("condition", "used")),
+            price_eur=float(r.get("price_eur", 0)),
+            source=r.get("source"),
+            url=r.get("url"),
+            notes=r.get("notes"),
+            created_at=r.get("created_at"),
+        )
+        for r in prices
+    ]
+
+
+@app.post("/lots/{lot_code}/reference-prices", status_code=status.HTTP_201_CREATED, response_model=ReferencePriceResponse)
+async def create_reference_price(
+    lot_code: str,
+    payload: ReferencePriceCreateRequest,
+    auction_code: Optional[str] = Query(None),
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> ReferencePriceResponse:
+    """Add a reference price for a lot."""
+    try:
+        ref_id = lot_repository.add_reference_price(
+            lot_code,
+            price_eur=payload.price_eur,
+            condition=payload.condition,
+            source=payload.source,
+            url=payload.url,
+            notes=payload.notes,
+            auction_code=auction_code,
+        )
+        return ReferencePriceResponse(
+            id=ref_id,
+            condition=payload.condition,
+            price_eur=payload.price_eur,
+            source=payload.source,
+            url=payload.url,
+            notes=payload.notes,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.patch("/lots/{lot_code}/reference-prices/{ref_id}", response_model=ReferencePriceResponse)
+async def update_reference_price(
+    lot_code: str,
+    ref_id: int,
+    payload: ReferencePriceUpdateRequest,
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> ReferencePriceResponse:
+    """Update a reference price."""
+    success = lot_repository.update_reference_price(
+        ref_id,
+        price_eur=payload.price_eur,
+        condition=payload.condition,
+        source=payload.source,
+        url=payload.url,
+        notes=payload.notes,
+    )
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Reference price {ref_id} not found")
+    
+    # Get updated price
+    prices = lot_repository.get_reference_prices(lot_code)
+    for p in prices:
+        if p.get("id") == ref_id:
+            return ReferencePriceResponse(
+                id=ref_id,
+                condition=str(p.get("condition", "used")),
+                price_eur=float(p.get("price_eur", 0)),
+                source=p.get("source"),
+                url=p.get("url"),
+                notes=p.get("notes"),
+                created_at=p.get("created_at"),
+            )
+    raise HTTPException(status_code=404, detail=f"Reference price {ref_id} not found")
+
+
+@app.delete("/lots/{lot_code}/reference-prices/{ref_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_reference_price(
+    lot_code: str,
+    ref_id: int,
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> None:
+    """Delete a reference price."""
+    if not lot_repository.delete_reference_price(ref_id):
+        raise HTTPException(status_code=404, detail=f"Reference price {ref_id} not found")
 
 
 class LotSpecCreateRequest(BaseModel):

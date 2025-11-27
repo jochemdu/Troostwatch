@@ -91,14 +91,12 @@ class LotRepository:
         return [dict(zip(columns, row)) for row in cur.fetchall()]
 
     def get_lot_detail(self, lot_code: str, auction_code: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Get detailed lot information including reference prices."""
+        """Get detailed lot information."""
         query = """
             SELECT a.auction_code, l.lot_code, l.title, l.url, l.state,
                    l.current_bid_eur, l.bid_count, l.opening_bid_eur,
                    l.closing_time_current, l.closing_time_original, l.brand,
-                   l.location_city, l.location_country,
-                   l.reference_price_new_eur, l.reference_price_used_eur,
-                   l.reference_source, l.reference_url, l.notes
+                   l.location_city, l.location_country, l.notes
             FROM lots l
             JOIN auctions a ON l.auction_id = a.id
             WHERE l.lot_code = ?
@@ -118,7 +116,6 @@ class LotRepository:
 
     def get_lot_specs(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get specifications (product_layers) for a lot."""
-        # First get lot_id
         lot_id = self.get_id(lot_code, auction_code)
         if not lot_id:
             return []
@@ -130,50 +127,109 @@ class LotRepository:
         columns = [c[0] for c in cur.description]
         return [dict(zip(columns, row)) for row in cur.fetchall()]
 
-    def update_lot(
-        self,
-        lot_code: str,
-        auction_code: Optional[str] = None,
-        *,
-        reference_price_new_eur: Optional[float] = None,
-        reference_price_used_eur: Optional[float] = None,
-        reference_source: Optional[str] = None,
-        reference_url: Optional[str] = None,
-        notes: Optional[str] = None,
-    ) -> bool:
-        """Update user-editable lot fields. Returns True if a row was updated."""
+    def get_reference_prices(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get all reference prices for a lot."""
         lot_id = self.get_id(lot_code, auction_code)
         if not lot_id:
-            return False
+            return []
         
+        cur = self.conn.execute(
+            """SELECT id, condition, price_eur, source, url, notes, created_at
+               FROM reference_prices WHERE lot_id = ? ORDER BY created_at DESC""",
+            (lot_id,)
+        )
+        columns = [c[0] for c in cur.description]
+        return [dict(zip(columns, row)) for row in cur.fetchall()]
+
+    def add_reference_price(
+        self,
+        lot_code: str,
+        price_eur: float,
+        condition: str = "used",
+        source: Optional[str] = None,
+        url: Optional[str] = None,
+        notes: Optional[str] = None,
+        auction_code: Optional[str] = None,
+    ) -> int:
+        """Add a reference price for a lot. Returns the new id."""
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            raise ValueError(f"Lot '{lot_code}' not found")
+        
+        cur = self.conn.execute(
+            """INSERT INTO reference_prices (lot_id, condition, price_eur, source, url, notes)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (lot_id, condition, price_eur, source, url, notes)
+        )
+        self.conn.commit()
+        return cur.lastrowid or 0
+
+    def update_reference_price(
+        self,
+        ref_id: int,
+        price_eur: Optional[float] = None,
+        condition: Optional[str] = None,
+        source: Optional[str] = None,
+        url: Optional[str] = None,
+        notes: Optional[str] = None,
+    ) -> bool:
+        """Update a reference price. Returns True if updated."""
         updates = []
         params: List = []
         
-        if reference_price_new_eur is not None:
-            updates.append("reference_price_new_eur = ?")
-            params.append(reference_price_new_eur)
-        if reference_price_used_eur is not None:
-            updates.append("reference_price_used_eur = ?")
-            params.append(reference_price_used_eur)
-        if reference_source is not None:
-            updates.append("reference_source = ?")
-            params.append(reference_source)
-        if reference_url is not None:
-            updates.append("reference_url = ?")
-            params.append(reference_url)
+        if price_eur is not None:
+            updates.append("price_eur = ?")
+            params.append(price_eur)
+        if condition is not None:
+            updates.append("condition = ?")
+            params.append(condition)
+        if source is not None:
+            updates.append("source = ?")
+            params.append(source)
+        if url is not None:
+            updates.append("url = ?")
+            params.append(url)
         if notes is not None:
             updates.append("notes = ?")
             params.append(notes)
         
         if not updates:
-            return True  # Nothing to update
+            return True
         
-        params.append(lot_id)
-        self.conn.execute(
-            f"UPDATE lots SET {', '.join(updates)} WHERE id = ?",
+        updates.append("updated_at = datetime('now')")
+        params.append(ref_id)
+        
+        cur = self.conn.execute(
+            f"UPDATE reference_prices SET {', '.join(updates)} WHERE id = ?",
             tuple(params),
         )
         self.conn.commit()
+        return cur.rowcount > 0
+
+    def delete_reference_price(self, ref_id: int) -> bool:
+        """Delete a reference price. Returns True if deleted."""
+        cur = self.conn.execute("DELETE FROM reference_prices WHERE id = ?", (ref_id,))
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def update_lot(
+        self,
+        lot_code: str,
+        auction_code: Optional[str] = None,
+        *,
+        notes: Optional[str] = None,
+    ) -> bool:
+        """Update user-editable lot fields (notes). Returns True if a row was updated."""
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            return False
+        
+        if notes is not None:
+            self.conn.execute(
+                "UPDATE lots SET notes = ? WHERE id = ?",
+                (notes, lot_id),
+            )
+            self.conn.commit()
         return True
 
     def upsert_lot_spec(self, lot_code: str, key: str, value: str, auction_code: Optional[str] = None) -> int:

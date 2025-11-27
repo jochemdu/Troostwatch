@@ -1,4 +1,4 @@
--- Troostwatch schema version: 3
+-- Troostwatch schema version: 4
 -- SQLite schema for Troostwatch
 --
 -- This file is the canonical source of truth for new databases. The schema
@@ -181,6 +181,21 @@ CREATE TABLE IF NOT EXISTS product_layers (
     FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_product_layers_lot_id ON product_layers (lot_id);
+
+-- Table for storing multiple reference prices per lot from different sources
+CREATE TABLE IF NOT EXISTS reference_prices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id INTEGER NOT NULL,
+    condition TEXT NOT NULL DEFAULT 'used',  -- 'new', 'used', 'refurbished'
+    price_eur REAL NOT NULL,
+    source TEXT,                              -- e.g. 'Marktplaats', 'eBay', 'Coolblue'
+    url TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT,
+    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_reference_prices_lot_id ON reference_prices (lot_id);
 
 CREATE TABLE IF NOT EXISTS sync_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

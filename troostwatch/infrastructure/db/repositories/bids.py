@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import sqlite3
 from typing import Dict, List, Optional
 
 from ..connection import iso_utcnow
+from .base import BaseRepository
 from .buyers import BuyerRepository
 from .lots import LotRepository
 
 
-class BidRepository:
-    def __init__(self, conn, buyers: BuyerRepository | None = None, lots: LotRepository | None = None) -> None:
-        self.conn = conn
+class BidRepository(BaseRepository):
+    def __init__(self, conn: sqlite3.Connection, buyers: BuyerRepository | None = None, lots: LotRepository | None = None) -> None:
+        super().__init__(conn)
         self.buyers = buyers or BuyerRepository(conn)
         self.lots = lots or LotRepository(conn)
 
@@ -29,7 +31,7 @@ class BidRepository:
             raise ValueError(
                 f"Lot '{lot_code}' in auction '{auction_code}' does not exist"
             )
-        self.conn.execute(
+          self._execute(
             """
             INSERT INTO my_bids (lot_id, buyer_id, amount_eur, placed_at, note)
             VALUES (?, ?, ?, ?, ?)
@@ -73,6 +75,4 @@ class BidRepository:
         query += " ORDER BY mb.placed_at DESC LIMIT ?"
         params.append(limit)
         
-        cursor = self.conn.execute(query, params)
-        columns = [desc[0] for desc in cursor.description]
-        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+            return self._fetch_all_as_dicts(query, tuple(params))

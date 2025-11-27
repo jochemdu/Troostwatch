@@ -5,12 +5,13 @@ import sqlite3
 from typing import Any, Dict, List, Optional
 
 from ..schema import ensure_schema
+from .base import BaseRepository
 
 
-class AuctionRepository:
+class AuctionRepository(BaseRepository):
     def __init__(self, conn: sqlite3.Connection) -> None:
-        self.conn = conn
-        ensure_schema(self.conn)
+            super().__init__(conn)
+            ensure_schema(self.conn)
 
     def upsert(
         self,
@@ -22,7 +23,7 @@ class AuctionRepository:
         normalized_pages = list(dict.fromkeys(pagination_pages or []))
         pages_json = json.dumps(normalized_pages) if normalized_pages else None
 
-        self.conn.execute(
+            self._execute(
             """
             INSERT INTO auctions (auction_code, title, url, pagination_pages)
             VALUES (?, ?, ?, ?)
@@ -33,11 +34,10 @@ class AuctionRepository:
             """,
             (auction_code, auction_title, auction_url, pages_json),
         )
-        cur = self.conn.execute("SELECT id FROM auctions WHERE auction_code = ?", (auction_code,))
-        row = cur.fetchone()
-        if not row:
+            auction_id = self._fetch_scalar("SELECT id FROM auctions WHERE auction_code = ?", (auction_code,))
+            if not auction_id:
             raise RuntimeError("Failed to retrieve auction id after upsert")
-        return int(row[0])
+            return int(auction_id)
 
     def list(self, only_active: bool = True) -> List[Dict[str, Optional[str]]]:
         query = """
@@ -127,7 +127,7 @@ class AuctionRepository:
             return True
         
         params.append(auction_code)
-        cur = self.conn.execute(
+            cur = self._execute(
             f"UPDATE auctions SET {', '.join(updates)} WHERE auction_code = ?",
             tuple(params),
         )
@@ -141,46 +141,44 @@ class AuctionRepository:
         Returns dict with counts of deleted items.
         """
         # Get auction id first
-        cur = self.conn.execute(
+            auction_id = self._fetch_scalar(
             "SELECT id FROM auctions WHERE auction_code = ?", (auction_code,)
         )
-        row = cur.fetchone()
-        if not row:
+            if not auction_id:
             return {"auction": 0, "lots": 0}
         
-        auction_id = row[0]
         lots_deleted = 0
         
         if delete_lots:
             # Delete associated data first (bid_history, reference_prices, product_layers)
-            cur = self.conn.execute(
-                "SELECT id FROM lots WHERE auction_id = ?", (auction_id,)
-            )
-            lot_ids = [r[0] for r in cur.fetchall()]
+                lot_ids_rows = self._execute(
+                    "SELECT id FROM lots WHERE auction_id = ?", (auction_id,)
+                ).fetchall()
+                lot_ids = [r[0] for r in lot_ids_rows]
             
             if lot_ids:
                 placeholders = ",".join("?" * len(lot_ids))
-                self.conn.execute(
+                    self._execute(
                     f"DELETE FROM bid_history WHERE lot_id IN ({placeholders})",
-                    lot_ids,
+                        tuple(lot_ids),
                 )
-                self.conn.execute(
+                    self._execute(
                     f"DELETE FROM reference_prices WHERE lot_id IN ({placeholders})",
-                    lot_ids,
+                        tuple(lot_ids),
                 )
-                self.conn.execute(
+                    self._execute(
                     f"DELETE FROM product_layers WHERE lot_id IN ({placeholders})",
-                    lot_ids,
+                        tuple(lot_ids),
                 )
             
             # Delete lots
-            cur = self.conn.execute(
+                cur = self._execute(
                 "DELETE FROM lots WHERE auction_id = ?", (auction_id,)
             )
             lots_deleted = cur.rowcount
         
         # Delete the auction
-        cur = self.conn.execute(
+            cur = self._execute(
             "DELETE FROM auctions WHERE id = ?", (auction_id,)
         )
         auction_deleted = cur.rowcount

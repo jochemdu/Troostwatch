@@ -4,13 +4,14 @@ import sqlite3
 from typing import Any, Dict, List, Optional
 
 from ..schema import ensure_schema
+from .base import BaseRepository
 from troostwatch.infrastructure.web.parsers.lot_card import LotCardData
 from troostwatch.infrastructure.web.parsers.lot_detail import LotDetailData
 
 
-class LotRepository:
+class LotRepository(BaseRepository):
     def __init__(self, conn: sqlite3.Connection) -> None:
-        self.conn = conn
+    super().__init__(conn)
         ensure_schema(self.conn)
 
     def get_id(self, lot_code: str, auction_code: Optional[str] = None) -> Optional[int]:
@@ -86,9 +87,7 @@ class LotRepository:
             query += " LIMIT ?"
             params.append(limit)
 
-        cur = self.conn.execute(query, tuple(params))
-        columns = [c[0] for c in cur.description]
-        return [dict(zip(columns, row)) for row in cur.fetchall()]
+          return self._fetch_all_as_dicts(query, tuple(params))
 
     def get_lot_detail(self, lot_code: str, auction_code: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Get detailed lot information."""
@@ -106,13 +105,7 @@ class LotRepository:
             query += " AND a.auction_code = ?"
             params.append(auction_code)
         
-        cur = self.conn.execute(query, tuple(params))
-        row = cur.fetchone()
-        if not row:
-            return None
-        
-        columns = [c[0] for c in cur.description]
-        return dict(zip(columns, row))
+            return self._fetch_one_as_dict(query, tuple(params))
 
     def get_lot_specs(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get specifications (product_layers) for a lot, including parent_id, ean, price for hierarchy."""
@@ -120,12 +113,10 @@ class LotRepository:
         if not lot_id:
             return []
         
-        cur = self.conn.execute(
-            "SELECT id, parent_id, template_id, title AS key, value, ean, price_eur, release_date, category FROM product_layers WHERE lot_id = ? ORDER BY parent_id NULLS FIRST, layer",
-            (lot_id,)
-        )
-        columns = [c[0] for c in cur.description]
-        return [dict(zip(columns, row)) for row in cur.fetchall()]
+            return self._fetch_all_as_dicts(
+                "SELECT id, parent_id, template_id, title AS key, value, ean, price_eur, release_date, category FROM product_layers WHERE lot_id = ? ORDER BY parent_id NULLS FIRST, layer",
+                (lot_id,)
+            )
 
     def get_reference_prices(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all reference prices for a lot."""
@@ -133,13 +124,11 @@ class LotRepository:
         if not lot_id:
             return []
         
-        cur = self.conn.execute(
+          return self._fetch_all_as_dicts(
             """SELECT id, condition, price_eur, source, url, notes, created_at
                FROM reference_prices WHERE lot_id = ? ORDER BY created_at DESC""",
             (lot_id,)
         )
-        columns = [c[0] for c in cur.description]
-        return [dict(zip(columns, row)) for row in cur.fetchall()]
 
     def get_bid_history(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get bid history for a lot, ordered by timestamp descending (most recent first)."""
@@ -147,13 +136,11 @@ class LotRepository:
         if not lot_id:
             return []
         
-        cur = self.conn.execute(
+          return self._fetch_all_as_dicts(
             """SELECT id, bidder_label, amount_eur, timestamp, created_at
                FROM bid_history WHERE lot_id = ? ORDER BY timestamp DESC, id DESC""",
             (lot_id,)
         )
-        columns = [c[0] for c in cur.description]
-        return [dict(zip(columns, row)) for row in cur.fetchall()]
 
     def add_reference_price(
         self,
@@ -170,13 +157,13 @@ class LotRepository:
         if not lot_id:
             raise ValueError(f"Lot '{lot_code}' not found")
         
-        cur = self.conn.execute(
+          ref_id = self._execute_insert(
             """INSERT INTO reference_prices (lot_id, condition, price_eur, source, url, notes)
                VALUES (?, ?, ?, ?, ?, ?)""",
             (lot_id, condition, price_eur, source, url, notes)
         )
         self.conn.commit()
-        return cur.lastrowid or 0
+          return ref_id
 
     def update_reference_price(
         self,
@@ -276,49 +263,49 @@ class LotRepository:
             raise ValueError(f"Lot '{lot_code}' not found")
         
         # Check if spec exists (matching parent_id)
+            existing_id: Optional[int]
         if parent_id is not None:
-            cur = self.conn.execute(
+                existing_id = self._fetch_scalar(
                 "SELECT id FROM product_layers WHERE lot_id = ? AND title = ? AND parent_id = ?",
                 (lot_id, key, parent_id)
             )
         else:
-            cur = self.conn.execute(
+                existing_id = self._fetch_scalar(
                 "SELECT id FROM product_layers WHERE lot_id = ? AND title = ? AND parent_id IS NULL",
                 (lot_id, key)
             )
-        existing = cur.fetchone()
         
-        if existing:
-            self.conn.execute(
+            if existing_id:
+                self._execute(
                 "UPDATE product_layers SET value = ?, ean = ?, price_eur = ?, template_id = ?, release_date = ?, category = ? WHERE id = ?",
-                (value, ean, price_eur, template_id, release_date, category, existing[0])
+                    (value, ean, price_eur, template_id, release_date, category, existing_id)
             )
             self.conn.commit()
-            return existing[0]
+                return existing_id
         else:
             # Get max layer number for this parent
+                next_layer: int
             if parent_id is not None:
-                cur = self.conn.execute(
+                    next_layer = self._fetch_scalar(
                     "SELECT COALESCE(MAX(layer), -1) + 1 FROM product_layers WHERE lot_id = ? AND parent_id = ?",
                     (lot_id, parent_id)
                 )
             else:
-                cur = self.conn.execute(
+                    next_layer = self._fetch_scalar(
                     "SELECT COALESCE(MAX(layer), -1) + 1 FROM product_layers WHERE lot_id = ? AND parent_id IS NULL",
                     (lot_id,)
                 )
-            next_layer = cur.fetchone()[0]
             
-            cur = self.conn.execute(
+                spec_id = self._execute_insert(
                 "INSERT INTO product_layers (lot_id, parent_id, layer, title, value, ean, price_eur, template_id, release_date, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (lot_id, parent_id, next_layer, key, value, ean, price_eur, template_id, release_date, category)
             )
             self.conn.commit()
-            return cur.lastrowid or 0
+                return spec_id
 
     def delete_lot_spec(self, spec_id: int) -> bool:
         """Delete a specification by id. Returns True if deleted."""
-        cur = self.conn.execute("DELETE FROM product_layers WHERE id = ?", (spec_id,))
+            cur = self._execute("DELETE FROM product_layers WHERE id = ?", (spec_id,))
         self.conn.commit()
         return cur.rowcount > 0
 
@@ -329,28 +316,21 @@ class LotRepository:
     def list_spec_templates(self, parent_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """List all spec templates, optionally filtered by parent."""
         if parent_id is not None:
-            cur = self.conn.execute(
+                return self._fetch_all_as_dicts(
                 "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates WHERE parent_id = ? ORDER BY title",
                 (parent_id,)
             )
         else:
-            cur = self.conn.execute(
+                return self._fetch_all_as_dicts(
                 "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates ORDER BY parent_id NULLS FIRST, title"
             )
-        columns = [c[0] for c in cur.description]
-        return [dict(zip(columns, row)) for row in cur.fetchall()]
 
     def get_spec_template(self, template_id: int) -> Optional[Dict[str, Any]]:
         """Get a single spec template by id."""
-        cur = self.conn.execute(
+            return self._fetch_one_as_dict(
             "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates WHERE id = ?",
             (template_id,)
         )
-        row = cur.fetchone()
-        if not row:
-            return None
-        columns = [c[0] for c in cur.description]
-        return dict(zip(columns, row))
 
     def create_spec_template(
         self,
@@ -363,12 +343,12 @@ class LotRepository:
         category: Optional[str] = None,
     ) -> int:
         """Create a new spec template. Returns the new id."""
-        cur = self.conn.execute(
+            template_id = self._execute_insert(
             "INSERT INTO spec_templates (title, value, ean, price_eur, parent_id, release_date, category) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (title, value, ean, price_eur, parent_id, release_date, category)
         )
         self.conn.commit()
-        return cur.lastrowid or 0
+            return template_id
 
     def update_spec_template(
         self,
@@ -408,7 +388,7 @@ class LotRepository:
         updates.append("updated_at = datetime('now')")
         params.append(template_id)
         
-        cur = self.conn.execute(
+            cur = self._execute(
             f"UPDATE spec_templates SET {', '.join(updates)} WHERE id = ?",
             tuple(params),
         )
@@ -417,7 +397,7 @@ class LotRepository:
 
     def delete_spec_template(self, template_id: int) -> bool:
         """Delete a spec template. Returns True if deleted."""
-        cur = self.conn.execute("DELETE FROM spec_templates WHERE id = ?", (template_id,))
+            cur = self._execute("DELETE FROM spec_templates WHERE id = ?", (template_id,))
         self.conn.commit()
         return cur.rowcount > 0
 
@@ -550,21 +530,19 @@ class LotRepository:
         from troostwatch.infrastructure.web.parsers.lot_detail import BidHistoryEntry
 
         # Get lot_id
-        cur = self.conn.execute(
+          lot_id = self._fetch_scalar(
             "SELECT id FROM lots WHERE lot_code = ? AND auction_id = ?",
             (lot_code, auction_id),
         )
-        row = cur.fetchone()
-        if not row:
+          if not lot_id:
             return
-        lot_id = row[0]
 
         # Clear existing bid history for this lot and insert fresh
-        self.conn.execute("DELETE FROM bid_history WHERE lot_id = ?", (lot_id,))
+          self._execute("DELETE FROM bid_history WHERE lot_id = ?", (lot_id,))
 
         for entry in bid_history:
             if isinstance(entry, BidHistoryEntry):
-                self.conn.execute(
+                     self._execute_insert(
                     """
                     INSERT INTO bid_history (lot_id, bidder_label, amount_eur, bid_time)
                     VALUES (?, ?, ?, ?)
@@ -578,31 +556,27 @@ class LotRepository:
         Returns True if the lot was deleted, False if not found.
         """
         # Get auction_id and lot_id
-        cur = self.conn.execute(
+          auction_id = self._fetch_scalar(
             "SELECT id FROM auctions WHERE auction_code = ?", (auction_code,)
         )
-        auction_row = cur.fetchone()
-        if not auction_row:
+          if not auction_id:
             return False
-        auction_id = auction_row[0]
 
-        cur = self.conn.execute(
+          lot_id = self._fetch_scalar(
             "SELECT id FROM lots WHERE lot_code = ? AND auction_id = ?",
             (lot_code, auction_id),
         )
-        lot_row = cur.fetchone()
-        if not lot_row:
+          if not lot_id:
             return False
-        lot_id = lot_row[0]
 
         # Delete related data in order (foreign key dependencies)
-        self.conn.execute("DELETE FROM bid_history WHERE lot_id = ?", (lot_id,))
-        self.conn.execute("DELETE FROM reference_prices WHERE lot_id = ?", (lot_id,))
-        self.conn.execute("DELETE FROM product_layers WHERE lot_id = ?", (lot_id,))
-        self.conn.execute("DELETE FROM my_lot_positions WHERE lot_id = ?", (lot_id,))
+          self._execute("DELETE FROM bid_history WHERE lot_id = ?", (lot_id,))
+          self._execute("DELETE FROM reference_prices WHERE lot_id = ?", (lot_id,))
+          self._execute("DELETE FROM product_layers WHERE lot_id = ?", (lot_id,))
+          self._execute("DELETE FROM my_lot_positions WHERE lot_id = ?", (lot_id,))
         
         # Delete the lot itself
-        self.conn.execute("DELETE FROM lots WHERE id = ?", (lot_id,))
+          self._execute("DELETE FROM lots WHERE id = ?", (lot_id,))
         self.conn.commit()
         return True
 

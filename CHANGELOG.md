@@ -6,10 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.7.0] – 2025-11-27
+
+### Added
+
+- **Brand field for lots**: The lot detail parser now extracts the brand/manufacturer
+  from lot specifications (supports `Merk`, `Brand`, `Fabricaat` keys).
+- **Bid history tracking**: New `bid_history` table stores historical bids scraped
+  from lot detail pages, with bidder label, amount, and timestamp.
+- **Brand filter in UI**: The lots page now includes a brand filter with autocomplete
+  from available brands in the database.
+- **Brand query parameter**: `GET /lots` endpoint accepts a `brand` filter parameter.
+
+### Changed
+
+- Bumped schema version to 2 (adds `brand` column to `lots`, creates `bid_history` table).
+- `LotDetailData` parser dataclass now includes `brand` and `bid_history` fields.
+- `LotView` API response model now includes `brand` field.
+- `LotRepository.upsert_from_parsed()` now stores brand and bid history.
+
+### Migration
+
+Existing databases are automatically migrated:
+- `brand` column added to `lots` table via programmatic migration.
+- `bid_history` table created via `_ensure_bid_history_table()`.
+
+## [0.6.2] – 2025-11-23
+
 ### Changed
 
 - `troostwatch.interfaces.cli.*` is now the primaire importlocatie voor CLI
-  commando’s. Importeren via `troostwatch.cli.*` blijft tijdelijk beschikbaar
+  commando's. Importeren via `troostwatch.cli.*` blijft tijdelijk beschikbaar
   maar geeft een `DeprecationWarning`.
 
 ## [0.6.0] – 2025-11-23

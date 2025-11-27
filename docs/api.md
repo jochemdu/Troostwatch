@@ -94,6 +94,7 @@ List lots with optional filters.
 |-----------|------|-------------|
 | `auction_code` | string | Filter by auction code |
 | `state` | string | Filter by lot state (e.g., `running`, `closed`) |
+| `brand` | string | Filter by brand/manufacturer |
 | `limit` | integer | Maximum number of results (≥1) |
 
 **Response:** `200 OK`
@@ -108,7 +109,8 @@ List lots with optional filters.
     "state": "running",
     "current_bid_eur": 1500.00,
     "bid_count": 12,
-    "closing_time_current": "2025-11-27T14:00:00Z"
+    "closing_time_current": "2025-11-27T14:00:00Z",
+    "brand": "Caterpillar"
   }
 ]
 ```

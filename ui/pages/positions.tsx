@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { fetchBuyers, fetchLots } from '../lib/api';
 import type { BuyerResponse, LotView } from '../lib/api';
@@ -65,7 +65,7 @@ export default function PositionsPage() {
   const [formBudget, setFormBudget] = useState('');
   const [formSaving, setFormSaving] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -82,11 +82,11 @@ export default function PositionsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterBuyer]);
 
   useEffect(() => {
     loadData();
-  }, [filterBuyer]);
+  }, [loadData]);
 
   const handleDelete = async (pos: Position) => {
     if (!confirm(`Positie verwijderen voor ${pos.buyer_label} op lot ${pos.lot_code}?`)) return;

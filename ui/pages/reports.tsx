@@ -47,6 +47,7 @@ export default function ReportsPage() {
         }
       })
       .catch((err) => setError(err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch report when buyer changes

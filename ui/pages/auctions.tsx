@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import type { Auction, AuctionUpdateRequest } from '../lib/api';
 import { fetchAuctions as fetchAuctionsApi, updateAuction, deleteAuction } from '../lib/api';
@@ -32,7 +32,7 @@ export default function AuctionsPage() {
   const [deleteWithLots, setDeleteWithLots] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const loadAuctions = async () => {
+  const loadAuctions = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -43,11 +43,11 @@ export default function AuctionsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [includeInactive]);
 
   useEffect(() => {
     loadAuctions();
-  }, [includeInactive]);
+  }, [loadAuctions]);
 
   const toggleSelection = (code: string) => {
     const newSelection = new Set(selectedAuctions);

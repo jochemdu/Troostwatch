@@ -178,7 +178,7 @@ export default function LotsPage() {
         <div className="panel" style={{ marginBottom: 18 }}>
           <h2 style={{ marginTop: 0 }}>Zoekresultaten ({searchResults.length})</h2>
           {searchResults.length === 0 ? (
-            <p className="muted">Geen resultaten gevonden voor "{searchQuery}"</p>
+            <p className="muted">Geen resultaten gevonden voor &ldquo;{searchQuery}&rdquo;</p>
           ) : (
             <div className="search-results">
               {searchResults.map((result) => (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
@@ -19,15 +19,7 @@ export default function LotDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  useEffect(() => {
-    if (typeof code === 'string') {
-      loadLot(code);
-      loadTemplates();
-      loadBidHistory(code);
-    }
-  }, [code, auctionCode]);
-
-  const loadLot = async (lotCode: string) => {
+  const loadLot = useCallback(async (lotCode: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -38,25 +30,33 @@ export default function LotDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [auctionCode]);
 
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     try {
       const data = await fetchSpecTemplates();
       setTemplates(data);
     } catch (err) {
       console.error('Failed to load templates:', err);
     }
-  };
+  }, []);
 
-  const loadBidHistory = async (lotCode: string) => {
+  const loadBidHistory = useCallback(async (lotCode: string) => {
     try {
       const data = await fetchBidHistory(lotCode, auctionCode);
       setBidHistory(data);
     } catch (err) {
       console.error('Failed to load bid history:', err);
     }
-  };
+  }, [auctionCode]);
+
+  useEffect(() => {
+    if (typeof code === 'string') {
+      loadLot(code);
+      loadTemplates();
+      loadBidHistory(code);
+    }
+  }, [code, loadLot, loadTemplates, loadBidHistory]);
 
   const handleEditSave = () => {
     setShowEditModal(false);

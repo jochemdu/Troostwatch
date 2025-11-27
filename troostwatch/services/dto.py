@@ -66,16 +66,15 @@ class BuyerCreateDTO:
 # --- Position DTOs ---
 @dataclass
 class PositionDTO:
-    id: int
     buyer_label: str
     lot_code: str
     auction_code: Optional[str] = None
-    max_budget_total_eur: Optional[float] = None
-    preferred_bid_eur: Optional[float] = None
     track_active: bool = True
+    max_budget_total_eur: Optional[float] = None
+    my_highest_bid_eur: Optional[float] = None
     lot_title: Optional[str] = None
+    lot_state: Optional[str] = None
     current_bid_eur: Optional[float] = None
-    closing_time: Optional[str] = None
 
 @dataclass
 class PositionUpdateDTO:

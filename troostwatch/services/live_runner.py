@@ -18,6 +18,7 @@ from troostwatch.services.dto import EventPublisher
 from troostwatch.services.sync import SyncRunResult, sync_auction_to_db
 
 SyncCallable = Callable[..., SyncRunResult]
+LiveSyncStatus = Literal["idle", "running", "paused", "stopping"]
 
 
 @dataclass
@@ -35,7 +36,7 @@ class LiveSyncConfig:
 class LiveSyncState:
     """Current state snapshot for the live sync runner."""
 
-    status: Literal["idle", "running", "paused", "stopping"] = "idle"
+    status: LiveSyncStatus = "idle"
     current_run_started_at: str | None = None
     last_result: SyncRunResult | None = None
     last_error: str | None = None
@@ -139,20 +140,25 @@ class LiveSyncRunner:
             if self._stop_event.is_set():
                 break
 
+            config = self._state.config
+            if config is None:
+                self._logger.error("Live sync loop started without config")
+                break
+
             await self._set_status("running")
             self._state.current_run_started_at = iso_utcnow()
             await self._emit_log(
-                f"Starting sync for {self._state.config.auction_code} at {self._state.config.auction_url}"
+                f"Starting sync for {config.auction_code} at {config.auction_url}"
             )
 
             try:
                 result = await asyncio.to_thread(
                     self._sync_callable,
                     self._db_path,
-                    auction_code=self._state.config.auction_code,
-                    auction_url=self._state.config.auction_url,
-                    max_pages=self._state.config.max_pages,
-                    dry_run=self._state.config.dry_run,
+                    auction_code=config.auction_code,
+                    auction_url=config.auction_url,
+                    max_pages=config.max_pages,
+                    dry_run=config.dry_run,
                 )
                 self._state.last_result = result
                 self._state.last_error = None
@@ -160,7 +166,7 @@ class LiveSyncRunner:
                     {
                         "type": "live_sync_result",
                         "status": result.status,
-                        "auction_code": self._state.config.auction_code,
+                        "auction_code": config.auction_code,
                         "payload": asdict(result),
                     }
                 )
@@ -222,7 +228,7 @@ class LiveSyncRunner:
             }
         )
 
-    async def _set_status(self, status: LiveSyncState.status, *, log_message: str | None = None) -> None:
+    async def _set_status(self, status: LiveSyncStatus, *, log_message: str | None = None) -> None:
         self._state.status = status
         await self._publish_event(
             {"type": "live_sync_status", "status": status, "time": iso_utcnow(), "state": self.get_status()}

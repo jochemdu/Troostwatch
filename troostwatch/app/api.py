@@ -149,16 +149,15 @@ class PositionUpdate(BaseModel):
 class PositionResponse(BaseModel):
     """A tracked position linking a buyer to a lot."""
 
-    id: int
     buyer_label: str
     lot_code: str
     auction_code: Optional[str] = None
-    max_budget_total_eur: Optional[float] = None
-    preferred_bid_eur: Optional[float] = None
     track_active: bool = True
+    max_budget_total_eur: Optional[float] = None
+    my_highest_bid_eur: Optional[float] = None
     lot_title: Optional[str] = None
+    lot_state: Optional[str] = None
     current_bid_eur: Optional[float] = None
-    closing_time: Optional[str] = None
 
 
 class PositionBatchRequest(BaseModel):
@@ -960,19 +959,21 @@ async def list_positions(
     repository: PositionRepository = Depends(get_position_repository),
 ) -> List[PositionResponse]:
     """List all tracked positions, optionally filtered by buyer."""
-    positions = [PositionDTO(**pos) for pos in repository.list(buyer_label=buyer)]
+    from troostwatch.services.positions import PositionsService
+
+    rows = repository.list(buyer_label=buyer)
+    positions = [PositionsService._row_to_dto(row) for row in rows]
     return [
         PositionResponse(
-            id=pos.id,
             buyer_label=pos.buyer_label,
             lot_code=pos.lot_code,
             auction_code=pos.auction_code,
-            max_budget_total_eur=pos.max_budget_total_eur,
-            preferred_bid_eur=pos.preferred_bid_eur,
             track_active=pos.track_active,
+            max_budget_total_eur=pos.max_budget_total_eur,
+            my_highest_bid_eur=pos.my_highest_bid_eur,
             lot_title=pos.lot_title,
+            lot_state=pos.lot_state,
             current_bid_eur=pos.current_bid_eur,
-            closing_time=pos.closing_time,
         )
         for pos in positions
     ]

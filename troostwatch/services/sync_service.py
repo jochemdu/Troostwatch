@@ -165,8 +165,8 @@ class SyncService:
                 continue
             results.append(
                 await self.run_sync(
-                    auction_code=code,
-                    auction_url=url,
+                    auction_code=str(code),
+                    auction_url=str(url),
                     max_pages=max_pages,
                     dry_run=dry_run,
                 )
@@ -190,13 +190,17 @@ class SyncService:
             if preferred_index is None:
                 preferred_index = 0
 
-        resolved_code = auction_code or (available[preferred_index]["auction_code"] if preferred_index is not None else None)
-        resolved_url = auction_url
+        resolved_code: str | None = auction_code
+        if not resolved_code and preferred_index is not None:
+            code_val = available[preferred_index].get("auction_code")
+            resolved_code = str(code_val) if code_val else None
 
+        resolved_url: str | None = auction_url
         if resolved_code and not resolved_url:
             match = next((a for a in available if a.get("auction_code") == resolved_code), None)
             if match:
-                resolved_url = match.get("url") or resolved_url
+                url_val = match.get("url")
+                resolved_url = str(url_val) if url_val else resolved_url
 
         return AuctionSelection(
             resolved_code=resolved_code,
@@ -245,7 +249,7 @@ class SyncService:
     def _format_live_state(self, state: LiveSyncState) -> Dict[str, object]:
         return {"state": state.status, "detail": None}
 
-    def _load_auctions(self, *, include_inactive: bool) -> list[dict[str, object]]:
+    def _load_auctions(self, *, include_inactive: bool) -> list[dict[str, str | None]]:
         with get_connection(self._db_path) as conn:
             ensure_core_schema(conn)
             ensure_schema(conn)
@@ -254,7 +258,7 @@ class SyncService:
 
     def _load_auctions_and_preference(
         self, *, include_inactive: bool
-    ) -> tuple[list[dict[str, object]], str | None]:
+    ) -> tuple[list[dict[str, str | None]], str | None]:
         with get_connection(self._db_path) as conn:
             ensure_core_schema(conn)
             ensure_schema(conn)

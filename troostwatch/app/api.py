@@ -71,6 +71,24 @@ sync_service = SyncService(event_publisher=event_bus.publish)
 app = FastAPI(title="Troostwatch API", version=__version__)
 
 
+@app.get("/")
+async def root():
+    """API root endpoint with welcome message and links."""
+    return {
+        "name": "Troostwatch API",
+        "version": __version__,
+        "docs": "/docs",
+        "redoc": "/redoc",
+        "endpoints": {
+            "lots": "/lots",
+            "buyers": "/buyers",
+            "sync": "/sync",
+            "live_sync_status": "/live-sync/status",
+            "websocket": "/ws/lots",
+        },
+    }
+
+
 def get_buyer_service(
     repository: BuyerRepository = Depends(get_buyer_repository),
 ) -> BuyerService:

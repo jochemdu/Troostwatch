@@ -86,7 +86,6 @@ def parse_eur_to_float(text: str) -> float | None:
 
 
 def amount_from_cents_dict(amount: dict | None) -> float | None:
-def amount_from_cents_dict(amount: dict | None) -> float | None:
     """Convert a Troostwijk ``{"cents": 19000}`` amount dictionary to float euros."""
 
     if not isinstance(amount, dict):
@@ -97,7 +96,6 @@ def amount_from_cents_dict(amount: dict | None) -> float | None:
     return None
 
 
-def parse_percent(text: str) -> float | None:
 def parse_percent(text: str) -> float | None:
     """Convert a percentage string like "21%" to a float 21.0."""
 
@@ -173,7 +171,6 @@ def parse_datetime_from_text(
     return parse_nl_datetime(match.group(1), tz=tz, strip_timezone=strip_timezone)
 
 
-def split_location(text: str) -> tuple[str | None, str | None]:
 def split_location(text: str) -> tuple[str | None, str | None]:
     """Split a location string into city and country components."""
 

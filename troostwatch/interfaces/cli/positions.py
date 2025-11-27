@@ -63,7 +63,6 @@ def add(
 @click.option("--db", "db_path", required=True, help="Path to the SQLite database.")
 @click.option("--buyer", default=None, help="Only list positions for this buyer.")
 def list_positions_cmd(db_path: str, buyer: str | None) -> None:
-def list_positions_cmd(db_path: str, buyer: str | None) -> None:
     """List tracked positions.
 
     Without arguments, lists all positions for all buyers. Use the

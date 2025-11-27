@@ -33,12 +33,10 @@ PREFERRED_AUCTION_KEY = "preferred_auction"
 
 
 def _prompt_optional_str(message: str) -> str | None:
-def _prompt_optional_str(message: str) -> str | None:
     value = click.prompt(message, default="", show_default=False)
     return value or None
 
 
-def _prompt_optional_int(message: str, default: int | None = None) -> int | None:
 def _prompt_optional_int(message: str, default: int | None = None) -> int | None:
     text_default = "" if default is None else default
     value = click.prompt(
@@ -214,7 +212,6 @@ def _run_add_lot(ctx: click.Context) -> None:
     city = _prompt_optional_str("City (optional)")
     country = _prompt_optional_str("Country (optional)")
 
-    def _parse_float(val: str | None) -> float | None:
     def _parse_float(val: str | None) -> float | None:
         if val is None:
             return None

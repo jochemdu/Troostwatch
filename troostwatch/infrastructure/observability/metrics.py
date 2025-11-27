@@ -28,7 +28,6 @@ class Counter:
     name: str
     help_text: str = ""
     _values: dict[tuple[tuple[str, str], ...], float] = field(
-    _values: dict[tuple[tuple[str, str], ...], float] = field(
         default_factory=lambda: defaultdict(float)
     )
     _lock: threading.Lock = field(default_factory=threading.Lock)
@@ -140,19 +139,16 @@ class MetricRegistry:
         with self._lock:
             if name not in self._histograms:
                 kwargs: dict[str, object] = {"name": name, "help_text": help_text}
-                kwargs: dict[str, object] = {"name": name, "help_text": help_text}
                 if buckets is not None:
                     kwargs["buckets"] = buckets
                 self._histograms[name] = Histogram(**kwargs)  # type: ignore[arg-type]
             return self._histograms[name]
 
     def all_counters(self) -> dict[str, Counter]:
-    def all_counters(self) -> dict[str, Counter]:
         """Return all registered counters."""
         with self._lock:
             return dict(self._counters)
 
-    def all_histograms(self) -> dict[str, Histogram]:
     def all_histograms(self) -> dict[str, Histogram]:
         """Return all registered histograms."""
         with self._lock:
@@ -286,9 +282,7 @@ def record_bid(outcome: str, auction_code: str, lot_code: str) -> None:
 
 
 def get_metrics_summary() -> dict[str, object]:
-def get_metrics_summary() -> dict[str, object]:
     """Return a summary of all metrics for logging or API response."""
-    result: dict[str, object] = {"counters": {}, "histograms": {}}
     result: dict[str, object] = {"counters": {}, "histograms": {}}
 
     for name, counter in _registry.all_counters().items():
@@ -310,7 +304,6 @@ def get_metrics_summary() -> dict[str, object]:
 
 def format_prometheus() -> str:
     """Format metrics in Prometheus text exposition format."""
-    lines: list[str] = []
     lines: list[str] = []
 
     for name, counter in _registry.all_counters().items():

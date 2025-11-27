@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import sqlite3
 from typing import Any
-from typing import Any
 
 from ..schema import ensure_schema
 from .base import BaseRepository
@@ -42,7 +41,6 @@ class AuctionRepository(BaseRepository):
             raise RuntimeError("Failed to retrieve auction id after upsert")
         return int(auction_id)
 
-    def list(self, only_active: bool = True) -> list[dict[str, str | None]]:
     def list(self, only_active: bool = True) -> list[dict[str, str | None]]:
         query = """
             SELECT a.auction_code,
@@ -113,14 +111,9 @@ class AuctionRepository(BaseRepository):
         url: str | None = None,
         starts_at: str | None = None,
         ends_at_planned: str | None = None,
-        title: str | None = None,
-        url: str | None = None,
-        starts_at: str | None = None,
-        ends_at_planned: str | None = None,
     ) -> bool:
         """Update an auction. Returns True if updated."""
         updates = []
-        params: list[Any] = []
         params: list[Any] = []
 
         if title is not None:
@@ -147,7 +140,6 @@ class AuctionRepository(BaseRepository):
         self.conn.commit()
         return cur.rowcount > 0
 
-    def delete(self, auction_code: str, delete_lots: bool = False) -> dict[str, int]:
     def delete(self, auction_code: str, delete_lots: bool = False) -> dict[str, int]:
         """
         Delete an auction.

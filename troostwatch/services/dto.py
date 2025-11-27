@@ -10,7 +10,6 @@ from typing import Any, Awaitable, Callable
 
 # --- Event Publishing Types ---
 EventPayload = dict[str, object]
-EventPayload = dict[str, object]
 EventPublisher = Callable[[EventPayload], Awaitable[None]]
 
 
@@ -41,7 +40,6 @@ class LotViewDTO:
     closing_time_original: str | None = None
     brand: str | None = None
     is_active: bool = False
-    effective_price: float | None = None
     effective_price: float | None = None
 
 
@@ -100,7 +98,6 @@ class PositionDTO:
     buyer_label: str
     lot_code: str
     auction_code: str | None = None
-    auction_code: str | None = None
     track_active: bool = True
     max_budget_total_eur: float | None = None
     my_highest_bid_eur: float | None = None
@@ -149,7 +146,6 @@ class BidCreateDTO:
     auction_code: str
     lot_code: str
     amount_eur: float
-    note: str | None = None
     note: str | None = None
 
 

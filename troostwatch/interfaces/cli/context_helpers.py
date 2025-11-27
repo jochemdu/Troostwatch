@@ -47,7 +47,6 @@ def load_lots_for_auction(db_path: str, auction_code: str) -> Sequence[str]:
 
 
 def get_preference(db_path: str, key: str) -> str | None:
-def get_preference(db_path: str, key: str) -> str | None:
     """Get a preference value from the database.
 
     Args:
@@ -62,7 +61,6 @@ def get_preference(db_path: str, key: str) -> str | None:
         return PreferenceRepository(conn).get(key)
 
 
-def set_preference(db_path: str, key: str, value: str | None) -> None:
 def set_preference(db_path: str, key: str, value: str | None) -> None:
     """Set a preference value in the database.
 

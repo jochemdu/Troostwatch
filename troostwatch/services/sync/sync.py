@@ -44,17 +44,14 @@ class PageResult:
 @dataclass
 class SyncRunResult:
     run_id: int | None
-    run_id: int | None
     status: str
     pages_scanned: int
     lots_scanned: int
     lots_updated: int
     error_count: int
     errors: list[str]
-    errors: list[str]
 
 
-def _log(message: str, verbose: bool, log_path: str | None = None) -> None:
 def _log(message: str, verbose: bool, log_path: str | None = None) -> None:
     """Log a message to file and optionally to the console via logging.
 
@@ -83,8 +80,6 @@ def _log(message: str, verbose: bool, log_path: str | None = None) -> None:
 
 
 def _fetch_url(
-    url: str, http_client: TroostwatchHttpClient | None = None
-) -> tuple[str | None, str | None]:
     url: str, http_client: TroostwatchHttpClient | None = None
 ) -> tuple[str | None, str | None]:
     """Fetch the contents of a URL and return HTML plus any error message."""
@@ -154,10 +149,7 @@ def _wait_and_fetch(
     url: str,
     *,
     last_fetch: float | None,
-    last_fetch: float | None,
     delay_seconds: float,
-    http_client: TroostwatchHttpClient | None,
-) -> tuple[str | None, str | None, float]:
     http_client: TroostwatchHttpClient | None,
 ) -> tuple[str | None, str | None, float]:
     if last_fetch is not None and delay_seconds > 0:
@@ -172,17 +164,9 @@ def _collect_pages(
     auction_url: str,
     *,
     max_pages: int | None,
-    max_pages: int | None,
     fetcher: HttpFetcher,
     verbose: bool,
     delay_seconds: float,
-    http_client: TroostwatchHttpClient | None,
-    log_path: str | None = None,
-) -> tuple[list[PageResult], list[str], list[str], float | None]:
-    pages: list[PageResult] = []
-    errors: list[str] = []
-    discovered_page_urls: list[str] = []
-    last_fetch: float | None = None
     http_client: TroostwatchHttpClient | None,
     log_path: str | None = None,
 ) -> tuple[list[PageResult], list[str], list[str], float | None]:
@@ -246,7 +230,6 @@ def _collect_pages(
 
 
 def _extract_auction_title(page_html: str) -> str | None:
-def _extract_auction_title(page_html: str) -> str | None:
     match_title = re.search(
         r"<title>(.*?)</title>", page_html, re.IGNORECASE | re.DOTALL
     )
@@ -271,10 +254,7 @@ def _upsert_auction(
     auction_url: str,
     auction_title: str | None,
     pagination_pages: list[str] | None = None,
-    auction_title: str | None,
-    pagination_pages: list[str] | None = None,
     *,
-    repository: AuctionRepository | None = None,
     repository: AuctionRepository | None = None,
 ) -> int:
     repo = repository or AuctionRepository(conn)
@@ -346,7 +326,6 @@ def _upsert_lot(
     last_seen_at: str,
     detail_last_seen_at: str,
     repository: LotRepository | None = None,
-    repository: LotRepository | None = None,
 ) -> None:
     repo = repository or LotRepository(conn)
     repo.upsert_from_parsed(
@@ -367,11 +346,7 @@ def sync_auction_to_db(
     max_pages: int | None = None,
     dry_run: bool | None = None,
     delay_seconds: float | None = None,
-    max_pages: int | None = None,
-    dry_run: bool | None = None,
-    delay_seconds: float | None = None,
     max_concurrent_requests: int = 5,
-    throttle_per_host: float | None = None,
     throttle_per_host: float | None = None,
     max_retries: int = 3,
     retry_backoff_base: float = 0.5,
@@ -380,18 +355,12 @@ def sync_auction_to_db(
     verbose: bool | None = None,
     log_path: str | None = None,
     http_client: TroostwatchHttpClient | None = None,
-    verbose: bool | None = None,
-    log_path: str | None = None,
-    http_client: TroostwatchHttpClient | None = None,
 ) -> SyncRunResult:
     pages_scanned = 0
     lots_scanned = 0
     lots_updated = 0
     errors: list[str] = []
-    errors: list[str] = []
     status = "success"
-    run_id: int | None = None
-    discovered_page_urls: list[str] = []
     run_id: int | None = None
     discovered_page_urls: list[str] = []
 
@@ -516,7 +485,6 @@ def sync_auction_to_db(
                     }
 
             cards_needing_detail: list[tuple[LotCardData, str, str | None]] = []
-            cards_needing_detail: list[tuple[LotCardData, str, str | None]] = []
             now_seen = iso_utcnow()
             url_parts = urlsplit(auction_url)
             base_url = (
@@ -596,7 +564,6 @@ def sync_auction_to_db(
 
             for card, listing_hash, detail_text in cards_needing_detail:
                 parsed_detail: LotDetailData
-                parsed_hash: str | None = None
                 parsed_hash: str | None = None
                 try:
                     if detail_text:

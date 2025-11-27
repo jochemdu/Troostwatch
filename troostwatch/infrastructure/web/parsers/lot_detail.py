@@ -73,7 +73,6 @@ def _extract_lot_number_from_url(url: str) -> str | None:
 
 
 def _parse_amount_field(value: dict | None) -> float | None:
-def _parse_amount_field(value: dict | None) -> float | None:
     if not value:
         return None
     if isinstance(value, dict):
@@ -211,7 +210,6 @@ def _parse_title_from_dom(soup: BeautifulSoup) -> str:
     return utils.extract_text(title_el)
 
 
-def _build_url(base_url: str | None, slug: str | None, lot_code: str) -> str | None:
 def _build_url(base_url: str | None, slug: str | None, lot_code: str) -> str | None:
     if slug and base_url:
         return f"{base_url.rstrip('/')}/l/{slug}"

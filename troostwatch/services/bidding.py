@@ -78,7 +78,6 @@ class BiddingService:
         lot_code: str,
         amount_eur: float,
         note: str | None = None,
-        note: str | None = None,
     ) -> BidResult:
         if amount_eur <= 0:
             raise ValueError("Bid amount must be positive")
@@ -122,7 +121,6 @@ class BiddingService:
         auction_code: str,
         lot_code: str,
         amount_eur: float,
-        note: str | None,
         note: str | None,
     ) -> None:
         if self._connection_factory is None:

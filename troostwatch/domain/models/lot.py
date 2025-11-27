@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 
 class LotState(str, Enum):
@@ -17,7 +16,7 @@ class LotState(str, Enum):
     UNKNOWN = "unknown"
 
     @classmethod
-    def from_string(cls, value: Optional[str]) -> "LotState":
+    def from_string(cls, value: str | None) -> "LotState":
         """Convert a string to a LotState, defaulting to UNKNOWN."""
         if not value:
             return cls.UNKNOWN
@@ -44,16 +43,16 @@ class Lot:
     auction_code: str
     title: str
     state: LotState = LotState.UNKNOWN
-    opens_at: Optional[datetime] = None
-    closing_time_current: Optional[datetime] = None
-    closing_time_original: Optional[datetime] = None
-    opening_bid_eur: Optional[float] = None
-    current_bid_eur: Optional[float] = None
-    bid_count: Optional[int] = None
-    current_bidder_label: Optional[str] = None
-    location_city: Optional[str] = None
-    location_country: Optional[str] = None
-    url: Optional[str] = None
+    opens_at: datetime | None = None
+    closing_time_current: datetime | None = None
+    closing_time_original: datetime | None = None
+    opening_bid_eur: float | None = None
+    current_bid_eur: float | None = None
+    bid_count: int | None = None
+    current_bidder_label: str | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    url: str | None = None
 
     @property
     def is_active(self) -> bool:
@@ -71,7 +70,7 @@ class Lot:
         return self.state == LotState.CLOSED
 
     @property
-    def effective_price(self) -> Optional[float]:
+    def effective_price(self) -> float | None:
         """Return the current bid if available, otherwise the opening bid."""
         if self.current_bid_eur is not None:
             return self.current_bid_eur
@@ -92,12 +91,12 @@ class Lot:
         return self.closing_time_current > self.closing_time_original
 
     @property
-    def location(self) -> Optional[str]:
+    def location(self) -> str | None:
         """Return the full location string."""
         parts = [p for p in [self.location_city, self.location_country] if p]
         return ", ".join(parts) if parts else None
 
-    def can_bid(self, amount: float) -> tuple[bool, Optional[str]]:
+    def can_bid(self, amount: float) -> tuple[bool, str | None]:
         """Check if a bid of the given amount would be valid.
 
         Returns:
@@ -117,7 +116,7 @@ class Lot:
         """Create a Lot from a dictionary (e.g., from database row)."""
         state_str = data.get("state") or data.get("lot_state")
 
-        def parse_datetime(value) -> Optional[datetime]:
+        def parse_datetime(value: object) -> datetime | None:
             if value is None:
                 return None
             if isinstance(value, datetime):

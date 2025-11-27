@@ -188,7 +188,10 @@ def parse_auction_page(html: str, base_url: str | None = None) -> Iterable[LotCa
             state = None
 
         location = lot.get("location") or {}
-        city, country = utils.split_location("{city}, {countryCode}".format(**{**{"city": "", "countryCode": ""}, **location}))
+        loc_data = {**{"city": "", "countryCode": ""}, **location}
+        city, country = utils.split_location(
+            "{city}, {countryCode}".format(**loc_data)
+        )
         country_code = (location.get("countryCode") or "").lower()
         country = utils.COUNTRY_CODES.get(country_code, country)
 

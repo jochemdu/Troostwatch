@@ -215,8 +215,9 @@ def sync_multi(
             if summary.result is not None:
                 result = summary.result
                 console.print(
-                    f"[green]✓ Finished syncing auction {code}[/green]: pages={result.pages_scanned}, "
-                    f"lots scanned={result.lots_scanned}, lots updated={result.lots_updated}, errors={result.error_count}"
+                    f"[green]✓ Finished syncing auction {code}[/green]: "
+                    f"pages={result.pages_scanned}, lots scanned={result.lots_scanned}, "
+                    f"lots updated={result.lots_updated}, errors={result.error_count}"
                 )
                 if result.errors:
                     for err in result.errors:

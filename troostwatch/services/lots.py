@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable, List, Mapping, Optional
+from collections.abc import Iterable, Mapping
 
 from pydantic import BaseModel, Field
 
@@ -18,16 +18,22 @@ class LotView(BaseModel):
 
     auction_code: str
     lot_code: str
-    title: Optional[str] = None
-    state: Optional[str] = None
-    current_bid_eur: Optional[float] = None
-    bid_count: Optional[int] = None
-    current_bidder_label: Optional[str] = None
-    closing_time_current: Optional[str] = Field(default=None, description="Current closing timestamp, if set.")
-    closing_time_original: Optional[str] = Field(default=None, description="Original closing timestamp, if set.")
-    brand: Optional[str] = Field(default=None, description="Brand/manufacturer of the lot item.")
+    title: str | None = None
+    state: str | None = None
+    current_bid_eur: float | None = None
+    bid_count: int | None = None
+    current_bidder_label: str | None = None
+    closing_time_current: str | None = Field(
+        default=None, description="Current closing timestamp, if set."
+    )
+    closing_time_original: str | None = Field(
+        default=None, description="Original closing timestamp, if set."
+    )
+    brand: str | None = Field(
+        default=None, description="Brand/manufacturer of the lot item."
+    )
     is_active: bool = False
-    effective_price: Optional[float] = None
+    effective_price: float | None = None
 
     model_config = {"from_attributes": True}
 

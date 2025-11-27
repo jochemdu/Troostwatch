@@ -23,12 +23,18 @@ from troostwatch.services.sync_service import SyncRunSummary, SyncService
 @click.option(
     "--auction-code",
     required=False,
-    help="Auction code (e.g. A1-39499) identifying the auction to sync. When omitted and auctions exist in the DB, you will be prompted to choose.",
+    help=(
+        "Auction code (e.g. A1-39499) identifying the auction to sync. "
+        "When omitted and auctions exist in the DB, you will be prompted to choose."
+    ),
 )
 @click.option(
     "--auction-url",
     required=False,
-    help="URL of the auction listing page on Troostwijk. When omitted, it is taken from the selected auction if available.",
+    help=(
+        "URL of the auction listing page on Troostwijk. "
+        "When omitted, it is taken from the selected auction if available."
+    ),
 )
 @click.option(
     "--max-pages",
@@ -217,7 +223,8 @@ def sync(
         resolved_url = Prompt.ask("Auction URL", console=console)
 
     console.print(
-        f"[bold]Syncing auction {resolved_code}[/bold] from [blue]{resolved_url}[/blue] into {command_context.cli_context.db_path}..."
+        f"[bold]Syncing auction {resolved_code}[/bold] from "
+        f"[blue]{resolved_url}[/blue] into {command_context.cli_context.db_path}..."
     )
     if dry_run:
         console.print("[yellow]Dry-run enabled; no database writes will occur.[/yellow]")

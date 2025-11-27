@@ -46,12 +46,16 @@ class AuctionRepository(BaseRepository):
                    a.url,
                    a.starts_at,
                    a.ends_at_planned,
-                   SUM(CASE WHEN l.state IS NULL OR l.state NOT IN ('closed', 'ended') THEN 1 ELSE 0 END) AS active_lots,
+                   SUM(CASE WHEN l.state IS NULL
+                       OR l.state NOT IN ('closed', 'ended')
+                       THEN 1 ELSE 0 END) AS active_lots,
                    COUNT(l.id) AS lot_count
             FROM auctions a
             LEFT JOIN lots l ON l.auction_id = a.id
             GROUP BY a.id
-            ORDER BY a.ends_at_planned IS NULL DESC, a.ends_at_planned DESC, a.auction_code
+            ORDER BY a.ends_at_planned IS NULL DESC,
+                     a.ends_at_planned DESC,
+                     a.auction_code
         """
         rows = self.conn.execute(query).fetchall()
         auctions = [

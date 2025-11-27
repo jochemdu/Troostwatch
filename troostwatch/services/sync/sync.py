@@ -209,7 +209,7 @@ def _collect_pages(
     for url in page_urls:
         if len(pages) >= target:
             break
-        _log(f"Fetching page {len(pages)+1} at {url}", verbose, log_path)
+        _log(f"Fetching page {len(pages) + 1} at {url}", verbose, log_path)
         html_text, err = _fetch_html(url, apply_delay=True)
         last_fetch = time.time()
         if html_text:

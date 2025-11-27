@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Dict, List, Optional
 
 from ..connection import iso_utcnow
 from .base import BaseRepository
@@ -10,7 +9,12 @@ from .lots import LotRepository
 
 
 class BidRepository(BaseRepository):
-    def __init__(self, conn: sqlite3.Connection, buyers: BuyerRepository | None = None, lots: LotRepository | None = None) -> None:
+    def __init__(
+        self,
+        conn: sqlite3.Connection,
+        buyers: BuyerRepository | None = None,
+        lots: LotRepository | None = None,
+    ) -> None:
         super().__init__(conn)
         self.buyers = buyers or BuyerRepository(conn)
         self.lots = lots or LotRepository(conn)
@@ -21,7 +25,7 @@ class BidRepository(BaseRepository):
         auction_code: str,
         lot_code: str,
         amount_eur: float,
-        note: Optional[str] = None,
+        note: str | None = None,
     ) -> None:
         buyer_id = self.buyers.get_id(buyer_label)
         lot_id = self.lots.get_id(lot_code, auction_code)
@@ -42,10 +46,10 @@ class BidRepository(BaseRepository):
 
     def list(
         self,
-        buyer_label: Optional[str] = None,
-        lot_code: Optional[str] = None,
+        buyer_label: str | None = None,
+        lot_code: str | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, object]]:
+    ) -> list[dict[str, object]]:
         """List bids with optional filters."""
         query = """
             SELECT
@@ -63,7 +67,7 @@ class BidRepository(BaseRepository):
             JOIN auctions a ON l.auction_id = a.id
             WHERE 1=1
         """
-        params: List[object] = []
+        params: list[object] = []
 
         if buyer_label:
             query += " AND b.label = ?"

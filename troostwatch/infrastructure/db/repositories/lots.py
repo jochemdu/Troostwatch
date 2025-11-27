@@ -113,7 +113,10 @@ class LotRepository(BaseRepository):
         if not lot_id:
             return []
         return self._fetch_all_as_dicts(
-            "SELECT id, parent_id, template_id, title AS key, value, ean, price_eur, release_date, category FROM product_layers WHERE lot_id = ? ORDER BY parent_id NULLS FIRST, layer",
+            "SELECT id, parent_id, template_id, title AS key, value, ean, "
+            "price_eur, release_date, category "
+            "FROM product_layers WHERE lot_id = ? "
+            "ORDER BY parent_id NULLS FIRST, layer",
             (lot_id,)
         )
 
@@ -275,8 +278,10 @@ class LotRepository(BaseRepository):
             )
         if existing_id:
             self._execute(
-                "UPDATE product_layers SET value = ?, ean = ?, price_eur = ?, template_id = ?, release_date = ?, category = ? WHERE id = ?",
-                (value, ean, price_eur, template_id, release_date, category, existing_id)
+                "UPDATE product_layers SET value = ?, ean = ?, price_eur = ?, "
+                "template_id = ?, release_date = ?, category = ? WHERE id = ?",
+                (value, ean, price_eur, template_id, release_date, category,
+                 existing_id)
             )
             self.conn.commit()
             return existing_id
@@ -294,8 +299,12 @@ class LotRepository(BaseRepository):
                     (lot_id,)
                 )
             spec_id = self._execute_insert(
-                "INSERT INTO product_layers (lot_id, parent_id, layer, title, value, ean, price_eur, template_id, release_date, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (lot_id, parent_id, next_layer, key, value, ean, price_eur, template_id, release_date, category)
+                "INSERT INTO product_layers "
+                "(lot_id, parent_id, layer, title, value, ean, price_eur, "
+                "template_id, release_date, category) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (lot_id, parent_id, next_layer, key, value, ean, price_eur,
+                 template_id, release_date, category)
             )
             self.conn.commit()
             return spec_id
@@ -314,18 +323,24 @@ class LotRepository(BaseRepository):
         """List all spec templates, optionally filtered by parent."""
         if parent_id is not None:
             return self._fetch_all_as_dicts(
-                "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates WHERE parent_id = ? ORDER BY title",
+                "SELECT id, parent_id, title, value, ean, price_eur, "
+                "release_date, category, created_at "
+                "FROM spec_templates WHERE parent_id = ? ORDER BY title",
                 (parent_id,)
             )
         else:
             return self._fetch_all_as_dicts(
-                "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates ORDER BY parent_id NULLS FIRST, title"
+                "SELECT id, parent_id, title, value, ean, price_eur, "
+                "release_date, category, created_at "
+                "FROM spec_templates ORDER BY parent_id NULLS FIRST, title"
             )
 
     def get_spec_template(self, template_id: int) -> Optional[Dict[str, Any]]:
         """Get a single spec template by id."""
         return self._fetch_one_as_dict(
-            "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates WHERE id = ?",
+            "SELECT id, parent_id, title, value, ean, price_eur, "
+            "release_date, category, created_at "
+            "FROM spec_templates WHERE id = ?",
             (template_id,)
         )
 
@@ -341,7 +356,9 @@ class LotRepository(BaseRepository):
     ) -> int:
         """Create a new spec template. Returns the new id."""
         template_id = self._execute_insert(
-            "INSERT INTO spec_templates (title, value, ean, price_eur, parent_id, release_date, category) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO spec_templates "
+            "(title, value, ean, price_eur, parent_id, release_date, category) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (title, value, ean, price_eur, parent_id, release_date, category)
         )
         self.conn.commit()

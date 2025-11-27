@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import asdict, dataclass
-from typing import Dict, List, Optional
 
 from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection, get_path_config
@@ -83,7 +82,7 @@ class SyncService:
         *,
         auction_code: str,
         auction_url: str,
-        max_pages: Optional[int] = None,
+        max_pages: int | None = None,
         dry_run: bool = False,
         delay_seconds: float | None = None,
         max_concurrent_requests: int = 5,
@@ -144,7 +143,7 @@ class SyncService:
         include_inactive: bool = False,
         max_pages: int | None = None,
         dry_run: bool = False,
-    ) -> List[SyncRunSummary]:
+    ) -> list[SyncRunSummary]:
         """Synchronize all auctions stored locally."""
 
         auctions = self._load_auctions(include_inactive=include_inactive)
@@ -217,7 +216,7 @@ class SyncService:
         max_pages: int | None = None,
         dry_run: bool = False,
         interval_seconds: float | None = None,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
         self._logger.info(
             "Starting live sync for auction %s (interval=%s)",
             auction_code, interval_seconds
@@ -233,20 +232,20 @@ class SyncService:
         )
         return self._format_live_state(state)
 
-    async def pause_live_sync(self) -> Dict[str, object]:
+    async def pause_live_sync(self) -> dict[str, object]:
         self._logger.info("Pausing live sync")
         state = await self._live_sync_runner.pause()
         return self._format_live_state(state)
 
-    async def stop_live_sync(self) -> Dict[str, object]:
+    async def stop_live_sync(self) -> dict[str, object]:
         self._logger.info("Stopping live sync")
         state = await self._live_sync_runner.stop()
         return self._format_live_state(state)
 
-    def get_live_sync_status(self) -> Dict:
+    def get_live_sync_status(self) -> dict[str, object]:
         return self._live_sync_runner.get_status()
 
-    def _format_live_state(self, state: LiveSyncState) -> Dict[str, object]:
+    def _format_live_state(self, state: LiveSyncState) -> dict[str, object]:
         return {"state": state.status, "detail": None}
 
     def _load_auctions(self, *, include_inactive: bool) -> list[dict[str, str | None]]:

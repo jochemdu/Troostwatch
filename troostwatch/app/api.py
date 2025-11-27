@@ -6,7 +6,7 @@ Run with ``uvicorn troostwatch.app.api:app``.
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Dict, List, Optional, cast
+from typing import Annotated, Any, Dict, List, Optional, cast
 
 from fastapi import (
     Depends,
@@ -20,25 +20,21 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from troostwatch import __version__
 from troostwatch.app.dependencies import (
-    get_auction_repository,
-    get_bid_repository,
-    get_buyer_repository,
-    get_lot_repository,
-    get_position_repository,
-    AuctionRepository,
-    BidRepository,
-    BuyerRepository,
-    LotRepository,
-    PositionRepository,
+    # Annotated dependency types (modern FastAPI pattern)
+    LotRepositoryDep,
+    BuyerRepositoryDep,
+    PositionRepositoryDep,
+    AuctionRepositoryDep,
+    BidRepositoryDep,
 )
-from troostwatch.infrastructure.db import get_connection
 from troostwatch.services import positions as position_service
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
 from troostwatch.services.lots import LotInput, LotManagementService, LotView, LotViewService
 from troostwatch.services.reporting import ReportingService
 from troostwatch.services.sync_service import SyncService
-from troostwatch.services.dto import PositionDTO, PositionUpdateDTO, BuyerDTO, BuyerCreateDTO, LotViewDTO
+from troostwatch.services.dto import BuyerCreateDTO
 from troostwatch.services.positions import PositionUpdateData
 
 
@@ -73,8 +69,6 @@ class LotEventBus:
             await self.unsubscribe(subscriber)
 
 
-from troostwatch import __version__
-
 event_bus = LotEventBus()
 sync_service = SyncService(event_publisher=event_bus.publish)
 app = FastAPI(title="Troostwatch API", version=__version__)
@@ -108,19 +102,25 @@ async def root():
 
 
 def get_buyer_service(
-    repository: BuyerRepository = Depends(get_buyer_repository),
+    repository: BuyerRepositoryDep,
 ) -> BuyerService:
     return BuyerService(repository=repository, event_publisher=event_bus.publish)
 
 
 def get_lot_view_service(
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> LotViewService:
     return LotViewService(lot_repository)
 
 
 def get_sync_service() -> SyncService:
     return sync_service
+
+
+# Annotated service dependency types
+BuyerServiceDep = Annotated[BuyerService, Depends(get_buyer_service)]
+LotViewServiceDep = Annotated[LotViewService, Depends(get_lot_view_service)]
+SyncServiceDep = Annotated[SyncService, Depends(get_sync_service)]
 
 
 class BuyerCreateRequest(BaseModel):
@@ -395,11 +395,11 @@ class LotCreateResponse(BaseModel):
 
 @app.get("/lots", response_model=List[LotView])
 async def list_lots(
+    lot_view_service: LotViewServiceDep,
     auction_code: Optional[str] = None,
     state: Optional[str] = None,
     brand: Optional[str] = None,
     limit: Optional[int] = Query(100, ge=1, le=1000),
-    lot_view_service: LotViewService = Depends(get_lot_view_service),
 ) -> List[LotView]:
     lots = lot_view_service.list_lots(
         auction_code=auction_code, state=state, brand=brand, limit=limit
@@ -436,10 +436,10 @@ class SearchResultResponse(BaseModel):
 
 @app.get("/search", response_model=List[SearchResultResponse])
 async def search_lots(
+    lot_repository: LotRepositoryDep,
     q: str = Query(..., min_length=2, description="Search query (min 2 chars)"),
     state: Optional[str] = Query(None, description="Filter by state"),
     limit: int = Query(50, ge=1, le=200, description="Max results"),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> List[SearchResultResponse]:
     """Search lots by title, brand, lot code, or EAN."""
     conn = lot_repository.conn
@@ -496,8 +496,8 @@ async def search_lots(
 @app.get("/lots/{lot_code}", response_model=LotDetailResponse)
 async def get_lot_detail(
     lot_code: str,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> LotDetailResponse:
     """Get detailed lot information including specs and reference prices."""
     lot = lot_repository.get_lot_detail(lot_code, auction_code)
@@ -555,8 +555,8 @@ async def get_lot_detail(
 async def update_lot(
     lot_code: str,
     payload: LotUpdateRequest,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> LotDetailResponse:
     """Update lot notes and EAN."""
     success = lot_repository.update_lot(
@@ -568,14 +568,14 @@ async def update_lot(
     if not success:
         raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' not found")
 
-    return await get_lot_detail(lot_code, auction_code, lot_repository)
+    return await get_lot_detail(lot_code, lot_repository, auction_code)
 
 
 @app.delete("/lots/{lot_code}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_lot(
     lot_code: str,
+    lot_repository: LotRepositoryDep,
     auction_code: str = Query(..., description="Auction code is required to identify the lot"),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> None:
     """Delete a lot and all related data (specs, bids, reference prices, positions)."""
     success = lot_repository.delete_lot(lot_code, auction_code)
@@ -591,8 +591,8 @@ async def delete_lot(
 @app.get("/lots/{lot_code}/reference-prices", response_model=List[ReferencePriceResponse])
 async def list_reference_prices(
     lot_code: str,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> List[ReferencePriceResponse]:
     """Get all reference prices for a lot."""
     prices = lot_repository.get_reference_prices(lot_code, auction_code)
@@ -610,12 +610,16 @@ async def list_reference_prices(
     ]
 
 
-@app.post("/lots/{lot_code}/reference-prices", status_code=status.HTTP_201_CREATED, response_model=ReferencePriceResponse)
+@app.post(
+    "/lots/{lot_code}/reference-prices",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ReferencePriceResponse,
+)
 async def create_reference_price(
     lot_code: str,
     payload: ReferencePriceCreateRequest,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> ReferencePriceResponse:
     """Add a reference price for a lot."""
     try:
@@ -645,7 +649,7 @@ async def update_reference_price(
     lot_code: str,
     ref_id: int,
     payload: ReferencePriceUpdateRequest,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> ReferencePriceResponse:
     """Update a reference price."""
     success = lot_repository.update_reference_price(
@@ -679,7 +683,7 @@ async def update_reference_price(
 async def delete_reference_price(
     lot_code: str,
     ref_id: int,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> None:
     """Delete a reference price."""
     if not lot_repository.delete_reference_price(ref_id):
@@ -703,8 +707,8 @@ class BidHistoryEntryResponse(BaseModel):
 @app.get("/lots/{lot_code}/bid-history", response_model=List[BidHistoryEntryResponse])
 async def get_lot_bid_history(
     lot_code: str,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> List[BidHistoryEntryResponse]:
     """Get bid history for a lot, ordered by most recent first."""
     history = lot_repository.get_bid_history(lot_code, auction_code)
@@ -736,8 +740,8 @@ class LotSpecCreateRequest(BaseModel):
 async def create_lot_spec(
     lot_code: str,
     payload: LotSpecCreateRequest,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> LotSpecResponse:
     """Add or update a specification for a lot."""
     try:
@@ -772,7 +776,7 @@ async def create_lot_spec(
 async def delete_lot_spec(
     lot_code: str,
     spec_id: int,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> None:
     """Delete a lot specification."""
     if not lot_repository.delete_lot_spec(spec_id):
@@ -825,8 +829,8 @@ class ApplyTemplateRequest(BaseModel):
 
 @app.get("/spec-templates", response_model=List[SpecTemplateResponse])
 async def list_spec_templates(
+    lot_repository: LotRepositoryDep,
     parent_id: Optional[int] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> List[SpecTemplateResponse]:
     """List all spec templates, optionally filtered by parent."""
     templates = lot_repository.list_spec_templates(parent_id)
@@ -836,7 +840,7 @@ async def list_spec_templates(
 @app.post("/spec-templates", status_code=status.HTTP_201_CREATED, response_model=SpecTemplateResponse)
 async def create_spec_template(
     payload: SpecTemplateCreateRequest,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> SpecTemplateResponse:
     """Create a new spec template."""
     template_id = lot_repository.create_spec_template(
@@ -864,7 +868,7 @@ async def create_spec_template(
 async def update_spec_template(
     template_id: int,
     payload: SpecTemplateUpdateRequest,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> SpecTemplateResponse:
     """Update a spec template."""
     if not lot_repository.update_spec_template(
@@ -887,7 +891,7 @@ async def update_spec_template(
 @app.delete("/spec-templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_spec_template(
     template_id: int,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> None:
     """Delete a spec template."""
     if not lot_repository.delete_spec_template(template_id):
@@ -898,8 +902,8 @@ async def delete_spec_template(
 async def apply_template_to_lot(
     lot_code: str,
     payload: ApplyTemplateRequest,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> LotSpecResponse:
     """Apply a spec template to a lot."""
     try:
@@ -929,7 +933,7 @@ async def apply_template_to_lot(
 @app.post("/positions/batch", response_model=PositionBatchResponse)
 async def upsert_positions(
     payload: PositionBatchRequest,
-    repository: PositionRepository = Depends(get_position_repository),
+    repository: PositionRepositoryDep,
 ) -> PositionBatchResponse:
     try:
         updates = [
@@ -959,8 +963,8 @@ async def upsert_positions(
 
 @app.get("/positions", response_model=List[PositionResponse])
 async def list_positions(
+    repository: PositionRepositoryDep,
     buyer: Optional[str] = Query(None, description="Filter by buyer label"),
-    repository: PositionRepository = Depends(get_position_repository),
 ) -> List[PositionResponse]:
     """List all tracked positions, optionally filtered by buyer."""
     from troostwatch.services.positions import PositionsService
@@ -987,8 +991,8 @@ async def list_positions(
 async def delete_position(
     buyer_label: str,
     lot_code: str,
+    repository: PositionRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    repository: PositionRepository = Depends(get_position_repository),
 ) -> None:
     """Delete a tracked position."""
     repository.delete(
@@ -1000,7 +1004,7 @@ async def delete_position(
 
 @app.get("/buyers", response_model=List[BuyerResponse])
 async def list_buyers(
-    service: BuyerService = Depends(get_buyer_service),
+    service: BuyerServiceDep,
 ) -> List[BuyerResponse]:
     buyers = service.list_buyers()
     result: List[BuyerResponse] = []
@@ -1021,7 +1025,7 @@ async def list_buyers(
 )
 async def create_buyer(
     payload: BuyerCreateRequest,
-    service: BuyerService = Depends(get_buyer_service),
+    service: BuyerServiceDep,
 ) -> BuyerCreateResponse:
     try:
         result: BuyerCreateDTO = await service.create_buyer(
@@ -1036,7 +1040,7 @@ async def create_buyer(
 
 @app.delete("/buyers/{label}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_buyer(
-    label: str, service: BuyerService = Depends(get_buyer_service)
+    label: str, service: BuyerServiceDep
 ) -> None:
     await service.delete_buyer(label=label)
 
@@ -1062,20 +1066,22 @@ def _bid_row_to_response(bid: dict[str, Any]) -> BidResponse:
 
 @app.get("/bids", response_model=List[BidResponse])
 async def list_bids(
+    repo: BidRepositoryDep,
     buyer: Optional[str] = Query(None, description="Filter by buyer label"),
     lot_code: Optional[str] = Query(None, description="Filter by lot code"),
     limit: int = Query(100, ge=1, le=500),
 ) -> List[BidResponse]:
     """List recorded bids with optional filters."""
-    repo = get_bid_repository()
     bids = repo.list(buyer_label=buyer, lot_code=lot_code, limit=limit)
     return [_bid_row_to_response(bid) for bid in bids]
 
 
 @app.post("/bids", status_code=status.HTTP_201_CREATED, response_model=BidResponse)
-async def create_bid(payload: BidCreateRequest) -> BidResponse:
+async def create_bid(
+    payload: BidCreateRequest,
+    repo: BidRepositoryDep,
+) -> BidResponse:
     """Record a new bid (local only, does not submit to Troostwijk)."""
-    repo = get_bid_repository()
     try:
         repo.record_bid(
             buyer_label=payload.buyer_label,
@@ -1107,10 +1113,13 @@ def get_reporting_service() -> ReportingService:
     return ReportingService.from_sqlite_path("troostwatch.db")
 
 
+ReportingServiceDep = Annotated[ReportingService, Depends(get_reporting_service)]
+
+
 @app.get("/reports/buyer/{buyer_label}", response_model=BuyerSummaryResponse)
 async def get_buyer_report(
     buyer_label: str,
-    service: ReportingService = Depends(get_reporting_service),
+    service: ReportingServiceDep,
 ) -> BuyerSummaryResponse:
     """Get exposure and position summary for a buyer."""
     summary = service.get_buyer_summary(buyer_label)
@@ -1159,9 +1168,9 @@ class DashboardStatsResponse(BaseModel):
 
 @app.get("/stats", response_model=DashboardStatsResponse)
 async def get_dashboard_stats(
-    lot_repository: LotRepository = Depends(get_lot_repository),
-    buyer_repository: BuyerRepository = Depends(get_buyer_repository),
-    position_repository: PositionRepository = Depends(get_position_repository),
+    lot_repository: LotRepositoryDep,
+    buyer_repository: BuyerRepositoryDep,
+    position_repository: PositionRepositoryDep,
 ) -> DashboardStatsResponse:
     """Get dashboard statistics overview."""
     conn = lot_repository.conn
@@ -1200,10 +1209,10 @@ async def get_dashboard_stats(
 
 @app.get("/auctions", response_model=List[AuctionResponse])
 async def list_auctions(
+    repo: AuctionRepositoryDep,
     include_inactive: bool = Query(False, description="Include auctions without active lots"),
 ) -> List[AuctionResponse]:
     """List all auctions, optionally including those without active lots."""
-    repo = get_auction_repository()
     auctions = repo.list(only_active=not include_inactive)
     return [
         AuctionResponse(
@@ -1245,9 +1254,11 @@ class AuctionDeleteResponse(BaseModel):
 
 
 @app.get("/auctions/{auction_code}", response_model=AuctionDetailResponse)
-async def get_auction(auction_code: str) -> AuctionDetailResponse:
+async def get_auction(
+    auction_code: str,
+    repo: AuctionRepositoryDep,
+) -> AuctionDetailResponse:
     """Get a single auction by code."""
-    repo = get_auction_repository()
     auction = repo.get_by_code(auction_code)
     if not auction:
         raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
@@ -1265,9 +1276,9 @@ async def get_auction(auction_code: str) -> AuctionDetailResponse:
 async def update_auction(
     auction_code: str,
     payload: AuctionUpdateRequest,
+    repo: AuctionRepositoryDep,
 ) -> AuctionDetailResponse:
     """Update an auction."""
-    repo = get_auction_repository()
     if not repo.update(
         auction_code,
         title=payload.title,
@@ -1294,10 +1305,10 @@ async def update_auction(
 @app.delete("/auctions/{auction_code}", response_model=AuctionDeleteResponse)
 async def delete_auction(
     auction_code: str,
+    repo: AuctionRepositoryDep,
     delete_lots: bool = Query(False, description="Also delete all lots in this auction"),
 ) -> AuctionDeleteResponse:
     """Delete an auction. Optionally delete all associated lots."""
-    repo = get_auction_repository()
     result = repo.delete(auction_code, delete_lots=delete_lots)
     if result["auction"] == 0:
         raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
@@ -1314,8 +1325,8 @@ async def delete_auction(
 
 
 def get_lot_management_service(
-    lot_repo: LotRepository = Depends(get_lot_repository),
-    auction_repo: AuctionRepository = Depends(get_auction_repository),
+    lot_repo: LotRepositoryDep,
+    auction_repo: AuctionRepositoryDep,
 ) -> LotManagementService:
     """Dependency that provides a LotManagementService."""
     return LotManagementService(
@@ -1324,10 +1335,15 @@ def get_lot_management_service(
     )
 
 
+LotManagementServiceDep = Annotated[
+    LotManagementService, Depends(get_lot_management_service)
+]
+
+
 @app.post("/lots", status_code=status.HTTP_201_CREATED, response_model=LotCreateResponse)
 async def create_lot(
     payload: LotCreateRequest,
-    service: LotManagementService = Depends(get_lot_management_service),
+    service: LotManagementServiceDep,
 ) -> LotCreateResponse:
     """Manually add or update a lot in the database."""
     from datetime import datetime, timezone
@@ -1360,7 +1376,7 @@ async def create_lot(
 
 @app.post("/sync", status_code=status.HTTP_202_ACCEPTED, response_model=SyncSummaryResponse)
 async def trigger_sync(
-    request: SyncRequest, service: SyncService = Depends(get_sync_service)
+    request: SyncRequest, service: SyncServiceDep
 ) -> SyncSummaryResponse:
     summary = await service.run_sync(
         auction_code=request.auction_code,
@@ -1384,7 +1400,7 @@ async def trigger_sync(
 
 @app.post("/live-sync/start", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
 async def start_live_sync(
-    request: LiveSyncStartRequest, service: SyncService = Depends(get_sync_service)
+    request: LiveSyncStartRequest, service: SyncServiceDep
 ) -> LiveSyncControlResponse:
     result = await service.start_live_sync(
         auction_code=request.auction_code,
@@ -1401,7 +1417,7 @@ async def start_live_sync(
 
 @app.post("/live-sync/pause", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
 async def pause_live_sync(
-    service: SyncService = Depends(get_sync_service),
+    service: SyncServiceDep,
 ) -> LiveSyncControlResponse:
     result = await service.pause_live_sync()
     return LiveSyncControlResponse(
@@ -1412,7 +1428,7 @@ async def pause_live_sync(
 
 @app.post("/live-sync/stop", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
 async def stop_live_sync(
-    service: SyncService = Depends(get_sync_service),
+    service: SyncServiceDep,
 ) -> LiveSyncControlResponse:
     result = await service.stop_live_sync()
     return LiveSyncControlResponse(
@@ -1423,7 +1439,7 @@ async def stop_live_sync(
 
 @app.get("/live-sync/status", response_model=LiveSyncStatusResponse)
 async def get_live_sync_status(
-    service: SyncService = Depends(get_sync_service),
+    service: SyncServiceDep,
 ) -> LiveSyncStatusResponse:
     status_dict = service.get_live_sync_status()
     return LiveSyncStatusResponse(

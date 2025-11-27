@@ -208,9 +208,12 @@ class LiveSyncRunner:
     async def _publish_idle(self) -> None:
         async with self._lock:
             self._state.status = "idle"
-            await self._publish_event(
-                {"type": "live_sync_status", "status": self._state.status, "time": iso_utcnow(), "state": self.get_status()}
-            )
+            await self._publish_event({
+                "type": "live_sync_status",
+                "status": self._state.status,
+                "time": iso_utcnow(),
+                "state": self.get_status(),
+            })
 
     async def _publish_event(self, payload: Dict) -> None:
         try:

@@ -10,6 +10,11 @@ You own the application service layer for Troostwatch. You work in:
 
 ## Responsibilities
 
+> **Enforcement level:** These rules are currently enforced at **Level 1
+> (Guidelines)** – best effort with reviewer signaling. See
+> [Architecture Maturity Levels](../../docs/architecture.md#maturity-levels)
+> for context.
+
 - Implement business use‑cases such as bidding, syncing auctions and lots, and
   computing derived views that depend on both domain and infrastructure.
 - Orchestrate repositories, HTTP clients and parsers while keeping API/CLI

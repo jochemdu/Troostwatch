@@ -37,6 +37,11 @@ services and analytics cleanly.
 
 ## Implementation guidelines
 
+> **Enforcement level:** These rules are currently enforced at **Level 1
+> (Guidelines)** – best effort with reviewer signaling. See
+> [Architecture Maturity Levels](../../docs/architecture.md#maturity-levels)
+> for context.
+
 - Keep commands thin: parse arguments, call services/analytics, format output.
   Avoid embedding business or parsing logic; reuse helpers where possible.
 - Provide clear help strings, examples and sensible defaults. Ensure commands

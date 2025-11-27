@@ -158,6 +158,9 @@ Always run `python scripts/check_imports.py` before committing to verify archite
 Troostwatch defines three maturity levels for architecture enforcement. The
 project progresses through these levels as the codebase matures.
 
+> **Current level: 1 (Guidelines)** – Rules are advisory; tooling reports but
+> does not block CI.
+
 #### Level 1: Guidelines (Current)
 
 **Status: Active**
@@ -169,6 +172,13 @@ At this level, architecture rules are *directional guidance*:
 - CI **does not block** on violations (warnings only)
 - Legacy areas with known violations are explicitly listed below
 - Reviewers signal concerns but don't automatically block PRs
+
+**Tooling configuration:**
+```yaml
+# .github/workflows/ci.yml (Level 1 - advisory mode)
+- name: Architecture check
+  run: lint-imports || true  # Report but don't fail
+```
 
 **Known legacy areas** (accepted technical debt):
 - None currently – the codebase has zero violations
@@ -190,6 +200,16 @@ At this level, we freeze the baseline and prevent regression:
 - Legacy violations are cleaned up opportunistically
 - A baseline file tracks known violations for comparison
 
+**Tooling configuration:**
+```yaml
+# .github/workflows/ci.yml (Level 2 - baseline mode)
+- name: Architecture check
+  run: |
+    lint-imports > current-violations.txt
+    diff .lint-imports-baseline current-violations.txt
+    # Fails if new violations added
+```
+
 **How to implement** (when ready):
 1. Generate baseline: `lint-imports --generate-baseline > .lint-imports-baseline`
 2. Configure CI to compare against baseline
@@ -205,6 +225,13 @@ At this level, architecture rules are strictly enforced:
 - CI **fails** on any violation
 - No baseline needed – all code must comply
 - Exceptions require explicit `ignore_imports` with justification
+
+**Tooling configuration:**
+```yaml
+# .github/workflows/ci.yml (Level 3 - strict mode)
+- name: Architecture check
+  run: lint-imports  # Fails on any violation
+```
 
 **Prerequisites**:
 - All legacy violations cleaned up

@@ -32,7 +32,8 @@ from troostwatch.infrastructure.db.repositories import BidRepository
 from troostwatch.infrastructure.db import get_connection
 from troostwatch.services import positions as position_service
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
-from troostwatch.services.lots import LotView, LotViewService
+from troostwatch.services.lots import LotInput, LotManagementService, LotView, LotViewService
+from troostwatch.services.reporting import ReportingService
 from troostwatch.services.sync_service import SyncService
 
 
@@ -250,6 +251,69 @@ class BidCreateRequest(BaseModel):
     note: Optional[str] = None
 
 
+class TrackedLotSummaryResponse(BaseModel):
+    """Summary of a tracked lot in buyer report."""
+
+    lot_code: str
+    title: str
+    state: str
+    current_bid_eur: Optional[float] = None
+    max_budget_total_eur: Optional[float] = None
+    track_active: bool = True
+
+
+class BuyerSummaryResponse(BaseModel):
+    """Buyer exposure and position summary."""
+
+    buyer_label: str
+    tracked_count: int = 0
+    open_count: int = 0
+    closed_count: int = 0
+    open_exposure_min_eur: float = 0.0
+    open_exposure_max_eur: float = 0.0
+    open_tracked_lots: List[TrackedLotSummaryResponse] = Field(default_factory=list)
+    won_lots: List[TrackedLotSummaryResponse] = Field(default_factory=list)
+
+
+class AuctionResponse(BaseModel):
+    """Auction summary."""
+
+    auction_code: str
+    title: Optional[str] = None
+    url: Optional[str] = None
+    starts_at: Optional[str] = None
+    ends_at_planned: Optional[str] = None
+    active_lots: int = 0
+    lot_count: int = 0
+
+
+class LotCreateRequest(BaseModel):
+    """Request to manually add or update a lot."""
+
+    auction_code: str
+    lot_code: str
+    title: str
+    url: Optional[str] = None
+    state: Optional[str] = None
+    opens_at: Optional[str] = None
+    closing_time: Optional[str] = None
+    bid_count: Optional[int] = None
+    opening_bid_eur: Optional[float] = None
+    current_bid_eur: Optional[float] = None
+    location_city: Optional[str] = None
+    location_country: Optional[str] = None
+    auction_title: Optional[str] = None
+    auction_url: Optional[str] = None
+
+
+class LotCreateResponse(BaseModel):
+    """Response after creating/updating a lot."""
+
+    status: str
+    lot_code: str
+    auction_code: str
+
+
 @app.get("/lots", response_model=list[LotView])
 async def list_lots(
     auction_code: Optional[str] = None,
@@ -448,6 +512,125 @@ async def create_bid(payload: BidCreateRequest) -> BidResponse:
         amount_eur=float(bid.get("amount_eur", 0)),
         placed_at=str(bid.get("placed_at", "")),
         note=bid.get("note"),
+    )
+
+
+# =============================================================================
+# Report Endpoints
+# =============================================================================
+
+
+def get_reporting_service() -> ReportingService:
+    """Dependency that provides a ReportingService."""
+    from troostwatch.app.config import get_db_path
+    return ReportingService.from_sqlite_path(get_db_path())
+
+
+@app.get("/reports/buyer/{buyer_label}", response_model=BuyerSummaryResponse)
+async def get_buyer_report(
+    buyer_label: str,
+    service: ReportingService = Depends(get_reporting_service),
+) -> BuyerSummaryResponse:
+    """Get exposure and position summary for a buyer."""
+    summary = service.get_buyer_summary(buyer_label)
+    summary_dict = summary.to_dict()
+    return BuyerSummaryResponse(
+        buyer_label=buyer_label,
+        tracked_count=summary_dict["tracked_count"],
+        open_count=summary_dict["open_count"],
+        closed_count=summary_dict["closed_count"],
+        open_exposure_min_eur=summary_dict["open_exposure_min_eur"],
+        open_exposure_max_eur=summary_dict["open_exposure_max_eur"],
+        open_tracked_lots=[
+            TrackedLotSummaryResponse(**lot) for lot in summary_dict["open_tracked_lots"]
+        ],
+        won_lots=[
+            TrackedLotSummaryResponse(**lot) for lot in summary_dict["won_lots"]
+        ],
+    )
+
+
+# =============================================================================
+# Auction Endpoints
+# =============================================================================
+
+
+def get_auction_repository():
+    """Dependency that provides an AuctionRepository."""
+    from troostwatch.app.config import get_db_path
+    from troostwatch.infrastructure.db.repositories import AuctionRepository
+    conn = get_connection(get_db_path(), check_same_thread=False)
+    return AuctionRepository(conn)
+
+
+@app.get("/auctions", response_model=List[AuctionResponse])
+async def list_auctions(
+    include_inactive: bool = Query(False, description="Include auctions without active lots"),
+) -> List[AuctionResponse]:
+    """List all auctions, optionally including those without active lots."""
+    repo = get_auction_repository()
+    auctions = repo.list(only_active=not include_inactive)
+    return [
+        AuctionResponse(
+            auction_code=str(a.get("auction_code", "")),
+            title=a.get("title"),
+            url=a.get("url"),
+            starts_at=a.get("starts_at"),
+            ends_at_planned=a.get("ends_at_planned"),
+            active_lots=int(a.get("active_lots", 0)),
+            lot_count=int(a.get("lot_count", 0)),
+        )
+        for a in auctions
+    ]
+
+
+# =============================================================================
+# Lot Management Endpoints
+# =============================================================================
+
+
+def get_lot_management_service() -> LotManagementService:
+    """Dependency that provides a LotManagementService."""
+    from troostwatch.app.config import get_db_path
+    from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
+    conn = get_connection(get_db_path(), check_same_thread=False)
+    return LotManagementService(
+        lot_repository=LotRepository(conn),
+        auction_repository=AuctionRepository(conn),
+    )
+
+
+@app.post("/lots", status_code=status.HTTP_201_CREATED, response_model=LotCreateResponse)
+async def create_lot(
+    payload: LotCreateRequest,
+    service: LotManagementService = Depends(get_lot_management_service),
+) -> LotCreateResponse:
+    """Manually add or update a lot in the database."""
+    from datetime import datetime, timezone
+    seen_at = datetime.now(timezone.utc).isoformat()
+    
+    lot_input = LotInput(
+        auction_code=payload.auction_code,
+        lot_code=payload.lot_code,
+        title=payload.title,
+        url=payload.url,
+        state=payload.state,
+        opens_at=payload.opens_at,
+        closing_time=payload.closing_time,
+        bid_count=payload.bid_count,
+        opening_bid_eur=payload.opening_bid_eur,
+        current_bid_eur=payload.current_bid_eur,
+        location_city=payload.location_city,
+        location_country=payload.location_country,
+        auction_title=payload.auction_title,
+        auction_url=payload.auction_url,
+    )
+    
+    lot_code = service.add_lot(lot_input, seen_at)
+    return LotCreateResponse(
+        status="created",
+        lot_code=lot_code,
+        auction_code=payload.auction_code,
     )
 
 

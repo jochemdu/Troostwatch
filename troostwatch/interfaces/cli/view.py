@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import Optional
 
 import click
 from rich.console import Console
@@ -28,7 +27,9 @@ def _format_lot_line(lot: LotView) -> str:
     bid_str = f"€{current_bid:.2f}" if current_bid is not None else "n/a"
     bids = lot.bid_count or 0
     closing = lot.closing_time_current or lot.closing_time_original or "-"
-    bidder_suffix = f" | bidder={lot.current_bidder_label}" if lot.current_bidder_label else ""
+    bidder_suffix = (
+        f" | bidder={lot.current_bidder_label}" if lot.current_bidder_label else ""
+    )
     title = lot.title or "(no title)"
     state = lot.state or "?"
     return (
@@ -45,7 +46,9 @@ def _format_lot_line(lot: LotView) -> str:
     show_default=str(DEFAULT_CLI_CONTEXT.db_path),
     help="Path to the SQLite database.",
 )
-@click.option("--auction-code", default=None, help="Filter lots to a specific auction code.")
+@click.option(
+    "--auction-code", default=None, help="Filter lots to a specific auction code."
+)
 @click.option("--state", default=None, help="Filter lots by state (e.g. open, closed).")
 @click.option(
     "--limit",
@@ -56,10 +59,10 @@ def _format_lot_line(lot: LotView) -> str:
 )
 @click.option("--json-output", is_flag=True, help="Output the results as JSON.")
 def view(
-    db_path: Optional[str],
-    auction_code: Optional[str],
-    state: Optional[str],
-    limit: Optional[int],
+    db_path: str | None,
+    auction_code: str | None,
+    state: str | None,
+    limit: int | None,
     json_output: bool,
 ) -> None:
     """Show lots stored in the Troostwatch database."""

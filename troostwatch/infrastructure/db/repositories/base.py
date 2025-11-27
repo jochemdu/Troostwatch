@@ -7,7 +7,7 @@ eliminating duplicate cursor→dict conversion logic.
 from __future__ import annotations
 
 import sqlite3
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 
 class BaseRepository:
@@ -27,8 +27,8 @@ class BaseRepository:
         self.conn = conn
 
     def _fetch_all_as_dicts(
-        self, query: str, params: Optional[Tuple[Any, ...]] = None
-    ) -> List[Dict[str, Any]]:
+        self, query: str, params: tuple[Any, ... | None] = None
+    ) -> list[dict[str, Any]]:
         """Execute query and return all rows as dictionaries.
 
         Args:
@@ -51,8 +51,8 @@ class BaseRepository:
         return [dict(zip(columns, row)) for row in cur.fetchall()]
 
     def _fetch_one_as_dict(
-        self, query: str, params: Optional[Tuple[Any, ...]] = None
-    ) -> Optional[Dict[str, Any]]:
+        self, query: str, params: tuple[Any, ... | None] = None
+    ) -> dict[str, Any | None]:
         """Execute query and return first row as dictionary.
 
         Args:
@@ -77,9 +77,7 @@ class BaseRepository:
         columns = [c[0] for c in cur.description]
         return dict(zip(columns, row))
 
-    def _fetch_scalar(
-        self, query: str, params: Optional[Tuple[Any, ...]] = None
-    ) -> Any:
+    def _fetch_scalar(self, query: str, params: tuple[Any, ... | None] = None) -> Any:
         """Execute query and return first column of first row.
 
         Args:
@@ -98,9 +96,7 @@ class BaseRepository:
         row = cur.fetchone()
         return row[0] if row else None
 
-    def _execute_insert(
-        self, query: str, params: Optional[Tuple[Any, ...]] = None
-    ) -> int:
+    def _execute_insert(self, query: str, params: tuple[Any, ... | None] = None) -> int:
         """Execute INSERT query and return last row ID.
 
         Args:
@@ -122,7 +118,7 @@ class BaseRepository:
         return cur.lastrowid or 0
 
     def _execute(
-        self, query: str, params: Optional[Tuple[Any, ...]] = None
+        self, query: str, params: tuple[Any, ... | None] = None
     ) -> sqlite3.Cursor:
         """Execute query and return cursor for custom processing.
 

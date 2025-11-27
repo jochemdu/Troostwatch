@@ -6,10 +6,10 @@ Provides helper functions for loading and parsing configuration from JSON files.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 
-def load_config(path: str) -> Dict[str, Any]:
+def load_config(path: str) -> dict[str, Any]:
     """Load configuration from a JSON file.
 
     Args:

@@ -33,7 +33,9 @@ def ensure_schema(conn) -> None:
 
 
 def _ensure_lots_columns(conn, migrator: SchemaMigrator) -> None:
-    cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='lots'")
+    cur = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='lots'"
+    )
     if cur.fetchone() is None:
         return
 
@@ -73,11 +75,15 @@ def _ensure_lots_columns(conn, migrator: SchemaMigrator) -> None:
 
 
 def _ensure_auction_columns(conn, migrator: SchemaMigrator) -> None:
-    cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='auctions'")
+    cur = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='auctions'"
+    )
     if cur.fetchone() is None:
         return
 
-    existing = {row[1] for row in conn.execute("PRAGMA table_info(auctions)").fetchall()}
+    existing = {
+        row[1] for row in conn.execute("PRAGMA table_info(auctions)").fetchall()
+    }
     added_cols: list[str] = []
     if "pagination_pages" not in existing:
         conn.execute("ALTER TABLE auctions ADD COLUMN pagination_pages TEXT")
@@ -96,7 +102,9 @@ def _ensure_hash_columns(conn) -> None:
         "last_seen_at": "TEXT",
         "detail_last_seen_at": "TEXT",
     }
-    cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='lots'")
+    cur = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='lots'"
+    )
     if cur.fetchone() is None:
         return
     cur = conn.execute("PRAGMA table_info(lots)")
@@ -108,7 +116,8 @@ def _ensure_hash_columns(conn) -> None:
 
 def _ensure_bid_history_table(conn) -> None:
     """Create bid_history table if it does not exist."""
-    conn.executescript("""
+    conn.executescript(
+        """
         CREATE TABLE IF NOT EXISTS bid_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             lot_id INTEGER NOT NULL,
@@ -118,4 +127,5 @@ def _ensure_bid_history_table(conn) -> None:
             FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
         );
         CREATE INDEX IF NOT EXISTS idx_bid_history_lot_id ON bid_history (lot_id);
-    """)
+    """
+    )

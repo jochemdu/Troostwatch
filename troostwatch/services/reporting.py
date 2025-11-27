@@ -8,7 +8,10 @@ from typing import Callable
 
 from troostwatch.domain.analytics.summary import BuyerSummary
 from troostwatch.infrastructure.db import ensure_schema, get_connection
-from troostwatch.infrastructure.db.repositories import BuyerRepository, PositionRepository
+from troostwatch.infrastructure.db.repositories import (
+    BuyerRepository,
+    PositionRepository,
+)
 from troostwatch.infrastructure.observability import get_logger
 
 ConnectionFactory = Callable[[], AbstractContextManager[sqlite3.Connection]]
@@ -39,11 +42,15 @@ class ReportingService:
             buyer_repo = BuyerRepository(conn)
             buyer_id = buyer_repo.get_id(buyer_label)
             if buyer_id is None:
-                self._logger.debug("Buyer %s not found, returning empty summary", buyer_label)
+                self._logger.debug(
+                    "Buyer %s not found, returning empty summary", buyer_label
+                )
                 return BuyerSummary()
 
             position_repo = PositionRepository(conn, buyers=buyer_repo)
             positions = position_repo.list(buyer_label)
 
-        self._logger.debug("Found %d positions for buyer %s", len(positions), buyer_label)
+        self._logger.debug(
+            "Found %d positions for buyer %s", len(positions), buyer_label
+        )
         return BuyerSummary.from_positions(positions)

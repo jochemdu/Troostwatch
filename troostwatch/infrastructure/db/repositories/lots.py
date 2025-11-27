@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..schema import ensure_schema
 from .base import BaseRepository
@@ -14,10 +14,10 @@ class LotRepository(BaseRepository):
         super().__init__(conn)
         ensure_schema(self.conn)
 
-    def get_id(self, lot_code: str, auction_code: Optional[str] = None) -> Optional[int]:
+    def get_id(self, lot_code: str, auction_code: str | None = None) -> int | None:
         query = "SELECT l.id FROM lots l JOIN auctions a ON l.auction_id = a.id WHERE l.lot_code = ?"
 
-        def _lookup(code: str) -> Optional[int]:
+        def _lookup(code: str) -> int | None:
             params: List = [code]
             local_query = query
             if auction_code is not None:
@@ -28,11 +28,15 @@ class LotRepository(BaseRepository):
             return row[0] if row else None
 
         lot_id = _lookup(lot_code)
-        if lot_id is None and auction_code and not lot_code.startswith(f"{auction_code}-"):
+        if (
+            lot_id is None
+            and auction_code
+            and not lot_code.startswith(f"{auction_code}-")
+        ):
             lot_id = _lookup(f"{auction_code}-{lot_code}")
         return lot_id
 
-    def list_lot_codes_by_auction(self, auction_code: str) -> List[str]:
+    def list_lot_codes_by_auction(self, auction_code: str) -> list[str]:
         rows = self.conn.execute(
             """
             SELECT l.lot_code
@@ -48,11 +52,11 @@ class LotRepository(BaseRepository):
     def list_lots(
         self,
         *,
-        auction_code: Optional[str] = None,
-        state: Optional[str] = None,
-        brand: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[Dict[str, Optional[str]]]:
+        auction_code: str | None = None,
+        state: str | None = None,
+        brand: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, str | None]]:
         query = """
             SELECT a.auction_code AS auction_code,
                    l.lot_code AS lot_code,
@@ -89,7 +93,9 @@ class LotRepository(BaseRepository):
 
         return self._fetch_all_as_dicts(query, tuple(params))
 
-    def get_lot_detail(self, lot_code: str, auction_code: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_lot_detail(
+        self, lot_code: str, auction_code: str | None = None
+    ) -> dict[str, Any | None]:
         """Get detailed lot information."""
         query = """
             SELECT a.auction_code, l.lot_code, l.title, l.url, l.state,
@@ -107,7 +113,9 @@ class LotRepository(BaseRepository):
 
         return self._fetch_one_as_dict(query, tuple(params))
 
-    def get_lot_specs(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_lot_specs(
+        self, lot_code: str, auction_code: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get specifications (product_layers) for a lot, including parent_id, ean, price for hierarchy."""
         lot_id = self.get_id(lot_code, auction_code)
         if not lot_id:
@@ -117,10 +125,12 @@ class LotRepository(BaseRepository):
             "price_eur, release_date, category "
             "FROM product_layers WHERE lot_id = ? "
             "ORDER BY parent_id NULLS FIRST, layer",
-            (lot_id,)
+            (lot_id,),
         )
 
-    def get_reference_prices(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_reference_prices(
+        self, lot_code: str, auction_code: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get all reference prices for a lot."""
         lot_id = self.get_id(lot_code, auction_code)
         if not lot_id:
@@ -129,10 +139,12 @@ class LotRepository(BaseRepository):
         return self._fetch_all_as_dicts(
             """SELECT id, condition, price_eur, source, url, notes, created_at
                FROM reference_prices WHERE lot_id = ? ORDER BY created_at DESC""",
-            (lot_id,)
+            (lot_id,),
         )
 
-    def get_bid_history(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_bid_history(
+        self, lot_code: str, auction_code: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get bid history for a lot, ordered by timestamp descending (most recent first)."""
         lot_id = self.get_id(lot_code, auction_code)
         if not lot_id:
@@ -141,7 +153,7 @@ class LotRepository(BaseRepository):
         return self._fetch_all_as_dicts(
             """SELECT id, bidder_label, amount_eur, timestamp, created_at
                FROM bid_history WHERE lot_id = ? ORDER BY timestamp DESC, id DESC""",
-            (lot_id,)
+            (lot_id,),
         )
 
     def add_reference_price(
@@ -149,10 +161,10 @@ class LotRepository(BaseRepository):
         lot_code: str,
         price_eur: float,
         condition: str = "used",
-        source: Optional[str] = None,
-        url: Optional[str] = None,
-        notes: Optional[str] = None,
-        auction_code: Optional[str] = None,
+        source: str | None = None,
+        url: str | None = None,
+        notes: str | None = None,
+        auction_code: str | None = None,
     ) -> int:
         """Add a reference price for a lot. Returns the new id."""
         lot_id = self.get_id(lot_code, auction_code)
@@ -162,7 +174,7 @@ class LotRepository(BaseRepository):
         ref_id = self._execute_insert(
             """INSERT INTO reference_prices (lot_id, condition, price_eur, source, url, notes)
                VALUES (?, ?, ?, ?, ?, ?)""",
-            (lot_id, condition, price_eur, source, url, notes)
+            (lot_id, condition, price_eur, source, url, notes),
         )
         self.conn.commit()
         return ref_id
@@ -170,11 +182,11 @@ class LotRepository(BaseRepository):
     def update_reference_price(
         self,
         ref_id: int,
-        price_eur: Optional[float] = None,
-        condition: Optional[str] = None,
-        source: Optional[str] = None,
-        url: Optional[str] = None,
-        notes: Optional[str] = None,
+        price_eur: float | None = None,
+        condition: str | None = None,
+        source: str | None = None,
+        url: str | None = None,
+        notes: str | None = None,
     ) -> bool:
         """Update a reference price. Returns True if updated."""
         updates = []
@@ -218,10 +230,10 @@ class LotRepository(BaseRepository):
     def update_lot(
         self,
         lot_code: str,
-        auction_code: Optional[str] = None,
+        auction_code: str | None = None,
         *,
-        notes: Optional[str] = None,
-        ean: Optional[str] = None,
+        notes: str | None = None,
+        ean: str | None = None,
     ) -> bool:
         """Update user-editable lot fields (notes, ean). Returns True if a row was updated."""
         lot_id = self.get_id(lot_code, auction_code)
@@ -251,13 +263,13 @@ class LotRepository(BaseRepository):
         lot_code: str,
         key: str,
         value: str,
-        auction_code: Optional[str] = None,
-        parent_id: Optional[int] = None,
-        ean: Optional[str] = None,
-        price_eur: Optional[float] = None,
-        template_id: Optional[int] = None,
-        release_date: Optional[str] = None,
-        category: Optional[str] = None,
+        auction_code: str | None = None,
+        parent_id: int | None = None,
+        ean: str | None = None,
+        price_eur: float | None = None,
+        template_id: int | None = None,
+        release_date: str | None = None,
+        category: str | None = None,
     ) -> int:
         """Add or update a specification for a lot. Returns the spec id."""
         lot_id = self.get_id(lot_code, auction_code)
@@ -265,23 +277,30 @@ class LotRepository(BaseRepository):
             raise ValueError(f"Lot '{lot_code}' not found")
 
         # Check if spec exists (matching parent_id)
-        existing_id: Optional[int]
+        existing_id: int | None
         if parent_id is not None:
             existing_id = self._fetch_scalar(
                 "SELECT id FROM product_layers WHERE lot_id = ? AND title = ? AND parent_id = ?",
-                (lot_id, key, parent_id)
+                (lot_id, key, parent_id),
             )
         else:
             existing_id = self._fetch_scalar(
                 "SELECT id FROM product_layers WHERE lot_id = ? AND title = ? AND parent_id IS NULL",
-                (lot_id, key)
+                (lot_id, key),
             )
         if existing_id:
             self._execute(
                 "UPDATE product_layers SET value = ?, ean = ?, price_eur = ?, "
                 "template_id = ?, release_date = ?, category = ? WHERE id = ?",
-                (value, ean, price_eur, template_id, release_date, category,
-                 existing_id)
+                (
+                    value,
+                    ean,
+                    price_eur,
+                    template_id,
+                    release_date,
+                    category,
+                    existing_id,
+                ),
             )
             self.conn.commit()
             return existing_id
@@ -291,20 +310,30 @@ class LotRepository(BaseRepository):
             if parent_id is not None:
                 next_layer = self._fetch_scalar(
                     "SELECT COALESCE(MAX(layer), -1) + 1 FROM product_layers WHERE lot_id = ? AND parent_id = ?",
-                    (lot_id, parent_id)
+                    (lot_id, parent_id),
                 )
             else:
                 next_layer = self._fetch_scalar(
                     "SELECT COALESCE(MAX(layer), -1) + 1 FROM product_layers WHERE lot_id = ? AND parent_id IS NULL",
-                    (lot_id,)
+                    (lot_id,),
                 )
             spec_id = self._execute_insert(
                 "INSERT INTO product_layers "
                 "(lot_id, parent_id, layer, title, value, ean, price_eur, "
                 "template_id, release_date, category) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (lot_id, parent_id, next_layer, key, value, ean, price_eur,
-                 template_id, release_date, category)
+                (
+                    lot_id,
+                    parent_id,
+                    next_layer,
+                    key,
+                    value,
+                    ean,
+                    price_eur,
+                    template_id,
+                    release_date,
+                    category,
+                ),
             )
             self.conn.commit()
             return spec_id
@@ -319,14 +348,14 @@ class LotRepository(BaseRepository):
     # Spec Templates - reusable specifications across lots
     # -------------------------------------------------------------------------
 
-    def list_spec_templates(self, parent_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def list_spec_templates(self, parent_id: int | None = None) -> list[dict[str, Any]]:
         """List all spec templates, optionally filtered by parent."""
         if parent_id is not None:
             return self._fetch_all_as_dicts(
                 "SELECT id, parent_id, title, value, ean, price_eur, "
                 "release_date, category, created_at "
                 "FROM spec_templates WHERE parent_id = ? ORDER BY title",
-                (parent_id,)
+                (parent_id,),
             )
         else:
             return self._fetch_all_as_dicts(
@@ -335,31 +364,31 @@ class LotRepository(BaseRepository):
                 "FROM spec_templates ORDER BY parent_id NULLS FIRST, title"
             )
 
-    def get_spec_template(self, template_id: int) -> Optional[Dict[str, Any]]:
+    def get_spec_template(self, template_id: int) -> dict[str, Any | None]:
         """Get a single spec template by id."""
         return self._fetch_one_as_dict(
             "SELECT id, parent_id, title, value, ean, price_eur, "
             "release_date, category, created_at "
             "FROM spec_templates WHERE id = ?",
-            (template_id,)
+            (template_id,),
         )
 
     def create_spec_template(
         self,
         title: str,
-        value: Optional[str] = None,
-        ean: Optional[str] = None,
-        price_eur: Optional[float] = None,
-        parent_id: Optional[int] = None,
-        release_date: Optional[str] = None,
-        category: Optional[str] = None,
+        value: str | None = None,
+        ean: str | None = None,
+        price_eur: float | None = None,
+        parent_id: int | None = None,
+        release_date: str | None = None,
+        category: str | None = None,
     ) -> int:
         """Create a new spec template. Returns the new id."""
         template_id = self._execute_insert(
             "INSERT INTO spec_templates "
             "(title, value, ean, price_eur, parent_id, release_date, category) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (title, value, ean, price_eur, parent_id, release_date, category)
+            (title, value, ean, price_eur, parent_id, release_date, category),
         )
         self.conn.commit()
         return template_id
@@ -367,12 +396,12 @@ class LotRepository(BaseRepository):
     def update_spec_template(
         self,
         template_id: int,
-        title: Optional[str] = None,
-        value: Optional[str] = None,
-        ean: Optional[str] = None,
-        price_eur: Optional[float] = None,
-        release_date: Optional[str] = None,
-        category: Optional[str] = None,
+        title: str | None = None,
+        value: str | None = None,
+        ean: str | None = None,
+        price_eur: float | None = None,
+        release_date: str | None = None,
+        category: str | None = None,
     ) -> bool:
         """Update a spec template. Returns True if updated."""
         updates = []
@@ -419,8 +448,8 @@ class LotRepository(BaseRepository):
         self,
         lot_code: str,
         template_id: int,
-        auction_code: Optional[str] = None,
-        parent_id: Optional[int] = None,
+        auction_code: str | None = None,
+        parent_id: int | None = None,
     ) -> int:
         """Apply a spec template to a lot. Creates a new product_layer linked to the template."""
         template = self.get_spec_template(template_id)
@@ -457,8 +486,13 @@ class LotRepository(BaseRepository):
         lot_opens_at = detail.opens_at or card.opens_at
         lot_closing_current = detail.closing_time_current or card.closing_time_current
         lot_closing_original = detail.closing_time_original
-        lot_bid_count = detail.bid_count if detail.bid_count is not None else card.bid_count
-        lot_opening_bid = _choose_value(detail.opening_bid_eur, card.price_eur if card.is_price_opening_bid else None)
+        lot_bid_count = (
+            detail.bid_count if detail.bid_count is not None else card.bid_count
+        )
+        lot_opening_bid = _choose_value(
+            detail.opening_bid_eur,
+            card.price_eur if card.is_price_opening_bid else None,
+        )
         lot_current_bid = _choose_value(detail.current_bid_eur, card.price_eur)
         location_city = detail.location_city or card.location_city
         location_country = detail.location_country or card.location_country
@@ -595,7 +629,7 @@ class LotRepository(BaseRepository):
         return True
 
 
-def _choose_value(*values: Optional[str | float | int | bool]):
+def _choose_value(*values: str | float | int | bool | None):
     for value in values:
         if value is not None:
             return value

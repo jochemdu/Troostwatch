@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 import re
-from typing import Optional
 
 from bs4 import BeautifulSoup
 
@@ -73,7 +72,7 @@ def _extract_lot_number_from_url(url: str) -> str | None:
     return None
 
 
-def _parse_amount_field(value: dict | None) -> Optional[float]:
+def _parse_amount_field(value: dict | None) -> float | None:
     if not value:
         return None
     if isinstance(value, dict):
@@ -86,22 +85,32 @@ def _parse_amount_field(value: dict | None) -> Optional[float]:
     return None
 
 
-def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> LotDetailData:
+def parse_lot_detail(
+    html: str, lot_code: str, base_url: str | None = None
+) -> LotDetailData:
     """Parse a lot detail page from Troostwijk HTML."""
 
     soup = BeautifulSoup(html, "html.parser")
     utils.log_structure_signature(logger, "lot_detail.dom", str(soup))
     data = utils.extract_next_data(soup)
-    utils.log_structure_signature(logger, "lot_detail.next_data", json.dumps(data, sort_keys=True))
+    utils.log_structure_signature(
+        logger, "lot_detail.next_data", json.dumps(data, sort_keys=True)
+    )
     page_props = data.get("props", {}).get("pageProps", {})
     lot = page_props.get("lot", {})
     fees = page_props.get("fees", {})
 
     try:
         title = lot.get("title") or _strip_html_tags(_parse_title_from_dom(soup))
-        url = page_props.get("canonicalUrl") or _build_url(base_url, lot.get("urlSlug"), lot_code)
+        url = page_props.get("canonicalUrl") or _build_url(
+            base_url, lot.get("urlSlug"), lot_code
+        )
 
-        status = (lot.get("status") or page_props.get("auction", {}).get("biddingStatus") or "").lower()
+        status = (
+            lot.get("status")
+            or page_props.get("auction", {}).get("biddingStatus")
+            or ""
+        ).lower()
         if status.startswith("bidding_open"):
             state = "running"
         elif status.startswith("published"):
@@ -111,10 +120,16 @@ def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> L
         else:
             state = None
 
-        opens_at = utils.epoch_to_iso(lot.get("openingTime")) or \
-            utils.parse_datetime_from_text(utils.extract_by_data_cy(soup, "opening-time"))
-        closing_time_current = utils.epoch_to_iso(lot.get("closingTime")) or \
-            utils.parse_datetime_from_text(utils.extract_by_data_cy(soup, "closing-time"))
+        opens_at = utils.epoch_to_iso(
+            lot.get("openingTime")
+        ) or utils.parse_datetime_from_text(
+            utils.extract_by_data_cy(soup, "opening-time")
+        )
+        closing_time_current = utils.epoch_to_iso(
+            lot.get("closingTime")
+        ) or utils.parse_datetime_from_text(
+            utils.extract_by_data_cy(soup, "closing-time")
+        )
         closing_time_original = utils.epoch_to_iso(lot.get("originalClosingTime"))
 
         bid_info = lot.get("bidInfo", {})
@@ -125,14 +140,18 @@ def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> L
 
         vat_on_bid_pct = (
             utils.parse_percent(str(fees.get("vatOnBidPct")))
-            if fees.get("vatOnBidPct") is not None else None
+            if fees.get("vatOnBidPct") is not None
+            else None
         )
         auction_fee_pct = (
             utils.parse_percent(str(fees.get("buyerFeePct")))
-            if fees.get("buyerFeePct") is not None else None
+            if fees.get("buyerFeePct") is not None
+            else None
         )
         auction_fee_vat_pct = (
-            utils.parse_percent(str(fees.get("buyerFeeVatPct"))) if fees.get("buyerFeeVatPct") is not None else None
+            utils.parse_percent(str(fees.get("buyerFeeVatPct")))
+            if fees.get("buyerFeeVatPct") is not None
+            else None
         )
         total_example_price_eur = _parse_amount_field(fees.get("totalExamplePrice"))
 
@@ -146,9 +165,9 @@ def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> L
             location_city = location_city or city_text
             location_country = country_text
 
-        seller_allocation_note = page_props.get("sellerAllocationNote") or utils.extract_by_data_cy(
-            soup, "item-collection-info-text"
-        )
+        seller_allocation_note = page_props.get(
+            "sellerAllocationNote"
+        ) or utils.extract_by_data_cy(soup, "item-collection-info-text")
 
         brand = _parse_brand(lot)
         bid_history = _parse_bid_history(lot)
@@ -185,11 +204,13 @@ def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> L
 
 
 def _parse_title_from_dom(soup: BeautifulSoup) -> str:
-    title_el = soup.find(["h1", "h2"], attrs={"data-cy": "item-title-text"}) or soup.find(["h1", "h2"])
+    title_el = soup.find(
+        ["h1", "h2"], attrs={"data-cy": "item-title-text"}
+    ) or soup.find(["h1", "h2"])
     return utils.extract_text(title_el)
 
 
-def _build_url(base_url: str | None, slug: str | None, lot_code: str) -> Optional[str]:
+def _build_url(base_url: str | None, slug: str | None, lot_code: str) -> str | None:
     if slug and base_url:
         return f"{base_url.rstrip('/')}/l/{slug}"
     return None
@@ -240,11 +261,13 @@ def _parse_bid_history(lot: dict) -> list[BidHistoryEntry]:
         timestamp = utils.epoch_to_iso(bid.get("timestamp") or bid.get("time"))
 
         if bidder and amount_eur is not None:
-            entries.append(BidHistoryEntry(
-                bidder_label=str(bidder),
-                amount_eur=amount_eur,
-                timestamp=timestamp,
-            ))
+            entries.append(
+                BidHistoryEntry(
+                    bidder_label=str(bidder),
+                    amount_eur=amount_eur,
+                    timestamp=timestamp,
+                )
+            )
 
     return entries
 

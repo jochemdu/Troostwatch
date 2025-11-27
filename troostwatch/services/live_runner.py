@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import asdict, dataclass
-from typing import Callable, Dict, Literal
+from typing import Callable, Literal
 
 from troostwatch.infrastructure.db import iso_utcnow
 from troostwatch.infrastructure.observability import get_logger
@@ -43,7 +43,7 @@ class LiveSyncState:
     config: LiveSyncConfig | None = None
     paused_at: str | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         payload = asdict(self)
         if self.last_result is not None:
             payload["last_result"] = asdict(self.last_result)
@@ -124,7 +124,7 @@ class LiveSyncRunner:
             self._task = None
             return self._state
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict:
         return self._state.to_dict()
 
     def _resolved_interval(self) -> float | None:
@@ -181,7 +181,11 @@ class LiveSyncRunner:
                 self._logger.exception(message)
                 self._state.last_error = str(exc)
                 await self._publish_event(
-                    {"type": "live_sync_error", "message": str(exc), "time": iso_utcnow()}
+                    {
+                        "type": "live_sync_error",
+                        "message": str(exc),
+                        "time": iso_utcnow(),
+                    }
                 )
                 await self._emit_log(message)
 
@@ -208,14 +212,16 @@ class LiveSyncRunner:
     async def _publish_idle(self) -> None:
         async with self._lock:
             self._state.status = "idle"
-            await self._publish_event({
-                "type": "live_sync_status",
-                "status": self._state.status,
-                "time": iso_utcnow(),
-                "state": self.get_status(),
-            })
+            await self._publish_event(
+                {
+                    "type": "live_sync_status",
+                    "status": self._state.status,
+                    "time": iso_utcnow(),
+                    "state": self.get_status(),
+                }
+            )
 
-    async def _publish_event(self, payload: Dict) -> None:
+    async def _publish_event(self, payload: dict) -> None:
         try:
             await self._event_publisher(payload)
         except Exception:  # pragma: no cover - isolate websocket errors
@@ -231,10 +237,17 @@ class LiveSyncRunner:
             }
         )
 
-    async def _set_status(self, status: LiveSyncStatus, *, log_message: str | None = None) -> None:
+    async def _set_status(
+        self, status: LiveSyncStatus, *, log_message: str | None = None
+    ) -> None:
         self._state.status = status
         await self._publish_event(
-            {"type": "live_sync_status", "status": status, "time": iso_utcnow(), "state": self.get_status()}
+            {
+                "type": "live_sync_status",
+                "status": status,
+                "time": iso_utcnow(),
+                "state": self.get_status(),
+            }
         )
         if log_message:
             await self._emit_log(log_message)

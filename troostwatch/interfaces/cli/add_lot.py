@@ -16,8 +16,15 @@ console = Console()
 
 
 @click.command()
-@click.option("--db", "db_path", default="troostwatch.db", help="Path to the SQLite database file.")
-@click.option("--auction-code", required=True, help="Auction code for the lot (e.g. A1-12345).")
+@click.option(
+    "--db",
+    "db_path",
+    default="troostwatch.db",
+    help="Path to the SQLite database file.",
+)
+@click.option(
+    "--auction-code", required=True, help="Auction code for the lot (e.g. A1-12345)."
+)
 @click.option("--auction-title", help="Optional auction title to store or update.")
 @click.option("--auction-url", help="Optional auction URL to store or update.")
 @click.option("--lot-code", required=True, help="The lot code (e.g. A1-12345-1).")
@@ -81,4 +88,6 @@ def add_lot(
     with lot_management_service(cli_context) as service:
         service.add_lot(lot_input, seen_at)
 
-    console.print(f"[green]Stored lot {lot_code} for auction {auction_code} in {db_path}[/green]")
+    console.print(
+        f"[green]Stored lot {lot_code} for auction {auction_code} in {db_path}[/green]"
+    )

@@ -47,6 +47,7 @@ class Auction:
         pagination = data.get("pagination_pages")
         if isinstance(pagination, str):
             import json
+
             try:
                 pagination = json.loads(pagination)
             except (json.JSONDecodeError, TypeError):

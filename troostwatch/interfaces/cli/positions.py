@@ -9,7 +9,6 @@ budget. Positions are stored in the ``my_lot_positions`` table.
 from __future__ import annotations
 
 import click
-from typing import Optional
 
 from troostwatch.services.positions import PositionsService
 
@@ -26,8 +25,17 @@ def positions() -> None:
 @click.argument("auction_code")
 @click.argument("lot_code")
 @click.option("--budget", type=float, default=None, help="Maximum total budget in EUR.")
-@click.option("--inactive", is_flag=True, help="Mark the position as inactive (not tracked).")
-def add(db_path: str, buyer: str, auction_code: str, lot_code: str, budget: Optional[float], inactive: bool) -> None:
+@click.option(
+    "--inactive", is_flag=True, help="Mark the position as inactive (not tracked)."
+)
+def add(
+    db_path: str,
+    buyer: str,
+    auction_code: str,
+    lot_code: str,
+    budget: float | None,
+    inactive: bool,
+) -> None:
     """Add or update a tracked position for BUYER on AUCTION_CODE/LOT_CODE.
 
     If a position already exists for the buyer and lot, this command updates
@@ -54,13 +62,15 @@ def add(db_path: str, buyer: str, auction_code: str, lot_code: str, budget: Opti
 @positions.command(name="list")
 @click.option("--db", "db_path", required=True, help="Path to the SQLite database.")
 @click.option("--buyer", default=None, help="Only list positions for this buyer.")
-def list_positions_cmd(db_path: str, buyer: Optional[str]) -> None:
+def list_positions_cmd(db_path: str, buyer: str | None) -> None:
     """List tracked positions.
 
     Without arguments, lists all positions for all buyers. Use the
     ``--buyer`` option to filter by buyer label.
     """
-    positions = PositionsService.from_sqlite_path(db_path).list_positions(buyer_label=buyer)
+    positions = PositionsService.from_sqlite_path(db_path).list_positions(
+        buyer_label=buyer
+    )
     if not positions:
         click.echo("No positions found.")
         return
@@ -83,7 +93,9 @@ def delete(db_path: str, buyer: str, auction_code: str, lot_code: str) -> None:
     """Delete a tracked position for BUYER on AUCTION_CODE/LOT_CODE."""
     service = PositionsService.from_sqlite_path(db_path)
     try:
-        service.delete_position(buyer_label=buyer, lot_code=lot_code, auction_code=auction_code)
+        service.delete_position(
+            buyer_label=buyer, lot_code=lot_code, auction_code=auction_code
+        )
     except ValueError as exc:
         click.echo(str(exc))
         return

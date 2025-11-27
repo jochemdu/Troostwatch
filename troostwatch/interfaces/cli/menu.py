@@ -8,7 +8,7 @@ users who prefer interactive choice lists over long command invocations.
 
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import Sequence
 
 import click
 
@@ -22,19 +22,26 @@ from .sync_multi import sync_multi
 from .view import view
 from .add_lot import add_lot
 from .context import build_cli_context
-from .context_helpers import load_auctions, load_lots_for_auction, get_preference, set_preference
+from .context_helpers import (
+    load_auctions,
+    load_lots_for_auction,
+    get_preference,
+    set_preference,
+)
 
 PREFERRED_AUCTION_KEY = "preferred_auction"
 
 
-def _prompt_optional_str(message: str) -> Optional[str]:
+def _prompt_optional_str(message: str) -> str | None:
     value = click.prompt(message, default="", show_default=False)
     return value or None
 
 
-def _prompt_optional_int(message: str, default: Optional[int] = None) -> Optional[int]:
+def _prompt_optional_int(message: str, default: int | None = None) -> int | None:
     text_default = "" if default is None else default
-    value = click.prompt(message, default=text_default, show_default=default is not None)
+    value = click.prompt(
+        message, default=text_default, show_default=default is not None
+    )
     if isinstance(value, str):
         value = value.strip()
         return int(value) if value else None
@@ -143,7 +150,9 @@ def _run_sync(ctx: click.Context) -> None:
 def _run_sync_multi(ctx: click.Context) -> None:
     db_path = click.prompt("Database path", default=_default_db_path())
     max_pages = _prompt_optional_int("Max pages to fetch per auction (blank for all)")
-    include_inactive = click.confirm("Include auctions without active lots?", default=False)
+    include_inactive = click.confirm(
+        "Include auctions without active lots?", default=False
+    )
     verbose = click.confirm("Enable verbose logging?", default=True)
 
     ctx.invoke(
@@ -203,7 +212,7 @@ def _run_add_lot(ctx: click.Context) -> None:
     city = _prompt_optional_str("City (optional)")
     country = _prompt_optional_str("Country (optional)")
 
-    def _parse_float(val: Optional[str]) -> Optional[float]:
+    def _parse_float(val: str | None) -> float | None:
         if val is None:
             return None
         try:
@@ -302,7 +311,12 @@ def _run_report(ctx: click.Context) -> None:
     db_path = click.prompt("Database path", default=_default_db_path())
     buyer_label = click.prompt("Buyer label to summarize")
     json_output = click.confirm("Show as JSON?", default=False)
-    ctx.invoke(report.commands["buyer"], db_path=db_path, buyer=buyer_label, json_output=json_output)
+    ctx.invoke(
+        report.commands["buyer"],
+        db_path=db_path,
+        buyer=buyer_label,
+        json_output=json_output,
+    )
 
 
 def _run_bid(ctx: click.Context) -> None:

@@ -53,8 +53,16 @@ def get_connection(
     try:
         cfg = load_config()
         db_cfg = cfg.get("db", {}) if isinstance(cfg, dict) else {}
-        resolved_enable_wal = enable_wal if enable_wal is not None else bool(db_cfg.get("enable_wal", True))
-        resolved_foreign_keys = foreign_keys if foreign_keys is not None else bool(db_cfg.get("foreign_keys", True))
+        resolved_enable_wal = (
+            enable_wal
+            if enable_wal is not None
+            else bool(db_cfg.get("enable_wal", True))
+        )
+        resolved_foreign_keys = (
+            foreign_keys
+            if foreign_keys is not None
+            else bool(db_cfg.get("foreign_keys", True))
+        )
         apply_pragmas(
             conn,
             enable_wal=resolved_enable_wal,

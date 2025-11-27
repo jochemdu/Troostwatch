@@ -17,13 +17,20 @@ const formatCountdown = (target?: string) => {
   if (!target) return '—';
   const delta = new Date(target).getTime() - Date.now();
   if (Number.isNaN(delta)) return '—';
-  if (delta <= 0) return '00:00';
-  const seconds = Math.floor(delta / 1000);
-  const minutes = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, '0');
-  const remainder = (seconds % 60).toString().padStart(2, '0');
-  return `${minutes}:${remainder}`;
+  if (delta <= 0) return 'Afgelopen';
+  
+  const totalSeconds = Math.floor(delta / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  
+  if (days > 0) {
+    return `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 };
 
 export default function LivePage() {
@@ -32,6 +39,15 @@ export default function LivePage() {
   const [lots, setLots] = useState<Record<string, LiveLot>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string>('unknown');
+  const [, setTick] = useState(0); // Force re-render for countdown updates
+
+  // Update countdown every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(t => t + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     fetchLots()
@@ -130,14 +146,19 @@ export default function LivePage() {
               <div>
                 <strong>{lot.title ?? lot.lot_code}</strong>
                 <p className="muted" style={{ margin: '4px 0' }}>
-                  {lot.auction_code} • {lot.current_bidder_label ?? 'Geen bieder'}
+                  Lot {lot.lot_code} • {lot.auction_code}
                 </p>
               </div>
               <span className={`badge ${lot.state === 'closed' ? 'error' : ''}`}>{lot.state ?? '—'}</span>
             </div>
             <div className="status-row" style={{ justifyContent: 'space-between', marginTop: 6 }}>
-              <span className="muted">Bod: €{lot.current_bid_eur?.toLocaleString('nl-NL') ?? '—'}</span>
-              <span className="badge warning">Timer: {formatCountdown(lot.closing_time_current ?? undefined)}</span>
+              <div>
+                <span>€{lot.current_bid_eur?.toLocaleString('nl-NL') ?? '—'}</span>
+                <span className="muted" style={{ marginLeft: 8 }}>
+                  ({lot.bid_count ?? 0} biedingen)
+                </span>
+              </div>
+              <span className="badge warning">{formatCountdown(lot.closing_time_current ?? undefined)}</span>
             </div>
           </div>
         ))}

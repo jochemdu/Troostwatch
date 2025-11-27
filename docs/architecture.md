@@ -153,6 +153,66 @@ Always run `python scripts/check_imports.py` before committing to verify archite
 
 ## Architecture Enforcement
 
+### Maturity Levels
+
+Troostwatch defines three maturity levels for architecture enforcement. The
+project progresses through these levels as the codebase matures.
+
+#### Level 1: Guidelines (Current)
+
+**Status: Active**
+
+At this level, architecture rules are *directional guidance*:
+
+- Rules are documented and communicated to the team
+- Tooling (`import-linter`) runs and reports violations
+- CI **does not block** on violations (warnings only)
+- Legacy areas with known violations are explicitly listed below
+- Reviewers signal concerns but don't automatically block PRs
+
+**Known legacy areas** (accepted technical debt):
+- None currently – the codebase has zero violations
+
+**Designated bridge modules** (allowed exceptions via `.importlinter`):
+- `app/dependencies.py` – wires infrastructure to API
+- `interfaces/cli/context.py` – wires infrastructure to CLI
+- `interfaces/cli/debug.py` – diagnostics may access infrastructure
+
+#### Level 2: No New Violations (Target)
+
+**Status: Planned**
+
+At this level, we freeze the baseline and prevent regression:
+
+- Existing violations are documented as accepted technical debt
+- **New code may not introduce additional violations**
+- CI **fails** if new violations are detected (baseline comparison)
+- Legacy violations are cleaned up opportunistically
+- A baseline file tracks known violations for comparison
+
+**How to implement** (when ready):
+1. Generate baseline: `lint-imports --generate-baseline > .lint-imports-baseline`
+2. Configure CI to compare against baseline
+3. Block PRs that increase violation count
+
+#### Level 3: Full Compliance (Future)
+
+**Status: Future goal**
+
+At this level, architecture rules are strictly enforced:
+
+- Zero violations in the entire codebase
+- CI **fails** on any violation
+- No baseline needed – all code must comply
+- Exceptions require explicit `ignore_imports` with justification
+
+**Prerequisites**:
+- All legacy violations cleaned up
+- Team consensus on rule completeness
+- Stable architecture that won't need frequent exceptions
+
+---
+
 ### Automated Checks
 
 Troostwatch uses `import-linter` to verify architectural boundaries. The tool

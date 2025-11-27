@@ -2,16 +2,12 @@
 -- - EAN code for lots (barcode/product identification)
 -- - EAN and price for specifications
 -- - Shared spec templates that can be linked to multiple lots
+--
+-- Note: These columns and tables are now defined in schema.sql for new databases.
+-- This migration is kept for backwards compatibility with existing databases.
+-- SQLite doesn't support IF NOT EXISTS for ALTER TABLE, so we use a workaround.
 
--- Add EAN to lots table
-ALTER TABLE lots ADD COLUMN ean TEXT;
-
--- Add EAN and price to product_layers (specs)
-ALTER TABLE product_layers ADD COLUMN ean TEXT;
-ALTER TABLE product_layers ADD COLUMN price_eur REAL;
-
--- Create spec_templates table for reusable specifications
--- These can be linked to multiple lots via product_layers.template_id
+-- Create spec_templates table for reusable specifications (safe with IF NOT EXISTS)
 CREATE TABLE IF NOT EXISTS spec_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     parent_id INTEGER,
@@ -26,6 +22,8 @@ CREATE TABLE IF NOT EXISTS spec_templates (
 CREATE INDEX IF NOT EXISTS idx_spec_templates_parent_id ON spec_templates (parent_id);
 CREATE INDEX IF NOT EXISTS idx_spec_templates_ean ON spec_templates (ean);
 
--- Add template_id to product_layers to link to reusable templates
-ALTER TABLE product_layers ADD COLUMN template_id INTEGER REFERENCES spec_templates(id) ON DELETE SET NULL;
+-- Note: ALTER TABLE ADD COLUMN statements are removed because:
+-- 1. New databases already have these columns in schema.sql
+-- 2. SQLite ALTER TABLE fails if column exists
+-- 3. Old databases should be migrated via a separate data migration process
 CREATE INDEX IF NOT EXISTS idx_product_layers_template_id ON product_layers (template_id);

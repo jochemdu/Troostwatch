@@ -1387,20 +1387,11 @@ class AuctionDetailResponse(BaseModel):
     url: str | None = None
     starts_at: str | None = None
     ends_at_planned: str | None = None
-    title: str | None = None
-    url: str | None = None
-    starts_at: str | None = None
-    ends_at_planned: str | None = None
     lot_count: int = 0
 
 
 class AuctionUpdateRequest(BaseModel):
     """Request to update an auction."""
-    title: str | None = None
-    url: str | None = None
-    starts_at: str | None = None
-    ends_at_planned: str | None = None
-
     title: str | None = None
     url: str | None = None
     starts_at: str | None = None

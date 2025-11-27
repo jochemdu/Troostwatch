@@ -31,14 +31,6 @@ class LotViewDTO:
     closing_time_current: str | None = None
     closing_time_original: str | None = None
     brand: str | None = None
-    title: str | None = None
-    state: str | None = None
-    current_bid_eur: float | None = None
-    bid_count: int | None = None
-    current_bidder_label: str | None = None
-    closing_time_current: str | None = None
-    closing_time_original: str | None = None
-    brand: str | None = None
     is_active: bool = False
     effective_price: float | None = None
 
@@ -59,17 +51,6 @@ class LotInputDTO:
     location_country: str | None = None
     auction_title: str | None = None
     auction_url: str | None = None
-    url: str | None = None
-    state: str | None = None
-    opens_at: str | None = None
-    closing_time: str | None = None
-    bid_count: int | None = None
-    opening_bid_eur: float | None = None
-    current_bid_eur: float | None = None
-    location_city: str | None = None
-    location_country: str | None = None
-    auction_title: str | None = None
-    auction_url: str | None = None
 
 
 # --- Buyer DTOs ---
@@ -77,8 +58,6 @@ class LotInputDTO:
 class BuyerDTO:
     id: int
     label: str
-    name: str | None = None
-    notes: str | None = None
     name: str | None = None
     notes: str | None = None
 

@@ -11,17 +11,17 @@
     "generate:api-types:file": "openapi-typescript ../openapi.json -o lib/generated/api-types.ts"
   },
   "dependencies": {
-    "next": "14.2.5",
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@types/node": "20.14.10",
-    "@types/react": "18.3.3",
-    "@types/react-dom": "18.3.0",
-    "eslint": "8.57.0",
-    "eslint-config-next": "14.2.5",
-    "openapi-typescript": "^7.0.0",
-    "typescript": "5.4.5"
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.16.0",
+    "eslint-config-next": "^15.1.0",
+    "openapi-typescript": "^7.10.0",
+    "typescript": "^5.7.0"
   }
 }

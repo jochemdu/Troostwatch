@@ -9,3 +9,4 @@ node_modules/
 ui/.next/
 .venv/
 *.egg-info/
+ui/.next/

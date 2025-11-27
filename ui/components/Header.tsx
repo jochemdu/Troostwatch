@@ -5,6 +5,7 @@ import { startLiveSync, pauseLiveSync, stopLiveSync } from '../lib/api';
 
 const NAV_LINKS = [
   { href: '/lots', label: 'Lots overzicht' },
+  { href: '/sync', label: 'Importeren' },
   { href: '/live', label: 'Live volgen' },
   { href: '/buyers', label: 'Buyers' },
   { href: '/debug', label: 'Debug' }

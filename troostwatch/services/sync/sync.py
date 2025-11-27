@@ -105,8 +105,6 @@ def _fetch_url(
 
 def _extract_page_urls(html_text: str, base_url: str) -> list[str]:
     urls: list[str] = []
-def _extract_page_urls(html_text: str, base_url: str) -> list[str]:
-    urls: list[str] = []
     for match in re.finditer(
         r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>\s*(\d+)\s*</a>',
         html_text,
@@ -461,8 +459,6 @@ def sync_auction_to_db(
         try:
             if not dry_run:
                 conn.execute("BEGIN")
-            auction_id: int | None = None
-            existing_lots: dict[str, dict[str, str | None]] = {}
             auction_id: int | None = None
             existing_lots: dict[str, dict[str, str | None]] = {}
             if not dry_run:

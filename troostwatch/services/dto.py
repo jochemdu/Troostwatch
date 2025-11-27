@@ -67,8 +67,6 @@ class BuyerCreateDTO:
     label: str
     name: str | None = None
     notes: str | None = None
-    name: str | None = None
-    notes: str | None = None
 
 
 # --- Position DTOs ---
@@ -78,11 +76,6 @@ class PositionDTO:
     lot_code: str
     auction_code: str | None = None
     track_active: bool = True
-    max_budget_total_eur: float | None = None
-    my_highest_bid_eur: float | None = None
-    lot_title: str | None = None
-    lot_state: str | None = None
-    current_bid_eur: float | None = None
     max_budget_total_eur: float | None = None
     my_highest_bid_eur: float | None = None
     lot_title: str | None = None
@@ -98,10 +91,6 @@ class PositionUpdateDTO:
     max_budget_total_eur: float | None = None
     preferred_bid_eur: float | None = None
     watch: bool | None = None
-    auction_code: str | None = None
-    max_budget_total_eur: float | None = None
-    preferred_bid_eur: float | None = None
-    watch: bool | None = None
 
 
 # --- Bid DTOs ---
@@ -113,8 +102,6 @@ class BidDTO:
     auction_code: str
     amount_eur: float
     placed_at: str
-    lot_title: str | None = None
-    note: str | None = None
     lot_title: str | None = None
     note: str | None = None
 

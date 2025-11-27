@@ -132,15 +132,11 @@ class BuyerCreateRequest(BaseModel):
     label: str
     name: str | None = None
     notes: str | None = None
-    name: str | None = None
-    notes: str | None = None
 
 
 class BuyerResponse(BaseModel):
     id: int
     label: str
-    name: str | None = None
-    notes: str | None = None
     name: str | None = None
     notes: str | None = None
 
@@ -153,10 +149,6 @@ class BuyerCreateResponse(BaseModel):
 class PositionUpdate(BaseModel):
     buyer_label: str
     lot_code: str
-    auction_code: str | None = None
-    max_budget_total_eur: float | None = Field(None, ge=0)
-    preferred_bid_eur: float | None = Field(None, ge=0)
-    watch: bool | None = None
     auction_code: str | None = None
     max_budget_total_eur: float | None = Field(None, ge=0)
     preferred_bid_eur: float | None = Field(None, ge=0)

@@ -29,9 +29,6 @@ class RequestResult:
     text: str | None
     error: str | None
     status: int | None = None
-    text: str | None
-    error: str | None
-    status: int | None = None
 
     @property
     def ok(self) -> bool:

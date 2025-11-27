@@ -28,10 +28,6 @@ class PositionUpdateData:
     max_budget_total_eur: float | None = None
     preferred_bid_eur: float | None = None
     watch: bool | None = None
-    auction_code: str | None = None
-    max_budget_total_eur: float | None = None
-    preferred_bid_eur: float | None = None
-    watch: bool | None = None
 
 
 class PositionsService:

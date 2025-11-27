@@ -118,8 +118,6 @@ class MetricRegistry:
     def __init__(self) -> None:
         self._counters: dict[str, Counter] = {}
         self._histograms: dict[str, Histogram] = {}
-        self._counters: dict[str, Counter] = {}
-        self._histograms: dict[str, Histogram] = {}
         self._lock = threading.Lock()
 
     def counter(self, name: str, help_text: str = "") -> Counter:

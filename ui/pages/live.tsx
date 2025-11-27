@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import Layout from '../components/Layout';
-import { LotSummary, fetchLots } from '../lib/api';
-import { LotEvent, createLotSocket } from '../lib/ws';
+import type { LotView } from '../lib/api';
+import { fetchLots, getLiveSyncStatus, startLiveSync, pauseLiveSync, stopLiveSync } from '../lib/api';
+import type { LotEvent } from '../lib/ws';
+import { createLotSocket } from '../lib/ws';
 
-type LiveLot = LotSummary & {
-  current_bid?: number;
-  started_at?: string;
-  ends_at?: string;
+/**
+ * Extended lot with live WebSocket updates.
+ */
+type LiveLot = LotView & {
+  ws_current_bid?: number;
+  ws_ends_at?: string;
 };
 
 const formatCountdown = (target?: string) => {
@@ -27,18 +31,23 @@ export default function LivePage() {
   const [events, setEvents] = useState<LotEvent[]>([]);
   const [lots, setLots] = useState<Record<string, LiveLot>>({});
   const [refreshing, setRefreshing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string>('unknown');
 
   useEffect(() => {
     fetchLots()
       .then((list) =>
         setLots(
           list.reduce<Record<string, LiveLot>>((memo, lot) => {
-            memo[lot.id] = lot;
+            memo[lot.lot_code] = lot;
             return memo;
           }, {})
         )
       )
       .catch(() => setConnection('error'));
+
+    getLiveSyncStatus()
+      .then((status) => setSyncStatus(status.state ?? 'unknown'))
+      .catch(() => setSyncStatus('error'));
   }, []);
 
   useEffect(() => {
@@ -47,14 +56,11 @@ export default function LivePage() {
         setEvents((current) => [event, ...current].slice(0, 50));
         setLots((current) => ({
           ...current,
-          [event.id]: {
-            ...current[event.id],
-            id: event.id,
-            status: event.status,
-            buyer: event.buyer ?? current[event.id]?.buyer,
-            current_bid: event.current_bid ?? current[event.id]?.current_bid,
-            started_at: event.started_at ?? current[event.id]?.started_at,
-            ends_at: event.ends_at ?? current[event.id]?.ends_at
+          [event.lot_code]: {
+            ...current[event.lot_code],
+            lot_code: event.lot_code,
+            auction_code: event.auction_code,
+            ...event.data,
           }
         }));
       },
@@ -72,12 +78,29 @@ export default function LivePage() {
       const fresh = await fetchLots();
       setLots(
         fresh.reduce<Record<string, LiveLot>>((memo, lot) => {
-          memo[lot.id] = { ...lots[lot.id], ...lot };
+          memo[lot.lot_code] = { ...lots[lot.lot_code], ...lot };
           return memo;
         }, {})
       );
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleSyncControl = async (action: 'start' | 'pause' | 'stop') => {
+    try {
+      if (action === 'start') {
+        await startLiveSync({ auction_url: '', auction_code: 'DEMO', dry_run: false });
+        setSyncStatus('running');
+      } else if (action === 'pause') {
+        await pauseLiveSync();
+        setSyncStatus('paused');
+      } else {
+        await stopLiveSync();
+        setSyncStatus('stopped');
+      }
+    } catch (error) {
+      setSyncStatus('error');
     }
   };
 
@@ -87,29 +110,34 @@ export default function LivePage() {
         <div className="status-row" style={{ justifyContent: 'space-between' }}>
           <div className="status-row" style={{ gap: 8 }}>
             <span className={`badge ${connection === 'error' ? 'error' : ''}`}>WS: {connection}</span>
+            <span className={`badge ${syncStatus === 'error' ? 'error' : ''}`}>Sync: {syncStatus}</span>
             <button className="button" onClick={reloadLots} disabled={refreshing}>
               Herlaad lijst
             </button>
           </div>
-          <span className="muted">{events.length} live events</span>
+          <div className="controls" style={{ gap: 4 }}>
+            <button className="button primary" onClick={() => handleSyncControl('start')}>Start</button>
+            <button className="button" onClick={() => handleSyncControl('pause')}>Pauze</button>
+            <button className="button danger" onClick={() => handleSyncControl('stop')}>Stop</button>
+          </div>
         </div>
       </div>
 
       <div className="live-grid" style={{ marginBottom: 18 }}>
         {liveLots.map((lot) => (
-          <div key={lot.id} className="live-card">
+          <div key={lot.lot_code} className="live-card">
             <div className="status-row" style={{ justifyContent: 'space-between' }}>
               <div>
-                <strong>{lot.title ?? lot.id}</strong>
+                <strong>{lot.title ?? lot.lot_code}</strong>
                 <p className="muted" style={{ margin: '4px 0' }}>
-                  Buyer: {lot.buyer ?? '—'}
+                  {lot.auction_code} • {lot.current_bidder_label ?? 'Geen bieder'}
                 </p>
               </div>
-              <span className={`badge ${lot.status === 'error' ? 'error' : ''}`}>{lot.status ?? '—'}</span>
+              <span className={`badge ${lot.state === 'closed' ? 'error' : ''}`}>{lot.state ?? '—'}</span>
             </div>
             <div className="status-row" style={{ justifyContent: 'space-between', marginTop: 6 }}>
-              <span className="muted">Bod: €{lot.current_bid?.toLocaleString('nl-NL') ?? '—'}</span>
-              <span className="badge warning">Timer: {formatCountdown(lot.ends_at)}</span>
+              <span className="muted">Bod: €{lot.current_bid_eur?.toLocaleString('nl-NL') ?? '—'}</span>
+              <span className="badge warning">Timer: {formatCountdown(lot.closing_time_current ?? undefined)}</span>
             </div>
           </div>
         ))}
@@ -117,12 +145,12 @@ export default function LivePage() {
       </div>
 
       <div className="panel">
-        <h3>Live event feed</h3>
+        <h3>Live event feed ({events.length})</h3>
         <div className="debug-log">
           {events.map((event, index) => (
-            <div key={`${event.id}-${index}`} style={{ marginBottom: 6 }}>
-              <strong>{event.id}</strong> – {event.status}
-              {event.message && <span style={{ marginLeft: 6 }}>({event.message})</span>}
+            <div key={`${event.lot_code}-${index}`} style={{ marginBottom: 6 }}>
+              <strong>{event.lot_code}</strong> ({event.auction_code}) – {event.type}
+              <span className="muted" style={{ marginLeft: 6 }}>{event.timestamp}</span>
             </div>
           ))}
           {events.length === 0 && <div className="muted">Nog geen events ontvangen.</div>}

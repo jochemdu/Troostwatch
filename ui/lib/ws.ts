@@ -1,18 +1,12 @@
-import type { LotEvent as LotEventType } from './types';
-
 /**
- * @deprecated Use LotEvent from types.ts instead.
- * Kept for backward compatibility during migration.
+ * WebSocket client for real-time lot updates.
+ *
+ * Uses LotEvent from types.ts which references the generated LotView type.
  */
-export type LotEvent = {
-  id: string;
-  status: string;
-  current_bid?: number;
-  buyer?: string;
-  started_at?: string;
-  ends_at?: string;
-  message?: string;
-};
+import type { LotEvent } from './types';
+
+// Re-export for convenience
+export type { LotEvent };
 
 type Callback = (event: LotEvent) => void;
 

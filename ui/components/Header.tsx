@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useMemo, useState } from 'react';
-import { triggerControl } from '../lib/api';
+import { startLiveSync, pauseLiveSync, stopLiveSync } from '../lib/api';
 
 const NAV_LINKS = [
   { href: '/lots', label: 'Lots overzicht' },
@@ -27,9 +27,16 @@ export default function Header() {
   const handleControl = async (action: 'start' | 'pause' | 'stop') => {
     setBusyAction(action);
     try {
-      const response = await triggerControl(action);
+      let response;
+      if (action === 'start') {
+        response = await startLiveSync({ auction_url: '', auction_code: 'DEMO', dry_run: false });
+      } else if (action === 'pause') {
+        response = await pauseLiveSync();
+      } else {
+        response = await stopLiveSync();
+      }
       setControlState(response.state ?? action);
-      setMessage(response.detail ?? `Control actie "${action}" verstuurd`);
+      setMessage(`Control actie "${action}" verstuurd`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Onbekende fout';
       setMessage(detail);

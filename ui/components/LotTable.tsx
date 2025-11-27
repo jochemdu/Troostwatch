@@ -1,9 +1,9 @@
-import { LotSummary } from '../lib/api';
+import type { LotView } from '../lib/api';
 
 interface Props {
-  lots: LotSummary[];
+  lots: LotView[];
   selectedLots: Set<string>;
-  onToggleLot: (id: string) => void;
+  onToggleLot: (lotCode: string) => void;
 }
 
 export default function LotTable({ lots, selectedLots, onToggleLot }: Props) {
@@ -18,30 +18,30 @@ export default function LotTable({ lots, selectedLots, onToggleLot }: Props) {
           <tr>
             <th></th>
             <th>Lot</th>
+            <th>Veiling</th>
             <th>Status</th>
-            <th>Buyer</th>
-            <th>Reserve</th>
-            <th>Laatst bijgewerkt</th>
+            <th>Huidig bod</th>
+            <th>Sluit</th>
           </tr>
         </thead>
         <tbody>
           {lots.map((lot) => (
-            <tr key={lot.id}>
+            <tr key={`${lot.auction_code}-${lot.lot_code}`}>
               <td>
                 <input
-                  aria-label={`select-${lot.id}`}
+                  aria-label={`select-${lot.lot_code}`}
                   type="checkbox"
-                  checked={selectedLots.has(lot.id)}
-                  onChange={() => onToggleLot(lot.id)}
+                  checked={selectedLots.has(lot.lot_code)}
+                  onChange={() => onToggleLot(lot.lot_code)}
                 />
               </td>
-              <td>{lot.title ?? lot.id}</td>
+              <td>{lot.title ?? lot.lot_code}</td>
+              <td>{lot.auction_code}</td>
               <td>
-                <span className={`badge ${lot.status === 'error' ? 'error' : ''}`}>{lot.status ?? 'onbekend'}</span>
+                <span className={`badge ${lot.state === 'closed' ? 'error' : ''}`}>{lot.state ?? 'onbekend'}</span>
               </td>
-              <td>{lot.buyer ?? '—'}</td>
-              <td>{lot.reserve ? `€${lot.reserve.toLocaleString('nl-NL')}` : '—'}</td>
-              <td className="muted">{lot.updated_at ? new Date(lot.updated_at).toLocaleString() : '—'}</td>
+              <td>{lot.current_bid_eur ? `€${lot.current_bid_eur.toLocaleString('nl-NL')}` : '—'}</td>
+              <td className="muted">{lot.closing_time_current ? new Date(lot.closing_time_current).toLocaleString() : '—'}</td>
             </tr>
           ))}
           {lots.length === 0 && (

@@ -1,28 +1,28 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import LotTable from '../components/LotTable';
-import { LotFilter, LotSummary, updateLotBatch, fetchFilters, fetchLots } from '../lib/api';
+import type { LotView } from '../lib/api';
+import { fetchLots } from '../lib/api';
+
+// Available filter options (hardcoded for now, could be fetched from API)
+const STATE_OPTIONS = ['scheduled', 'running', 'closed'] as const;
 
 export default function LotsPage() {
-  const [filters, setFilters] = useState<LotFilter[]>([]);
-  const [activeFilters, setActiveFilters] = useState<Record<string, string | undefined>>({});
-  const [lots, setLots] = useState<LotSummary[]>([]);
+  const [stateFilter, setStateFilter] = useState<string | undefined>(undefined);
+  const [auctionFilter, setAuctionFilter] = useState<string>('');
+  const [lots, setLots] = useState<LotView[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedLots, setSelectedLots] = useState<Set<string>>(new Set());
-  const [batchStatus, setBatchStatus] = useState<string>('ready');
   const [feedback, setFeedback] = useState<string>('');
-
-  useEffect(() => {
-    fetchFilters()
-      .then(setFilters)
-      .catch((error) => setFeedback(error instanceof Error ? error.message : 'Filters laden mislukt'));
-  }, []);
 
   useEffect(() => {
     const run = async () => {
       setLoading(true);
       try {
-        const data = await fetchLots(activeFilters);
+        const data = await fetchLots({
+          state: stateFilter,
+          auction_code: auctionFilter || undefined,
+        });
         setLots(data);
       } catch (error) {
         const detail = error instanceof Error ? error.message : 'Lots laden mislukt';
@@ -33,88 +33,78 @@ export default function LotsPage() {
     };
 
     run();
-  }, [activeFilters]);
+  }, [stateFilter, auctionFilter]);
 
-  const toggleFilter = (name: string, value: string) => {
-    setActiveFilters((current) => ({
-      ...current,
-      [name]: current[name] === value ? undefined : value
-    }));
-  };
-
-  const toggleLot = (id: string) => {
+  const toggleLot = (lotCode: string) => {
     setSelectedLots((current) => {
       const next = new Set(current);
-      if (next.has(id)) {
-        next.delete(id);
+      if (next.has(lotCode)) {
+        next.delete(lotCode);
       } else {
-        next.add(id);
+        next.add(lotCode);
       }
       return next;
     });
   };
 
-  const runBatchUpdate = async () => {
-    if (selectedLots.size === 0) {
-      setFeedback('Selecteer eerst minimaal één lot.');
-      return;
-    }
-
-    setFeedback('');
+  const refreshLots = async () => {
+    setLoading(true);
     try {
-      const response = await updateLotBatch({
-        lot_ids: Array.from(selectedLots),
-        updates: { status: batchStatus }
+      const data = await fetchLots({
+        state: stateFilter,
+        auction_code: auctionFilter || undefined,
       });
-      setFeedback(`${response.updated} lots bijgewerkt naar status "${batchStatus}".`);
-      const refreshed = await fetchLots(activeFilters);
-      setLots(refreshed);
+      setLots(data);
+      setFeedback(`${data.length} lots geladen.`);
     } catch (error) {
-      const detail = error instanceof Error ? error.message : 'Batch update mislukt';
+      const detail = error instanceof Error ? error.message : 'Lots laden mislukt';
       setFeedback(detail);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const appliedFilters = useMemo(() =>
-    filters.map((filter) => ({
-      ...filter,
-      selected: activeFilters[filter.name]
-    })),
-  [filters, activeFilters]);
-
   return (
-    <Layout title="Lots" subtitle="Filter, selecteer en update batches">
+    <Layout title="Lots" subtitle="Filter en bekijk lots">
       <div className="panel" style={{ marginBottom: 18 }}>
         <h2 style={{ marginTop: 0 }}>Filters</h2>
-        <div className="controls">
-          {appliedFilters.flatMap((filter) =>
-            filter.values.map((value) => (
-              <button
-                key={`${filter.name}-${value}`}
-                className={`button ${activeFilters[filter.name] === value ? 'primary' : ''}`}
-                onClick={() => toggleFilter(filter.name, value)}
-              >
-                {filter.name}: {value}
-              </button>
-            ))
-          )}
-        </div>
-        {feedback && <p className="muted" style={{ marginTop: 12 }}>{feedback}</p>}
-      </div>
-
-      <div className="panel" style={{ marginBottom: 18 }}>
         <div className="form-row">
           <div>
-            <label>Nieuwe status voor batch</label>
-            <input value={batchStatus} onChange={(event) => setBatchStatus(event.target.value)} />
+            <label>Status</label>
+            <div className="controls">
+              <button
+                className={`button ${stateFilter === undefined ? 'primary' : ''}`}
+                onClick={() => setStateFilter(undefined)}
+              >
+                Alle
+              </button>
+              {STATE_OPTIONS.map((state) => (
+                <button
+                  key={state}
+                  className={`button ${stateFilter === state ? 'primary' : ''}`}
+                  onClick={() => setStateFilter(state)}
+                >
+                  {state}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label>Veiling code</label>
+            <input
+              value={auctionFilter}
+              onChange={(event) => setAuctionFilter(event.target.value)}
+              placeholder="bijv. ABC123"
+            />
           </div>
           <div>
             <label>&nbsp;</label>
-            <button className="button primary" onClick={runBatchUpdate} disabled={loading}>
-              Batch update
+            <button className="button" onClick={refreshLots} disabled={loading}>
+              Ververs
             </button>
           </div>
         </div>
+        {feedback && <p className="muted" style={{ marginTop: 12 }}>{feedback}</p>}
       </div>
 
       {loading ? (

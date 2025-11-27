@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Layout from '../components/Layout';
-import { BuyerPayload, LotSummary, loadDebugSample, triggerControl, updateLotBatch } from '../lib/api';
+import type { LotView, BuyerResponse } from '../lib/api';
+import { loadDebugSample, startLiveSync, pauseLiveSync, stopLiveSync } from '../lib/api';
 
 export default function DebugPage() {
   const [payload, setPayload] = useState<string>('');
@@ -20,17 +21,13 @@ export default function DebugPage() {
     }
   };
 
-  const runBatchExample = async () => {
+  const runPayloadTest = async () => {
     setLoading(true);
     try {
-      const parsed = (payload ? JSON.parse(payload) : {}) as Partial<LotSummary & BuyerPayload>;
-      const result = await updateLotBatch({
-        lot_ids: parsed.id ? [String(parsed.id)] : ['demo-lot'],
-        updates: { status: parsed.status ?? 'debug' }
-      });
-      setOutput(`Batch response: ${JSON.stringify(result)}`);
+      const parsed = payload ? JSON.parse(payload) : {};
+      setOutput(`Parsed payload: ${JSON.stringify(parsed, null, 2)}`);
     } catch (error) {
-      const detail = error instanceof Error ? error.message : 'Kon batch niet uitvoeren';
+      const detail = error instanceof Error ? error.message : 'Ongeldige JSON';
       setOutput(detail);
     } finally {
       setLoading(false);
@@ -40,8 +37,15 @@ export default function DebugPage() {
   const sendControl = async (action: 'start' | 'pause' | 'stop') => {
     setLoading(true);
     try {
-      const result = await triggerControl(action);
-      setOutput(`Control: ${JSON.stringify(result)}`);
+      let result;
+      if (action === 'start') {
+        result = await startLiveSync({ auction_url: '', auction_code: 'DEBUG', dry_run: false });
+      } else if (action === 'pause') {
+        result = await pauseLiveSync();
+      } else {
+        result = await stopLiveSync();
+      }
+      setOutput(`Control: ${JSON.stringify(result, null, 2)}`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Control call mislukt';
       setOutput(detail);
@@ -61,11 +65,11 @@ export default function DebugPage() {
           placeholder='{"id":"lot-1","status":"sold"}'
         />
         <div className="controls">
-          <button className="button primary" onClick={runBatchExample} disabled={loading}>
-            Test batch update
+          <button className="button primary" onClick={runPayloadTest} disabled={loading}>
+            Test JSON parse
           </button>
           <button className="button" onClick={runSampleLoad} disabled={loading}>
-            Haal filters/lots/buyers op
+            Haal lots/buyers op
           </button>
         </div>
       </div>

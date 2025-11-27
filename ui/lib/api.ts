@@ -1,52 +1,45 @@
+/**
+ * API client for Troostwatch UI.
+ *
+ * All types are imported from the generated OpenAPI types to ensure
+ * type safety across the frontend-backend boundary.
+ *
+ * @see ui/lib/generated/api-types.ts for the generated types
+ * @see troostwatch/app/api.py for the FastAPI backend
+ */
 import type {
   LotView,
   BuyerResponse,
   BuyerCreateRequest,
   BuyerCreateResponse,
   LiveSyncControlResponse,
+  LiveSyncStatusResponse,
+  LiveSyncStartRequest,
+  SyncSummaryResponse,
+  SyncRequest,
+  PositionBatchRequest,
+  PositionBatchResponse,
 } from './generated';
 
-/**
- * Filter option for lot queries.
- * UI-specific type for filter dropdowns.
- */
-export interface LotFilter {
-  name: string;
-  values: string[];
-}
+// Re-export types for convenience
+export type { LotView, BuyerResponse, BuyerCreateRequest, BuyerCreateResponse };
+
+// =============================================================================
+// UI-specific Types (not in OpenAPI, used for local state/props)
+// =============================================================================
 
 /**
- * @deprecated Use LotView from generated types instead.
- * Kept for backward compatibility during migration.
+ * Query parameters for fetching lots.
  */
-export interface LotSummary {
-  id: string;
-  title?: string;
-  status?: string;
-  buyer?: string;
-  reserve?: number;
-  updated_at?: string;
+export interface LotQueryParams {
+  auction_code?: string;
+  state?: string;
+  limit?: number;
 }
 
-/**
- * Request payload for batch lot updates.
- */
-export interface LotUpdateBody {
-  lot_ids: string[];
-  updates: Record<string, unknown>;
-}
-
-/**
- * @deprecated Use BuyerResponse/BuyerCreateRequest from generated types.
- * Kept for backward compatibility during migration.
- */
-export interface BuyerPayload {
-  id?: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  notes?: string;
-}
+// =============================================================================
+// API Client Configuration
+// =============================================================================
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000';
 
@@ -59,76 +52,164 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function fetchFilters(): Promise<LotFilter[]> {
-  const response = await fetch(`${API_BASE}/filters`);
-  return handleResponse(response);
-}
+// =============================================================================
+// Lot Endpoints (GET /lots)
+// =============================================================================
 
-export async function fetchLots(filters?: Record<string, string | undefined>): Promise<LotSummary[]> {
+/**
+ * Fetch lots from the API with optional filters.
+ * @see GET /lots in troostwatch/app/api.py
+ */
+export async function fetchLots(params?: LotQueryParams): Promise<LotView[]> {
   const url = new URL(`${API_BASE}/lots`);
 
-  Object.entries(filters ?? {}).forEach(([key, value]) => {
-    if (value) {
-      url.searchParams.append(key, value);
-    }
-  });
+  if (params?.auction_code) {
+    url.searchParams.append('auction_code', params.auction_code);
+  }
+  if (params?.state) {
+    url.searchParams.append('state', params.state);
+  }
+  if (params?.limit) {
+    url.searchParams.append('limit', params.limit.toString());
+  }
 
   const response = await fetch(url.toString());
-  return handleResponse(response);
+  return handleResponse<LotView[]>(response);
 }
 
-export async function updateLotBatch(body: LotUpdateBody): Promise<{ updated: number }> {
-  const response = await fetch(`${API_BASE}/lots/batch-update`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
+// =============================================================================
+// Buyer Endpoints (GET/POST/DELETE /buyers)
+// =============================================================================
 
-  return handleResponse(response);
-}
-
-export async function fetchBuyers(): Promise<BuyerPayload[]> {
+/**
+ * Fetch all buyers.
+ * @see GET /buyers in troostwatch/app/api.py
+ */
+export async function fetchBuyers(): Promise<BuyerResponse[]> {
   const response = await fetch(`${API_BASE}/buyers`);
-  return handleResponse(response);
+  return handleResponse<BuyerResponse[]>(response);
 }
 
-export async function createBuyer(buyer: BuyerPayload): Promise<BuyerPayload> {
+/**
+ * Create a new buyer.
+ * @see POST /buyers in troostwatch/app/api.py
+ */
+export async function createBuyer(buyer: BuyerCreateRequest): Promise<BuyerCreateResponse> {
   const response = await fetch(`${API_BASE}/buyers`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(buyer)
   });
 
-  return handleResponse(response);
+  return handleResponse<BuyerCreateResponse>(response);
 }
 
-export async function updateBuyer(id: string, buyer: BuyerPayload): Promise<BuyerPayload> {
-  const response = await fetch(`${API_BASE}/buyers/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buyer)
-  });
-
-  return handleResponse(response);
-}
-
-export async function deleteBuyer(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/buyers/${id}`, {
+/**
+ * Delete a buyer by label.
+ * @see DELETE /buyers/{label} in troostwatch/app/api.py
+ */
+export async function deleteBuyer(label: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/buyers/${label}`, {
     method: 'DELETE'
   });
 
-  await handleResponse(response);
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || 'Delete failed');
+  }
 }
 
-export async function triggerControl(action: 'start' | 'pause' | 'stop'): Promise<{ state: string; detail?: string }> {
-  const response = await fetch(`${API_BASE}/control/${action}`, {
+// =============================================================================
+// Sync Endpoints (/sync, /live-sync/*)
+// =============================================================================
+
+/**
+ * Trigger a sync for an auction.
+ * @see POST /sync in troostwatch/app/api.py
+ */
+export async function triggerSync(request: SyncRequest): Promise<SyncSummaryResponse> {
+  const response = await fetch(`${API_BASE}/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  });
+
+  return handleResponse<SyncSummaryResponse>(response);
+}
+
+/**
+ * Start live sync for an auction.
+ * @see POST /live-sync/start in troostwatch/app/api.py
+ */
+export async function startLiveSync(request: LiveSyncStartRequest): Promise<LiveSyncControlResponse> {
+  const response = await fetch(`${API_BASE}/live-sync/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  });
+
+  return handleResponse<LiveSyncControlResponse>(response);
+}
+
+/**
+ * Pause live sync.
+ * @see POST /live-sync/pause in troostwatch/app/api.py
+ */
+export async function pauseLiveSync(): Promise<LiveSyncControlResponse> {
+  const response = await fetch(`${API_BASE}/live-sync/pause`, {
     method: 'POST'
   });
 
-  return handleResponse(response);
+  return handleResponse<LiveSyncControlResponse>(response);
 }
 
-export async function loadDebugSample(): Promise<{ filters: LotFilter[]; lots: LotSummary[]; buyers: BuyerPayload[] }> {
-  const [filters, lots, buyers] = await Promise.all([fetchFilters(), fetchLots(), fetchBuyers()]);
-  return { filters, lots, buyers };
+/**
+ * Stop live sync.
+ * @see POST /live-sync/stop in troostwatch/app/api.py
+ */
+export async function stopLiveSync(): Promise<LiveSyncControlResponse> {
+  const response = await fetch(`${API_BASE}/live-sync/stop`, {
+    method: 'POST'
+  });
+
+  return handleResponse<LiveSyncControlResponse>(response);
+}
+
+/**
+ * Get live sync status.
+ * @see GET /live-sync/status in troostwatch/app/api.py
+ */
+export async function getLiveSyncStatus(): Promise<LiveSyncStatusResponse> {
+  const response = await fetch(`${API_BASE}/live-sync/status`);
+  return handleResponse<LiveSyncStatusResponse>(response);
+}
+
+// =============================================================================
+// Position Endpoints (POST /positions/batch)
+// =============================================================================
+
+/**
+ * Batch update positions.
+ * @see POST /positions/batch in troostwatch/app/api.py
+ */
+export async function updatePositionsBatch(request: PositionBatchRequest): Promise<PositionBatchResponse> {
+  const response = await fetch(`${API_BASE}/positions/batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  });
+
+  return handleResponse<PositionBatchResponse>(response);
+}
+
+// =============================================================================
+// Debug/Sample Helpers
+// =============================================================================
+
+/**
+ * Load sample data for debugging (lots + buyers).
+ */
+export async function loadDebugSample(): Promise<{ lots: LotView[]; buyers: BuyerResponse[] }> {
+  const [lots, buyers] = await Promise.all([fetchLots(), fetchBuyers()]);
+  return { lots, buyers };
 }

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
-import { BuyerPayload, createBuyer, deleteBuyer, fetchBuyers, updateBuyer } from '../lib/api';
+import type { BuyerResponse, BuyerCreateRequest } from '../lib/api';
+import { createBuyer, deleteBuyer, fetchBuyers } from '../lib/api';
 
-const emptyBuyer: BuyerPayload = { name: '', email: '', phone: '', notes: '' };
+const emptyForm: BuyerCreateRequest = { label: '', name: '', notes: '' };
 
 export default function BuyersPage() {
-  const [buyers, setBuyers] = useState<BuyerPayload[]>([]);
-  const [form, setForm] = useState<BuyerPayload>(emptyBuyer);
-  const [editing, setEditing] = useState<string | null>(null);
+  const [buyers, setBuyers] = useState<BuyerResponse[]>([]);
+  const [form, setForm] = useState<BuyerCreateRequest>(emptyForm);
   const [feedback, setFeedback] = useState<string>('');
 
   const loadBuyers = async () => {
@@ -25,66 +25,68 @@ export default function BuyersPage() {
   }, []);
 
   const handleSubmit = async () => {
+    if (!form.label.trim()) {
+      setFeedback('Label is verplicht.');
+      return;
+    }
     setFeedback('');
     try {
-      if (editing) {
-        const updated = await updateBuyer(editing, form);
-        setBuyers((current) => current.map((buyer) => (buyer.id === editing ? updated : buyer)));
-        setEditing(null);
-      } else {
-        const created = await createBuyer(form);
-        setBuyers((current) => [created, ...current]);
-      }
-      setForm(emptyBuyer);
+      await createBuyer(form);
+      setFeedback(`Buyer "${form.label}" aangemaakt.`);
+      setForm(emptyForm);
+      await loadBuyers();
     } catch (error) {
       const detail = error instanceof Error ? error.message : 'Buyer opslaan mislukt';
       setFeedback(detail);
     }
   };
 
-  const handleDelete = async (id?: string) => {
-    if (!id) return;
-    await deleteBuyer(id);
-    setBuyers((current) => current.filter((buyer) => buyer.id !== id));
-  };
-
-  const startEdit = (buyer: BuyerPayload) => {
-    setForm({ ...buyer });
-    setEditing(buyer.id ?? null);
+  const handleDelete = async (label: string) => {
+    try {
+      await deleteBuyer(label);
+      setBuyers((current) => current.filter((buyer) => buyer.label !== label));
+      setFeedback(`Buyer "${label}" verwijderd.`);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'Verwijderen mislukt';
+      setFeedback(detail);
+    }
   };
 
   return (
-    <Layout title="Buyers" subtitle="Beheer buyer-mutaties">
+    <Layout title="Buyers" subtitle="Beheer buyers">
       <div className="panel" style={{ marginBottom: 18 }}>
         <div className="form-row">
           <div>
-            <label>Naam</label>
-            <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+            <label>Label (uniek ID)</label>
+            <input
+              value={form.label}
+              onChange={(event) => setForm({ ...form, label: event.target.value })}
+              placeholder="bijv. buyer-alpha"
+            />
           </div>
           <div>
-            <label>Email</label>
-            <input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+            <label>Naam</label>
+            <input
+              value={form.name ?? ''}
+              onChange={(event) => setForm({ ...form, name: event.target.value || undefined })}
+              placeholder="Alpha Industries"
+            />
           </div>
         </div>
         <div className="form-row">
-          <div>
-            <label>Telefoon</label>
-            <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
-          </div>
-          <div>
+          <div style={{ flex: 2 }}>
             <label>Notities</label>
-            <input value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
+            <input
+              value={form.notes ?? ''}
+              onChange={(event) => setForm({ ...form, notes: event.target.value || undefined })}
+              placeholder="Optionele notities..."
+            />
           </div>
         </div>
         <div className="controls">
           <button className="button primary" onClick={handleSubmit}>
-            {editing ? 'Bewaar wijziging' : 'Maak buyer'}
+            Maak buyer
           </button>
-          {editing && (
-            <button className="button" onClick={() => { setEditing(null); setForm(emptyBuyer); }}>
-              Annuleer
-            </button>
-          )}
         </div>
         {feedback && <p className="muted" style={{ marginTop: 12 }}>{feedback}</p>}
       </div>
@@ -97,32 +99,37 @@ export default function BuyersPage() {
         <table className="table">
           <thead>
             <tr>
+              <th>Label</th>
               <th>Naam</th>
-              <th>Email</th>
-              <th>Telefoon</th>
               <th>Notities</th>
+              <th>Aangemaakt</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {buyers.map((buyer) => (
-              <tr key={buyer.id ?? buyer.name}>
-                <td>{buyer.name}</td>
-                <td>{buyer.email ?? '—'}</td>
-                <td>{buyer.phone ?? '—'}</td>
+              <tr key={buyer.label}>
+                <td><code>{buyer.label}</code></td>
+                <td>{buyer.name ?? '—'}</td>
                 <td>{buyer.notes ?? '—'}</td>
+                <td className="muted">
+                  {/* Note: created_at not in current API schema */}
+                  —
+                </td>
                 <td>
                   <div className="table-actions">
-                    <button className="button" onClick={() => startEdit(buyer)}>
-                      Bewerk
-                    </button>
-                    <button className="button danger" onClick={() => handleDelete(buyer.id)}>
+                    <button className="button danger" onClick={() => handleDelete(buyer.label)}>
                       Verwijder
                     </button>
                   </div>
                 </td>
               </tr>
             ))}
+            {buyers.length === 0 && (
+              <tr>
+                <td colSpan={5} className="muted">Geen buyers gevonden.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

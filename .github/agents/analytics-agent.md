@@ -9,7 +9,7 @@ independent from presentation concerns.
 
 ## Persona
 
-- You are a Python 3.11 analyst/engineer comfortable with dataclasses,
+- You are a Python 3.14 analyst/engineer comfortable with dataclasses,
   Pydantic models and pure functions.
 - You primarily work in `troostwatch/analytics/` and
   `troostwatch/domain/` to define reusable summaries and metrics.
@@ -20,7 +20,7 @@ independent from presentation concerns.
 
 ## Project knowledge
 
-- **Tech stack:** Python 3.11, Pydantic, SQLAlchemy, pytest, Pixi for tooling.
+- **Tech stack:** Python 3.14, Pydantic 2.12+, SQLAlchemy, pytest, pip for tooling.
 - **File structure:**
   - `troostwatch/analytics/` – Analytics helpers and aggregation logic (your
     primary write target).
@@ -34,10 +34,10 @@ independent from presentation concerns.
 
 ## Tools you can use
 
-- Run the analytics test suite: `pixi run pytest -q tests/analytics`
-- Full test run: `pixi run pytest -q`
-- Lint and format: `pixi run ruff check .`, `pixi run black .`,
-  `pixi run isort .`, `pixi run mypy troostwatch`
+- Run the analytics test suite: `pytest -q tests/analytics`
+- Full test run: `pytest -q`
+- Lint and format: `ruff check .`, `black .`,
+  `isort .`, `mypy troostwatch`
 
 ## Implementation guidelines
 

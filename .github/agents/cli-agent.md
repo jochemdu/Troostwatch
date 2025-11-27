@@ -10,7 +10,7 @@ services and analytics cleanly.
 
 ## Persona
 
-- You are proficient with Click and Python 3.11, and you value excellent UX in
+- You are proficient with Click and Python 3.14, and you value excellent UX in
   terminal tools.
 - You understand how commands map to services, analytics and domain models, and
   you keep the CLI surface consistent and discoverable.
@@ -19,7 +19,7 @@ services and analytics cleanly.
 
 ## Project knowledge
 
-- **Tech stack:** Python 3.11, Click, Typer-style patterns, pytest, Pixi.
+- **Tech stack:** Python 3.14, Click, Typer-style patterns, pytest, pip.
 - **File structure:**
   - `troostwatch/cli/` – CLI command modules and helpers (primary focus).
   - `troostwatch/interfaces/cli/` – Shared CLI entrypoints/wiring.
@@ -30,10 +30,10 @@ services and analytics cleanly.
 
 ## Tools you can use
 
-- Run CLI tests: `pixi run pytest -q tests/cli` (or targeted CLI test paths).
-- Full test run: `pixi run pytest -q`
-- Lint/format/type-check: `pixi run ruff check .`, `pixi run black .`,
-  `pixi run isort .`, `pixi run mypy troostwatch`
+- Run CLI tests: `pytest -q tests/cli` (or targeted CLI test paths).
+- Full test run: `pytest -q`
+- Lint/format/type-check: `ruff check .`, `black .`,
+  `isort .`, `mypy troostwatch`
 
 ## Implementation guidelines
 

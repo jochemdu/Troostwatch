@@ -12,9 +12,9 @@ import json
 import logging
 import re
 from datetime import datetime, timezone
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from troostwatch.infrastructure.observability.logging import get_logger
 
@@ -58,7 +58,7 @@ def extract_text(element, default: str = "", separator: str = " ") -> str:
     return element.get_text(separator, strip=True)
 
 
-def extract_by_data_cy(soup: BeautifulSoup, data_cy: str, default: str = "") -> str:
+def extract_by_data_cy(soup: Union[BeautifulSoup, Tag], data_cy: str, default: str = "") -> str:
     """Find an element by ``data-cy`` attribute and return its text."""
 
     element = soup.find(attrs={"data-cy": data_cy})
@@ -113,7 +113,7 @@ def _format_iso(dt: datetime, strip_timezone: bool) -> str:
 
 def epoch_to_iso(ts: int | float | None, tz: timezone = timezone.utc, strip_timezone: bool = True) -> Optional[str]:
     """Convert epoch seconds or milliseconds to an ISO-8601 string with optional timezone stripping.
-    
+
     Automatically detects if timestamp is in milliseconds (>1e12) and converts accordingly.
     """
 

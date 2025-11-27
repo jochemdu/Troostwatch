@@ -1,54 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
-import { fetchBuyers, fetchLots } from '../lib/api';
+import { fetchBuyers, fetchLots, fetchPositions, createPosition, deletePosition, type Position } from '../lib/api';
 import type { BuyerResponse, LotView } from '../lib/api';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000';
-
-interface Position {
-  id: number;
-  buyer_label: string;
-  lot_code: string;
-  auction_code: string | null;
-  max_budget_total_eur: number | null;
-  preferred_bid_eur: number | null;
-  track_active: boolean;
-  lot_title: string | null;
-  current_bid_eur: number | null;
-  closing_time: string | null;
-}
-
-async function fetchPositions(buyer?: string): Promise<Position[]> {
-  const url = new URL(`${API_BASE}/positions`);
-  if (buyer) url.searchParams.append('buyer', buyer);
-  const response = await fetch(url.toString());
-  if (!response.ok) throw new Error('Failed to fetch positions');
-  return response.json();
-}
-
-async function createPosition(data: {
-  buyer_label: string;
-  lot_code: string;
-  auction_code?: string;
-  max_budget_total_eur?: number;
-}): Promise<void> {
-  const response = await fetch(`${API_BASE}/positions/batch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ updates: [data] }),
-  });
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || 'Failed to create position');
-  }
-}
-
-async function deletePosition(buyerLabel: string, lotCode: string, auctionCode?: string): Promise<void> {
-  const url = new URL(`${API_BASE}/positions/${buyerLabel}/${lotCode}`);
-  if (auctionCode) url.searchParams.append('auction_code', auctionCode);
-  const response = await fetch(url.toString(), { method: 'DELETE' });
-  if (!response.ok) throw new Error('Failed to delete position');
-}
 
 export default function PositionsPage() {
   const [positions, setPositions] = useState<Position[]>([]);

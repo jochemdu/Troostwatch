@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import asdict
-from typing import Awaitable, Callable, Optional
+from typing import Optional
 
+from troostwatch.services.dto import EventPublisher
 from . import sync as sync_module
-
-EventPublisher = Callable[[dict[str, object]], Awaitable[None]]
 
 
 async def sync_auction(
@@ -27,7 +26,11 @@ async def sync_auction(
         dry_run=dry_run,
     )
 
-    payload = {"type": "sync_finished", "auction_code": auction_code, "result": asdict(result)}
+    payload: dict[str, object] = {
+        "type": "sync_finished",
+        "auction_code": auction_code,
+        "result": asdict(result),
+    }
     if event_publisher:
         await event_publisher(payload)
     return payload

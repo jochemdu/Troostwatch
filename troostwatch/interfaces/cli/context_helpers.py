@@ -18,11 +18,11 @@ from troostwatch.infrastructure.db.repositories import (
 
 def load_auctions(db_path: str, active_only: bool = True) -> List[Dict]:
     """Load auctions from the database.
-    
+
     Args:
         db_path: Path to the database file.
         active_only: If True, only return active auctions.
-        
+
     Returns:
         List of auction dictionaries.
     """
@@ -33,11 +33,11 @@ def load_auctions(db_path: str, active_only: bool = True) -> List[Dict]:
 
 def load_lots_for_auction(db_path: str, auction_code: str) -> Sequence[str]:
     """Load lot codes for a specific auction.
-    
+
     Args:
         db_path: Path to the database file.
         auction_code: The auction code to filter by.
-        
+
     Returns:
         Sequence of lot code strings.
     """
@@ -48,11 +48,11 @@ def load_lots_for_auction(db_path: str, auction_code: str) -> Sequence[str]:
 
 def get_preference(db_path: str, key: str) -> Optional[str]:
     """Get a preference value from the database.
-    
+
     Args:
         db_path: Path to the database file.
         key: The preference key.
-        
+
     Returns:
         The preference value or None if not set.
     """

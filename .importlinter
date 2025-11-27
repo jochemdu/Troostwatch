@@ -55,6 +55,7 @@ ignore_imports =
     troostwatch.interfaces.cli.context -> troostwatch.infrastructure.http
     troostwatch.interfaces.cli.context -> troostwatch.infrastructure.db
     troostwatch.interfaces.cli.context -> troostwatch.infrastructure.db.repositories
+    troostwatch.interfaces.cli.context -> troostwatch.infrastructure.db.repositories.base
     troostwatch.interfaces.cli.context_helpers -> troostwatch.infrastructure.db.repositories
     troostwatch.interfaces.cli.auth -> troostwatch.infrastructure.http
     troostwatch.interfaces.cli.debug -> troostwatch.infrastructure.diagnostics.debug_tools

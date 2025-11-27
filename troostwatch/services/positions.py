@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
+import sqlite3
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
-from typing import Awaitable, Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import PositionRepository
 from troostwatch.infrastructure.observability import get_logger, log_context
+from troostwatch.services.dto import EventPublisher, PositionDTO
 
 _logger = get_logger(__name__)
 
-ConnectionFactory = Callable[[], AbstractContextManager]
-EventPublisher = Callable[[dict[str, object]], Awaitable[None]]
+ConnectionFactory = Callable[[], AbstractContextManager[sqlite3.Connection]]
 
 
 @dataclass
@@ -29,7 +30,7 @@ class PositionUpdateData:
 
 
 class PositionsService:
-    """Service layer for creating, listing and deleting positions."""
+    """Service layer for creating, listing and deleting positions using DTOs."""
 
     def __init__(self, connection_factory: ConnectionFactory) -> None:
         self._connection_factory = connection_factory
@@ -70,12 +71,32 @@ class PositionsService:
 
     def list_positions(
         self, *, buyer_label: Optional[str] = None
-    ) -> List[Dict[str, object]]:
-        """List positions, optionally filtered by buyer label."""
+    ) -> List[PositionDTO]:
+        """List positions, optionally filtered by buyer label, as DTOs."""
 
         with self._connection_factory() as conn:
             ensure_schema(conn)
-            return PositionRepository(conn).list(buyer_label=buyer_label)
+            rows = PositionRepository(conn).list(buyer_label=buyer_label)
+            return [self._row_to_dto(row) for row in rows]
+
+    @staticmethod
+    def _row_to_dto(row: Dict[str, Optional[str]]) -> PositionDTO:
+        """Convert a repository row to a PositionDTO with proper type coercion."""
+        max_budget = row.get("max_budget_total_eur")
+        my_highest = row.get("my_highest_bid_eur")
+        current_bid = row.get("current_bid_eur")
+
+        return PositionDTO(
+            buyer_label=str(row.get("buyer_label") or ""),
+            lot_code=str(row.get("lot_code") or ""),
+            auction_code=row.get("auction_code"),
+            track_active=bool(row.get("track_active", True)),
+            max_budget_total_eur=float(max_budget) if max_budget else None,
+            my_highest_bid_eur=float(my_highest) if my_highest else None,
+            lot_title=row.get("lot_title"),
+            lot_state=row.get("lot_state"),
+            current_bid_eur=float(current_bid) if current_bid else None,
+        )
 
     def delete_position(
         self, *, buyer_label: str, auction_code: str, lot_code: str
@@ -118,7 +139,7 @@ def list_positions(
     db_path: str,
     buyer_label: Optional[str] = None,
     connection_factory: Optional[ConnectionFactory] = None,
-) -> List[Dict[str, object]]:
+) -> List[PositionDTO]:
     """Return tracked positions using a SQLite-backed service."""
 
     service = _resolve_service(db_path=db_path, connection_factory=connection_factory)

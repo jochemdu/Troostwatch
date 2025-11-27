@@ -1,14 +1,19 @@
 """Database facade for the infrastructure layer.
 
-Re-exports the legacy :mod:`troostwatch.db` helpers so call sites can migrate to
-``troostwatch.infrastructure.persistence.db`` while retaining behaviour.
+Re-exports the database helpers from ``troostwatch.infrastructure.db``
+so call sites can use ``troostwatch.infrastructure.persistence.db``.
 """
 
-import troostwatch.db as _legacy_db
-from troostwatch.db import *  # noqa: F401,F403
+from troostwatch.infrastructure.db import (
+    ensure_schema,
+    get_connection,
+    get_path_config,
+    iso_utcnow,
+)
 
-__all__ = getattr(_legacy_db, "__all__", []) or [
-    name
-    for name in dir(_legacy_db)
-    if not name.startswith("_")
+__all__ = [
+    "ensure_schema",
+    "get_connection",
+    "get_path_config",
+    "iso_utcnow",
 ]

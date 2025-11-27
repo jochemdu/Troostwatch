@@ -23,7 +23,13 @@ console = Console()
 @click.option("--lot-code", required=True, help="The lot code (e.g. A1-12345-1).")
 @click.option("--title", required=True, help="Lot title.")
 @click.option("--url", "lot_url", help="Lot detail URL.")
-@click.option("--state", type=click.Choice(["running", "scheduled", "closed", ""], case_sensitive=False), default="", show_default=False, help="Lot state.")
+@click.option(
+    "--state",
+    type=click.Choice(["running", "scheduled", "closed", ""], case_sensitive=False),
+    default="",
+    show_default=False,
+    help="Lot state.",
+)
 @click.option("--opens-at", help="Opening timestamp (ISO format).")
 @click.option("--closing-time", help="Closing timestamp (ISO format).")
 @click.option("--bid-count", type=int, help="Number of bids.")
@@ -76,4 +82,3 @@ def add_lot(
         service.add_lot(lot_input, seen_at)
 
     console.print(f"[green]Stored lot {lot_code} for auction {auction_code} in {db_path}[/green]")
-

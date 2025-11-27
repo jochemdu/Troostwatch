@@ -6,7 +6,7 @@ Run with ``uvicorn troostwatch.app.api:app``.
 from __future__ import annotations
 
 import asyncio
-from typing import Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional, cast
 
 from fastapi import (
     Depends,
@@ -20,21 +20,22 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from troostwatch import __version__
 from troostwatch.app.dependencies import (
-    get_buyer_repository,
-    get_lot_repository,
-    get_position_repository,
-    BuyerRepository,
-    LotRepository,
-    PositionRepository,
+    # Annotated dependency types (modern FastAPI pattern)
+    LotRepositoryDep,
+    BuyerRepositoryDep,
+    PositionRepositoryDep,
+    AuctionRepositoryDep,
+    BidRepositoryDep,
 )
-from troostwatch.infrastructure.db.repositories import BidRepository
-from troostwatch.infrastructure.db import get_connection
 from troostwatch.services import positions as position_service
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
 from troostwatch.services.lots import LotInput, LotManagementService, LotView, LotViewService
 from troostwatch.services.reporting import ReportingService
 from troostwatch.services.sync_service import SyncService
+from troostwatch.services.dto import BuyerCreateDTO
+from troostwatch.services.positions import PositionUpdateData
 
 
 class LotEventBus:
@@ -67,8 +68,6 @@ class LotEventBus:
         for subscriber in stale:
             await self.unsubscribe(subscriber)
 
-
-from troostwatch import __version__
 
 event_bus = LotEventBus()
 sync_service = SyncService(event_publisher=event_bus.publish)
@@ -103,19 +102,25 @@ async def root():
 
 
 def get_buyer_service(
-    repository: BuyerRepository = Depends(get_buyer_repository),
+    repository: BuyerRepositoryDep,
 ) -> BuyerService:
     return BuyerService(repository=repository, event_publisher=event_bus.publish)
 
 
 def get_lot_view_service(
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> LotViewService:
     return LotViewService(lot_repository)
 
 
 def get_sync_service() -> SyncService:
     return sync_service
+
+
+# Annotated service dependency types
+BuyerServiceDep = Annotated[BuyerService, Depends(get_buyer_service)]
+LotViewServiceDep = Annotated[LotViewService, Depends(get_lot_view_service)]
+SyncServiceDep = Annotated[SyncService, Depends(get_sync_service)]
 
 
 class BuyerCreateRequest(BaseModel):
@@ -148,16 +153,15 @@ class PositionUpdate(BaseModel):
 class PositionResponse(BaseModel):
     """A tracked position linking a buyer to a lot."""
 
-    id: int
     buyer_label: str
     lot_code: str
     auction_code: Optional[str] = None
-    max_budget_total_eur: Optional[float] = None
-    preferred_bid_eur: Optional[float] = None
     track_active: bool = True
+    max_budget_total_eur: Optional[float] = None
+    my_highest_bid_eur: Optional[float] = None
     lot_title: Optional[str] = None
+    lot_state: Optional[str] = None
     current_bid_eur: Optional[float] = None
-    closing_time: Optional[str] = None
 
 
 class PositionBatchRequest(BaseModel):
@@ -389,17 +393,34 @@ class LotCreateResponse(BaseModel):
     auction_code: str
 
 
-@app.get("/lots", response_model=list[LotView])
+@app.get("/lots", response_model=List[LotView])
 async def list_lots(
+    lot_view_service: LotViewServiceDep,
     auction_code: Optional[str] = None,
     state: Optional[str] = None,
     brand: Optional[str] = None,
-    limit: Optional[int] = Query(default=None, ge=1),
-    lot_view_service: LotViewService = Depends(get_lot_view_service),
+    limit: Optional[int] = Query(100, ge=1, le=1000),
 ) -> List[LotView]:
-    return lot_view_service.list_lots(
+    lots = lot_view_service.list_lots(
         auction_code=auction_code, state=state, brand=brand, limit=limit
     )
+    return [
+        LotView(
+            auction_code=lot.auction_code,
+            lot_code=lot.lot_code,
+            title=lot.title,
+            state=lot.state,
+            current_bid_eur=lot.current_bid_eur,
+            bid_count=lot.bid_count,
+            current_bidder_label=lot.current_bidder_label,
+            closing_time_current=lot.closing_time_current,
+            closing_time_original=lot.closing_time_original,
+            brand=lot.brand,
+            is_active=lot.is_active,
+            effective_price=lot.effective_price,
+        )
+        for lot in lots
+    ]
 
 
 class SearchResultResponse(BaseModel):
@@ -415,17 +436,17 @@ class SearchResultResponse(BaseModel):
 
 @app.get("/search", response_model=List[SearchResultResponse])
 async def search_lots(
+    lot_repository: LotRepositoryDep,
     q: str = Query(..., min_length=2, description="Search query (min 2 chars)"),
     state: Optional[str] = Query(None, description="Filter by state"),
     limit: int = Query(50, ge=1, le=200, description="Max results"),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> List[SearchResultResponse]:
     """Search lots by title, brand, lot code, or EAN."""
     conn = lot_repository.conn
     query_param = f"%{q}%"
-    
+
     sql = """
-        SELECT 
+        SELECT
             a.auction_code,
             l.lot_code,
             l.title,
@@ -433,7 +454,7 @@ async def search_lots(
             l.current_bid_eur,
             l.brand,
             l.ean,
-            CASE 
+            CASE
                 WHEN l.lot_code LIKE ? THEN 'lot_code'
                 WHEN l.ean LIKE ? THEN 'ean'
                 WHEN l.brand LIKE ? THEN 'brand'
@@ -442,21 +463,21 @@ async def search_lots(
         FROM lots l
         JOIN auctions a ON l.auction_id = a.id
         WHERE (
-            l.title LIKE ? OR 
-            l.brand LIKE ? OR 
-            l.lot_code LIKE ? OR 
+            l.title LIKE ? OR
+            l.brand LIKE ? OR
+            l.lot_code LIKE ? OR
             l.ean LIKE ?
         )
     """
     params: list = [query_param, query_param, query_param, query_param, query_param, query_param, query_param]
-    
+
     if state:
         sql += " AND l.state = ?"
         params.append(state)
-    
+
     sql += " ORDER BY l.state = 'running' DESC, l.closing_time_current ASC LIMIT ?"
     params.append(limit)
-    
+
     cur = conn.execute(sql, params)
     results = []
     for row in cur.fetchall():
@@ -475,17 +496,17 @@ async def search_lots(
 @app.get("/lots/{lot_code}", response_model=LotDetailResponse)
 async def get_lot_detail(
     lot_code: str,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> LotDetailResponse:
     """Get detailed lot information including specs and reference prices."""
     lot = lot_repository.get_lot_detail(lot_code, auction_code)
     if not lot:
         raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' not found")
-    
+
     specs = lot_repository.get_lot_specs(lot_code, auction_code)
     ref_prices = lot_repository.get_reference_prices(lot_code, auction_code)
-    
+
     return LotDetailResponse(
         auction_code=str(lot.get("auction_code", "")),
         lot_code=str(lot.get("lot_code", "")),
@@ -534,8 +555,8 @@ async def get_lot_detail(
 async def update_lot(
     lot_code: str,
     payload: LotUpdateRequest,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> LotDetailResponse:
     """Update lot notes and EAN."""
     success = lot_repository.update_lot(
@@ -546,8 +567,20 @@ async def update_lot(
     )
     if not success:
         raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' not found")
-    
-    return await get_lot_detail(lot_code, auction_code, lot_repository)
+
+    return await get_lot_detail(lot_code, lot_repository, auction_code)
+
+
+@app.delete("/lots/{lot_code}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_lot(
+    lot_code: str,
+    lot_repository: LotRepositoryDep,
+    auction_code: str = Query(..., description="Auction code is required to identify the lot"),
+) -> None:
+    """Delete a lot and all related data (specs, bids, reference prices, positions)."""
+    success = lot_repository.delete_lot(lot_code, auction_code)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' in auction '{auction_code}' not found")
 
 
 # =============================================================================
@@ -558,8 +591,8 @@ async def update_lot(
 @app.get("/lots/{lot_code}/reference-prices", response_model=List[ReferencePriceResponse])
 async def list_reference_prices(
     lot_code: str,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> List[ReferencePriceResponse]:
     """Get all reference prices for a lot."""
     prices = lot_repository.get_reference_prices(lot_code, auction_code)
@@ -577,12 +610,16 @@ async def list_reference_prices(
     ]
 
 
-@app.post("/lots/{lot_code}/reference-prices", status_code=status.HTTP_201_CREATED, response_model=ReferencePriceResponse)
+@app.post(
+    "/lots/{lot_code}/reference-prices",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ReferencePriceResponse,
+)
 async def create_reference_price(
     lot_code: str,
     payload: ReferencePriceCreateRequest,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> ReferencePriceResponse:
     """Add a reference price for a lot."""
     try:
@@ -612,7 +649,7 @@ async def update_reference_price(
     lot_code: str,
     ref_id: int,
     payload: ReferencePriceUpdateRequest,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> ReferencePriceResponse:
     """Update a reference price."""
     success = lot_repository.update_reference_price(
@@ -625,7 +662,7 @@ async def update_reference_price(
     )
     if not success:
         raise HTTPException(status_code=404, detail=f"Reference price {ref_id} not found")
-    
+
     # Get updated price
     prices = lot_repository.get_reference_prices(lot_code)
     for p in prices:
@@ -646,7 +683,7 @@ async def update_reference_price(
 async def delete_reference_price(
     lot_code: str,
     ref_id: int,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> None:
     """Delete a reference price."""
     if not lot_repository.delete_reference_price(ref_id):
@@ -670,8 +707,8 @@ class BidHistoryEntryResponse(BaseModel):
 @app.get("/lots/{lot_code}/bid-history", response_model=List[BidHistoryEntryResponse])
 async def get_lot_bid_history(
     lot_code: str,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> List[BidHistoryEntryResponse]:
     """Get bid history for a lot, ordered by most recent first."""
     history = lot_repository.get_bid_history(lot_code, auction_code)
@@ -703,8 +740,8 @@ class LotSpecCreateRequest(BaseModel):
 async def create_lot_spec(
     lot_code: str,
     payload: LotSpecCreateRequest,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> LotSpecResponse:
     """Add or update a specification for a lot."""
     try:
@@ -739,7 +776,7 @@ async def create_lot_spec(
 async def delete_lot_spec(
     lot_code: str,
     spec_id: int,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> None:
     """Delete a lot specification."""
     if not lot_repository.delete_lot_spec(spec_id):
@@ -792,8 +829,8 @@ class ApplyTemplateRequest(BaseModel):
 
 @app.get("/spec-templates", response_model=List[SpecTemplateResponse])
 async def list_spec_templates(
+    lot_repository: LotRepositoryDep,
     parent_id: Optional[int] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> List[SpecTemplateResponse]:
     """List all spec templates, optionally filtered by parent."""
     templates = lot_repository.list_spec_templates(parent_id)
@@ -803,7 +840,7 @@ async def list_spec_templates(
 @app.post("/spec-templates", status_code=status.HTTP_201_CREATED, response_model=SpecTemplateResponse)
 async def create_spec_template(
     payload: SpecTemplateCreateRequest,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> SpecTemplateResponse:
     """Create a new spec template."""
     template_id = lot_repository.create_spec_template(
@@ -831,7 +868,7 @@ async def create_spec_template(
 async def update_spec_template(
     template_id: int,
     payload: SpecTemplateUpdateRequest,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> SpecTemplateResponse:
     """Update a spec template."""
     if not lot_repository.update_spec_template(
@@ -844,7 +881,7 @@ async def update_spec_template(
         category=payload.category,
     ):
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
-    
+
     template = lot_repository.get_spec_template(template_id)
     if not template:
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
@@ -854,7 +891,7 @@ async def update_spec_template(
 @app.delete("/spec-templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_spec_template(
     template_id: int,
-    lot_repository: LotRepository = Depends(get_lot_repository),
+    lot_repository: LotRepositoryDep,
 ) -> None:
     """Delete a spec template."""
     if not lot_repository.delete_spec_template(template_id):
@@ -865,15 +902,15 @@ async def delete_spec_template(
 async def apply_template_to_lot(
     lot_code: str,
     payload: ApplyTemplateRequest,
+    lot_repository: LotRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> LotSpecResponse:
     """Apply a spec template to a lot."""
     try:
         template = lot_repository.get_spec_template(payload.template_id)
         if not template:
             raise HTTPException(status_code=404, detail=f"Template {payload.template_id} not found")
-        
+
         spec_id = lot_repository.apply_template_to_lot(
             lot_code=lot_code,
             template_id=payload.template_id,
@@ -896,11 +933,11 @@ async def apply_template_to_lot(
 @app.post("/positions/batch", response_model=PositionBatchResponse)
 async def upsert_positions(
     payload: PositionBatchRequest,
-    repository: PositionRepository = Depends(get_position_repository),
+    repository: PositionRepositoryDep,
 ) -> PositionBatchResponse:
     try:
         updates = [
-            position_service.PositionUpdateData(
+            PositionUpdateData(
                 buyer_label=update.buyer_label,
                 lot_code=update.lot_code,
                 auction_code=update.auction_code,
@@ -914,9 +951,9 @@ async def upsert_positions(
             repository=repository, updates=updates, event_publisher=event_bus.publish
         )
         return PositionBatchResponse(
-            updated=result.get("updated", 0),
-            created=result.get("created", 0),
-            errors=result.get("errors", []),
+            updated=cast(int, result.get("updated", 0)),
+            created=cast(int, result.get("created", 0)),
+            errors=cast(List[str], result.get("errors", [])),
         )
     except ValueError as exc:  # raised when buyer or lot not found
         raise HTTPException(
@@ -926,23 +963,25 @@ async def upsert_positions(
 
 @app.get("/positions", response_model=List[PositionResponse])
 async def list_positions(
+    repository: PositionRepositoryDep,
     buyer: Optional[str] = Query(None, description="Filter by buyer label"),
-    repository: PositionRepository = Depends(get_position_repository),
 ) -> List[PositionResponse]:
     """List all tracked positions, optionally filtered by buyer."""
-    positions = repository.list(buyer_label=buyer)
+    from troostwatch.services.positions import PositionsService
+
+    rows = repository.list(buyer_label=buyer)
+    positions = [PositionsService._row_to_dto(row) for row in rows]
     return [
         PositionResponse(
-            id=int(pos.get("id", 0)),
-            buyer_label=str(pos.get("buyer_label", "")),
-            lot_code=str(pos.get("lot_code", "")),
-            auction_code=pos.get("auction_code"),
-            max_budget_total_eur=pos.get("max_budget_total_eur"),
-            preferred_bid_eur=pos.get("preferred_bid_eur"),
-            track_active=bool(pos.get("track_active", True)),
-            lot_title=pos.get("lot_title"),
-            current_bid_eur=pos.get("current_bid_eur"),
-            closing_time=pos.get("closing_time_current"),
+            buyer_label=pos.buyer_label,
+            lot_code=pos.lot_code,
+            auction_code=pos.auction_code,
+            track_active=pos.track_active,
+            max_budget_total_eur=pos.max_budget_total_eur,
+            my_highest_bid_eur=pos.my_highest_bid_eur,
+            lot_title=pos.lot_title,
+            lot_state=pos.lot_state,
+            current_bid_eur=pos.current_bid_eur,
         )
         for pos in positions
     ]
@@ -952,8 +991,8 @@ async def list_positions(
 async def delete_position(
     buyer_label: str,
     lot_code: str,
+    repository: PositionRepositoryDep,
     auction_code: Optional[str] = Query(None),
-    repository: PositionRepository = Depends(get_position_repository),
 ) -> None:
     """Delete a tracked position."""
     repository.delete(
@@ -965,48 +1004,43 @@ async def delete_position(
 
 @app.get("/buyers", response_model=List[BuyerResponse])
 async def list_buyers(
-    service: BuyerService = Depends(get_buyer_service),
+    service: BuyerServiceDep,
 ) -> List[BuyerResponse]:
     buyers = service.list_buyers()
     result: List[BuyerResponse] = []
     for buyer in buyers:
-        buyer_id = buyer.get("id")
-        buyer_label = buyer.get("label")
-        if buyer_id is None or buyer_label is None:
-            continue
         result.append(
             BuyerResponse(
-                id=int(buyer_id),
-                label=str(buyer_label),
-                name=str(buyer.get("name")) if buyer.get("name") else None,
-                notes=str(buyer.get("notes")) if buyer.get("notes") else None,
+                id=buyer.id,
+                label=buyer.label,
+                name=buyer.name,
+                notes=buyer.notes,
             )
         )
     return result
 
 
 @app.post(
-    "/buyers", status_code=status.HTTP_201_CREATED, response_model=BuyerCreateResponse
+    "/buyers", response_model=BuyerCreateResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_buyer(
-    payload: BuyerCreateRequest, service: BuyerService = Depends(get_buyer_service)
+    payload: BuyerCreateRequest,
+    service: BuyerServiceDep,
 ) -> BuyerCreateResponse:
     try:
-        result = await service.create_buyer(
+        result: BuyerCreateDTO = await service.create_buyer(
             label=payload.label,
             name=payload.name,
             notes=payload.notes,
         )
+        return BuyerCreateResponse(status="created", label=result.label)
     except BuyerAlreadyExistsError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
-        ) from exc
-    return BuyerCreateResponse(**result)
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.delete("/buyers/{label}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_buyer(
-    label: str, service: BuyerService = Depends(get_buyer_service)
+    label: str, service: BuyerServiceDep
 ) -> None:
     await service.delete_buyer(label=label)
 
@@ -1015,43 +1049,39 @@ async def delete_buyer(
 # Bids Endpoints
 # =============================================================================
 
-def get_bid_repository() -> BidRepository:
-    """Dependency that provides a BidRepository."""
-    import sqlite3
-    from troostwatch.infrastructure.db import ensure_schema
-    conn = sqlite3.connect("troostwatch.db", check_same_thread=False)
-    ensure_schema(conn)
-    return BidRepository(conn)
+
+def _bid_row_to_response(bid: dict[str, Any]) -> BidResponse:
+    """Convert a bid repository row to a BidResponse."""
+    return BidResponse(
+        id=cast(int, bid.get("id", 0)),
+        buyer_label=str(bid.get("buyer_label", "")),
+        lot_code=str(bid.get("lot_code", "")),
+        auction_code=str(bid.get("auction_code", "")),
+        lot_title=str(bid["lot_title"]) if bid.get("lot_title") else None,
+        amount_eur=cast(float, bid.get("amount_eur", 0.0)),
+        placed_at=str(bid.get("placed_at", "")),
+        note=str(bid["note"]) if bid.get("note") else None,
+    )
 
 
 @app.get("/bids", response_model=List[BidResponse])
 async def list_bids(
+    repo: BidRepositoryDep,
     buyer: Optional[str] = Query(None, description="Filter by buyer label"),
     lot_code: Optional[str] = Query(None, description="Filter by lot code"),
     limit: int = Query(100, ge=1, le=500),
 ) -> List[BidResponse]:
     """List recorded bids with optional filters."""
-    repo = get_bid_repository()
     bids = repo.list(buyer_label=buyer, lot_code=lot_code, limit=limit)
-    return [
-        BidResponse(
-            id=int(bid.get("id", 0)),
-            buyer_label=str(bid.get("buyer_label", "")),
-            lot_code=str(bid.get("lot_code", "")),
-            auction_code=str(bid.get("auction_code", "")),
-            lot_title=bid.get("lot_title"),
-            amount_eur=float(bid.get("amount_eur", 0)),
-            placed_at=str(bid.get("placed_at", "")),
-            note=bid.get("note"),
-        )
-        for bid in bids
-    ]
+    return [_bid_row_to_response(bid) for bid in bids]
 
 
 @app.post("/bids", status_code=status.HTTP_201_CREATED, response_model=BidResponse)
-async def create_bid(payload: BidCreateRequest) -> BidResponse:
+async def create_bid(
+    payload: BidCreateRequest,
+    repo: BidRepositoryDep,
+) -> BidResponse:
     """Record a new bid (local only, does not submit to Troostwijk)."""
-    repo = get_bid_repository()
     try:
         repo.record_bid(
             buyer_label=payload.buyer_label,
@@ -1064,23 +1094,13 @@ async def create_bid(payload: BidCreateRequest) -> BidResponse:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
         ) from exc
-    
+
     # Fetch the created bid to return it
     bids = repo.list(buyer_label=payload.buyer_label, lot_code=payload.lot_code, limit=1)
     if not bids:
         raise HTTPException(status_code=500, detail="Bid created but not found")
-    
-    bid = bids[0]
-    return BidResponse(
-        id=int(bid.get("id", 0)),
-        buyer_label=str(bid.get("buyer_label", "")),
-        lot_code=str(bid.get("lot_code", "")),
-        auction_code=str(bid.get("auction_code", "")),
-        lot_title=bid.get("lot_title"),
-        amount_eur=float(bid.get("amount_eur", 0)),
-        placed_at=str(bid.get("placed_at", "")),
-        note=bid.get("note"),
-    )
+
+    return _bid_row_to_response(bids[0])
 
 
 # =============================================================================
@@ -1093,10 +1113,13 @@ def get_reporting_service() -> ReportingService:
     return ReportingService.from_sqlite_path("troostwatch.db")
 
 
+ReportingServiceDep = Annotated[ReportingService, Depends(get_reporting_service)]
+
+
 @app.get("/reports/buyer/{buyer_label}", response_model=BuyerSummaryResponse)
 async def get_buyer_report(
     buyer_label: str,
-    service: ReportingService = Depends(get_reporting_service),
+    service: ReportingServiceDep,
 ) -> BuyerSummaryResponse:
     """Get exposure and position summary for a buyer."""
     summary = service.get_buyer_summary(buyer_label)
@@ -1122,14 +1145,7 @@ async def get_buyer_report(
 # =============================================================================
 
 
-def get_auction_repository():
-    """Dependency that provides an AuctionRepository."""
-    import sqlite3
-    from troostwatch.infrastructure.db import ensure_schema
-    from troostwatch.infrastructure.db.repositories import AuctionRepository
-    conn = sqlite3.connect("troostwatch.db", check_same_thread=False)
-    ensure_schema(conn)
-    return AuctionRepository(conn)
+# Use get_auction_repository from dependencies module
 
 
 # =============================================================================
@@ -1152,32 +1168,32 @@ class DashboardStatsResponse(BaseModel):
 
 @app.get("/stats", response_model=DashboardStatsResponse)
 async def get_dashboard_stats(
-    lot_repository: LotRepository = Depends(get_lot_repository),
-    buyer_repository: BuyerRepository = Depends(get_buyer_repository),
-    position_repository: PositionRepository = Depends(get_position_repository),
+    lot_repository: LotRepositoryDep,
+    buyer_repository: BuyerRepositoryDep,
+    position_repository: PositionRepositoryDep,
 ) -> DashboardStatsResponse:
     """Get dashboard statistics overview."""
     conn = lot_repository.conn
-    
+
     # Auction counts
     auction_total = conn.execute("SELECT COUNT(*) FROM auctions").fetchone()[0]
     auction_active = conn.execute(
-        """SELECT COUNT(DISTINCT a.id) FROM auctions a 
-           JOIN lots l ON l.auction_id = a.id 
+        """SELECT COUNT(DISTINCT a.id) FROM auctions a
+           JOIN lots l ON l.auction_id = a.id
            WHERE l.state IN ('running', 'scheduled')"""
     ).fetchone()[0]
-    
+
     # Lot counts by state
     lot_total = conn.execute("SELECT COUNT(*) FROM lots").fetchone()[0]
     lot_running = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'running'").fetchone()[0]
     lot_scheduled = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'scheduled'").fetchone()[0]
     lot_closed = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'closed'").fetchone()[0]
-    
+
     # Other counts
     bid_total = conn.execute("SELECT COUNT(*) FROM my_bids").fetchone()[0]
     position_total = conn.execute("SELECT COUNT(*) FROM positions").fetchone()[0]
     buyer_total = conn.execute("SELECT COUNT(*) FROM buyers").fetchone()[0]
-    
+
     return DashboardStatsResponse(
         total_auctions=auction_total,
         active_auctions=auction_active,
@@ -1193,10 +1209,10 @@ async def get_dashboard_stats(
 
 @app.get("/auctions", response_model=List[AuctionResponse])
 async def list_auctions(
+    repo: AuctionRepositoryDep,
     include_inactive: bool = Query(False, description="Include auctions without active lots"),
 ) -> List[AuctionResponse]:
     """List all auctions, optionally including those without active lots."""
-    repo = get_auction_repository()
     auctions = repo.list(only_active=not include_inactive)
     return [
         AuctionResponse(
@@ -1205,8 +1221,8 @@ async def list_auctions(
             url=a.get("url"),
             starts_at=a.get("starts_at"),
             ends_at_planned=a.get("ends_at_planned"),
-            active_lots=int(a.get("active_lots", 0)),
-            lot_count=int(a.get("lot_count", 0)),
+            active_lots=int(a.get("active_lots") or 0),
+            lot_count=int(a.get("lot_count") or 0),
         )
         for a in auctions
     ]
@@ -1238,9 +1254,11 @@ class AuctionDeleteResponse(BaseModel):
 
 
 @app.get("/auctions/{auction_code}", response_model=AuctionDetailResponse)
-async def get_auction(auction_code: str) -> AuctionDetailResponse:
+async def get_auction(
+    auction_code: str,
+    repo: AuctionRepositoryDep,
+) -> AuctionDetailResponse:
     """Get a single auction by code."""
-    repo = get_auction_repository()
     auction = repo.get_by_code(auction_code)
     if not auction:
         raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
@@ -1258,9 +1276,9 @@ async def get_auction(auction_code: str) -> AuctionDetailResponse:
 async def update_auction(
     auction_code: str,
     payload: AuctionUpdateRequest,
+    repo: AuctionRepositoryDep,
 ) -> AuctionDetailResponse:
     """Update an auction."""
-    repo = get_auction_repository()
     if not repo.update(
         auction_code,
         title=payload.title,
@@ -1269,11 +1287,11 @@ async def update_auction(
         ends_at_planned=payload.ends_at_planned,
     ):
         raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
-    
+
     updated = repo.get_by_code(auction_code)
     if not updated:
         raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found after update")
-    
+
     return AuctionDetailResponse(
         auction_code=updated["auction_code"],
         title=updated.get("title"),
@@ -1287,10 +1305,10 @@ async def update_auction(
 @app.delete("/auctions/{auction_code}", response_model=AuctionDeleteResponse)
 async def delete_auction(
     auction_code: str,
+    repo: AuctionRepositoryDep,
     delete_lots: bool = Query(False, description="Also delete all lots in this auction"),
 ) -> AuctionDeleteResponse:
     """Delete an auction. Optionally delete all associated lots."""
-    repo = get_auction_repository()
     result = repo.delete(auction_code, delete_lots=delete_lots)
     if result["auction"] == 0:
         raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
@@ -1306,28 +1324,31 @@ async def delete_auction(
 # =============================================================================
 
 
-def get_lot_management_service() -> LotManagementService:
+def get_lot_management_service(
+    lot_repo: LotRepositoryDep,
+    auction_repo: AuctionRepositoryDep,
+) -> LotManagementService:
     """Dependency that provides a LotManagementService."""
-    import sqlite3
-    from troostwatch.infrastructure.db import ensure_schema
-    from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
-    conn = sqlite3.connect("troostwatch.db", check_same_thread=False)
-    ensure_schema(conn)
     return LotManagementService(
-        lot_repository=LotRepository(conn),
-        auction_repository=AuctionRepository(conn),
+        lot_repository=lot_repo,
+        auction_repository=auction_repo,
     )
+
+
+LotManagementServiceDep = Annotated[
+    LotManagementService, Depends(get_lot_management_service)
+]
 
 
 @app.post("/lots", status_code=status.HTTP_201_CREATED, response_model=LotCreateResponse)
 async def create_lot(
     payload: LotCreateRequest,
-    service: LotManagementService = Depends(get_lot_management_service),
+    service: LotManagementServiceDep,
 ) -> LotCreateResponse:
     """Manually add or update a lot in the database."""
     from datetime import datetime, timezone
     seen_at = datetime.now(timezone.utc).isoformat()
-    
+
     lot_input = LotInput(
         auction_code=payload.auction_code,
         lot_code=payload.lot_code,
@@ -1344,7 +1365,7 @@ async def create_lot(
         auction_title=payload.auction_title,
         auction_url=payload.auction_url,
     )
-    
+
     lot_code = service.add_lot(lot_input, seen_at)
     return LotCreateResponse(
         status="created",
@@ -1355,7 +1376,7 @@ async def create_lot(
 
 @app.post("/sync", status_code=status.HTTP_202_ACCEPTED, response_model=SyncSummaryResponse)
 async def trigger_sync(
-    request: SyncRequest, service: SyncService = Depends(get_sync_service)
+    request: SyncRequest, service: SyncServiceDep
 ) -> SyncSummaryResponse:
     summary = await service.run_sync(
         auction_code=request.auction_code,
@@ -1367,19 +1388,19 @@ async def trigger_sync(
     # Convert nested result if present
     result_data = summary_dict.get("result")
     result = None
-    if result_data:
+    if result_data and isinstance(result_data, dict):
         result = SyncRunResultResponse(**result_data)
     return SyncSummaryResponse(
-        status=summary_dict.get("status", "error"),
-        auction_code=summary_dict.get("auction_code"),
+        status=str(summary_dict.get("status") or "error"),
+        auction_code=str(summary_dict.get("auction_code")) if summary_dict.get("auction_code") else None,
         result=result,
-        error=summary_dict.get("error"),
+        error=str(summary_dict.get("error")) if summary_dict.get("error") else None,
     )
 
 
 @app.post("/live-sync/start", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
 async def start_live_sync(
-    request: LiveSyncStartRequest, service: SyncService = Depends(get_sync_service)
+    request: LiveSyncStartRequest, service: SyncServiceDep
 ) -> LiveSyncControlResponse:
     result = await service.start_live_sync(
         auction_code=request.auction_code,
@@ -1389,36 +1410,36 @@ async def start_live_sync(
         interval_seconds=request.interval_seconds,
     )
     return LiveSyncControlResponse(
-        state=result.get("state", "unknown"),
-        detail=result.get("detail"),
+        state=str(result.get("state") or "unknown"),
+        detail=str(result.get("detail")) if result.get("detail") else None,
     )
 
 
 @app.post("/live-sync/pause", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
 async def pause_live_sync(
-    service: SyncService = Depends(get_sync_service),
+    service: SyncServiceDep,
 ) -> LiveSyncControlResponse:
     result = await service.pause_live_sync()
     return LiveSyncControlResponse(
-        state=result.get("state", "unknown"),
-        detail=result.get("detail"),
+        state=str(result.get("state") or "unknown"),
+        detail=str(result.get("detail")) if result.get("detail") else None,
     )
 
 
 @app.post("/live-sync/stop", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
 async def stop_live_sync(
-    service: SyncService = Depends(get_sync_service),
+    service: SyncServiceDep,
 ) -> LiveSyncControlResponse:
     result = await service.stop_live_sync()
     return LiveSyncControlResponse(
-        state=result.get("state", "unknown"),
-        detail=result.get("detail"),
+        state=str(result.get("state") or "unknown"),
+        detail=str(result.get("detail")) if result.get("detail") else None,
     )
 
 
 @app.get("/live-sync/status", response_model=LiveSyncStatusResponse)
 async def get_live_sync_status(
-    service: SyncService = Depends(get_sync_service),
+    service: SyncServiceDep,
 ) -> LiveSyncStatusResponse:
     status_dict = service.get_live_sync_status()
     return LiveSyncStatusResponse(

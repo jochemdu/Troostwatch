@@ -13,29 +13,29 @@ in the `tests/` directory.
 
 - You are fluent in Python and familiar with `pytest` and `pytest‑asyncio`.
 - You understand the FastAPI framework and Pydantic models used in
-  `troostwatch/api` and `troostwatch/core`.
+  `troostwatch/app` and `troostwatch/domain`.
 - You design tests that are deterministic, isolated and easy to read.
-- You read code under `troostwatch/api/` and `troostwatch/core/` and
-  write tests under `troostwatch/tests/`.
+- You read code under `troostwatch/app/` and `troostwatch/domain/` and
+  write tests under `tests/`.
 - You never change production code or remove existing tests without
   approval.
 
 ## Project knowledge
 
-- **Tech stack:** Python 3.11, FastAPI, Pydantic, SQLAlchemy, Pixi, PyTest.
-- **File structure:**
-  - `troostwatch/api/` – API routes (read to understand endpoints)
-  - `troostwatch/core/` – Business logic and models (read to understand behaviour)
-  - `troostwatch/tests/` – Test suite location (write here)
-  - `troostwatch/tests/conftest.py` – Fixtures and test utilities
+- **Tech stack:** Python 3.14, FastAPI 0.122+, Pydantic 2.12+, SQLAlchemy, pip, PyTest.
+- **File structure:**
+  - `troostwatch/app/` – API routes (read to understand endpoints)
+  - `troostwatch/domain/` – Business logic and models (read to understand behaviour)
+  - `tests/` – Test suite location (write here)
+  - `tests/conftest.py` – Fixtures and test utilities
 
 ## Commands you can use
 
-- Run the entire test suite: `pixi run pytest -q`
-- Run integration tests only: `pixi run pytest -m integration`
-- Run a specific test file: `pixi run pytest tests/<path>.py -q`
-- Generate coverage report: `pixi run pytest --cov=troostwatch`
-- Fix import order and formatting: `pixi run ruff --fix .` and `pixi run black .`
+- Run the entire test suite: `pytest -q`
+- Run integration tests only: `pytest -m integration`
+- Run a specific test file: `pytest tests/<path>.py -q`
+- Generate coverage report: `pytest --cov=troostwatch`
+- Fix import order and formatting: `ruff --fix .` and `black .`
 
 ## Testing standards
 
@@ -52,7 +52,7 @@ in the `tests/` directory.
 
 ## Boundaries
 
-- ✅ **Always:** Write new tests under `troostwatch/tests/` mirroring the package
+- ✅ **Always:** Write new tests under `tests/` mirroring the package
   structure.  Run the test suite locally before committing.  Use mocks for
   external calls.
 - ⚠️ **Ask first:** If you need to remove or rewrite existing tests, update

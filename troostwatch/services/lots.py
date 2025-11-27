@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Iterable, List, Optional
+from collections.abc import Iterable, Mapping
 
 from pydantic import BaseModel, Field
 
 from troostwatch.domain.models import Lot
 from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
+from troostwatch.infrastructure.observability import get_logger
 from troostwatch.infrastructure.web.parsers import LotCardData, LotDetailData
+from troostwatch.services.dto import LotInputDTO
 
 
 class LotView(BaseModel):
@@ -17,24 +18,30 @@ class LotView(BaseModel):
 
     auction_code: str
     lot_code: str
-    title: Optional[str] = None
-    state: Optional[str] = None
-    current_bid_eur: Optional[float] = None
-    bid_count: Optional[int] = None
-    current_bidder_label: Optional[str] = None
-    closing_time_current: Optional[str] = Field(default=None, description="Current closing timestamp, if set.")
-    closing_time_original: Optional[str] = Field(default=None, description="Original closing timestamp, if set.")
-    brand: Optional[str] = Field(default=None, description="Brand/manufacturer of the lot item.")
+    title: str | None = None
+    state: str | None = None
+    current_bid_eur: float | None = None
+    bid_count: int | None = None
+    current_bidder_label: str | None = None
+    closing_time_current: str | None = Field(
+        default=None, description="Current closing timestamp, if set."
+    )
+    closing_time_original: str | None = Field(
+        default=None, description="Original closing timestamp, if set."
+    )
+    brand: str | None = Field(
+        default=None, description="Brand/manufacturer of the lot item."
+    )
     is_active: bool = False
-    effective_price: Optional[float] = None
+    effective_price: float | None = None
 
     model_config = {"from_attributes": True}
 
     @classmethod
-    def from_record(cls, record: dict[str, object]) -> "LotView":
+    def from_record(cls, record: Mapping[str, object]) -> "LotView":
         """Create a LotView from a database record."""
         # Use domain model for business logic
-        lot = Lot.from_dict(record)
+        lot = Lot.from_dict(dict(record))
 
         return cls.model_validate({
             "auction_code": record["auction_code"],
@@ -70,20 +77,28 @@ class LotView(BaseModel):
 
 
 class LotViewService:
-    """Service exposing read-only lot views for APIs and CLIs."""
+    """Service exposing read-only lot views for APIs and CLIs.
+
+    Uses repository injection pattern - caller manages connection lifecycle.
+    """
 
     def __init__(self, lot_repository: LotRepository) -> None:
         self._lot_repository = lot_repository
+        self._logger = get_logger(__name__)
 
     def list_lots(
         self,
         *,
-        auction_code: Optional[str] = None,
-        state: Optional[str] = None,
-        brand: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[LotView]:
+        auction_code: str | None = None,
+        state: str | None = None,
+        brand: str | None = None,
+        limit: int | None = None,
+    ) -> list[LotView]:
         """List lots as LotView DTOs for presentation."""
+        self._logger.debug(
+            "Listing lots: auction=%s state=%s brand=%s limit=%s",
+            auction_code, state, brand, limit
+        )
         effective_limit = None if limit is not None and limit <= 0 else limit
         rows = self._lot_repository.list_lots(
             auction_code=auction_code,
@@ -91,15 +106,17 @@ class LotViewService:
             brand=brand,
             limit=effective_limit,
         )
-        return self._to_dtos(rows)
+        result = self._to_dtos(rows)
+        self._logger.debug("Found %d lots", len(result))
+        return result
 
     def list_domain_lots(
         self,
         *,
-        auction_code: Optional[str] = None,
-        state: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[Lot]:
+        auction_code: str | None = None,
+        state: str | None = None,
+        limit: int | None = None,
+    ) -> list[Lot]:
         """List lots as domain models for business logic."""
         effective_limit = None if limit is not None and limit <= 0 else limit
         rows = self._lot_repository.list_lots(
@@ -112,39 +129,26 @@ class LotViewService:
     def get_active_lots(
         self,
         *,
-        auction_code: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[Lot]:
+        auction_code: str | None = None,
+        limit: int | None = None,
+    ) -> list[Lot]:
         """Get only active (running or scheduled) lots as domain models."""
         lots = self.list_domain_lots(auction_code=auction_code, limit=limit)
         return [lot for lot in lots if lot.is_active]
 
-    def _to_dtos(self, rows: Iterable[dict[str, object]]) -> List[LotView]:
+    def _to_dtos(self, rows: Iterable[Mapping[str, object]]) -> list[LotView]:
         return [LotView.from_record(row) for row in rows]
 
 
-@dataclass
-class LotInput:
-    """Input data for adding/updating a lot."""
-
-    auction_code: str
-    lot_code: str
-    title: str
-    url: Optional[str] = None
-    state: Optional[str] = None
-    opens_at: Optional[str] = None
-    closing_time: Optional[str] = None
-    bid_count: Optional[int] = None
-    opening_bid_eur: Optional[float] = None
-    current_bid_eur: Optional[float] = None
-    location_city: Optional[str] = None
-    location_country: Optional[str] = None
-    auction_title: Optional[str] = None
-    auction_url: Optional[str] = None
+# Alias for backwards compatibility - prefer LotInputDTO in new code
+LotInput = LotInputDTO
 
 
 class LotManagementService:
-    """Service for adding and updating lots."""
+    """Service for adding and updating lots using DTOs.
+
+    Uses repository injection pattern - caller manages connection lifecycle.
+    """
 
     def __init__(
         self,
@@ -153,12 +157,17 @@ class LotManagementService:
     ) -> None:
         self._lot_repository = lot_repository
         self._auction_repository = auction_repository
+        self._logger = get_logger(__name__)
 
-    def add_lot(self, lot_input: LotInput, seen_at: str) -> str:
+    def add_lot(self, lot_input: LotInputDTO, seen_at: str) -> str:
         """Add or update a lot in the database.
 
         Returns the lot_code of the added/updated lot.
         """
+        self._logger.debug(
+            "Adding lot %s in auction %s",
+            lot_input.lot_code, lot_input.auction_code
+        )
         from troostwatch.services.sync import (
             _listing_detail_from_card,
             compute_detail_hash,
@@ -231,4 +240,5 @@ class LotManagementService:
             detail_last_seen_at=seen_at,
         )
 
+        self._logger.debug("Lot %s added/updated successfully", lot_input.lot_code)
         return lot_input.lot_code

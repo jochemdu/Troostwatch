@@ -19,7 +19,7 @@ dependencies or modify business logic.
 
 ## Project knowledge
 
-- **Tech stack:** Python 3.11, FastAPI, Pydantic.  The project uses Pixi for
+- **Tech stack:** Python 3.14, FastAPI 0.122+, Pydantic 2.12+.  The project uses pip for
   dependency management.
 - **Formatting tools:**
   - `ruff` – performs linting and checks for common errors.
@@ -30,11 +30,11 @@ dependencies or modify business logic.
 
 ## Commands you can use
 
-- Fix lint issues: `pixi run ruff --fix troostwatch tests`  
-- Sort imports: `pixi run isort troostwatch tests`  
-- Format code: `pixi run black troostwatch tests`  
-- Type check: `pixi run mypy troostwatch`  
-- Check for unused dependencies: `pixi run pip check` (optional)
+- Fix lint issues: `ruff --fix troostwatch tests`  
+- Sort imports: `isort troostwatch tests`  
+- Format code: `black troostwatch tests`  
+- Type check: `mypy troostwatch`  
+- Check for unused dependencies: `pip check` (optional)
 
 ## Standards
 

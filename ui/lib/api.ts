@@ -212,6 +212,60 @@ export async function updateLot(lotCode: string, updates: LotUpdateRequest, auct
 }
 
 /**
+ * Delete a lot and all related data.
+ * @see DELETE /lots/{lot_code} in troostwatch/app/api.py
+ */
+export async function deleteLot(lotCode: string, auctionCode: string): Promise<void> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}`);
+  url.searchParams.append('auction_code', auctionCode);
+  const response = await fetch(url.toString(), { method: 'DELETE' });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to delete lot: ${response.status}`);
+  }
+}
+
+// =============================================================================
+// Bid Endpoints
+// =============================================================================
+
+export interface Bid {
+  id: number;
+  buyer_label: string;
+  lot_code: string;
+  auction_code: string;
+  lot_title: string | null;
+  amount_eur: number;
+  placed_at: string;
+  note: string | null;
+}
+
+interface BidCreateRequest {
+  buyer_label: string;
+  auction_code: string;
+  lot_code: string;
+  amount_eur: number;
+  note?: string;
+}
+
+export async function fetchBids(buyer?: string, lotCode?: string): Promise<Bid[]> {
+  const url = new URL(`${API_BASE}/bids`);
+  if (buyer) url.searchParams.append('buyer', buyer);
+  if (lotCode) url.searchParams.append('lot_code', lotCode);
+  const response = await fetch(url.toString());
+  return handleResponse<Bid[]>(response);
+}
+
+export async function createBid(payload: BidCreateRequest): Promise<Bid> {
+  const response = await fetch(`${API_BASE}/bids`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<Bid>(response);
+}
+
+/**
  * Add a reference price for a lot.
  * @see POST /lots/{lot_code}/reference-prices in troostwatch/app/api.py
  */
@@ -526,6 +580,57 @@ export async function fetchBuyers(): Promise<BuyerResponse[]> {
   return handleResponse<BuyerResponse[]>(response);
 }
 
+// =============================================================================
+// Position Endpoints
+// =============================================================================
+
+export interface Position {
+  id: number;
+  buyer_label: string;
+  lot_code: string;
+  auction_code: string | null;
+  max_budget_total_eur: number | null;
+  preferred_bid_eur: number | null;
+  track_active: boolean;
+  lot_title: string | null;
+  current_bid_eur: number | null;
+  closing_time: string | null;
+}
+
+export async function fetchPositions(buyer?: string): Promise<Position[]> {
+  const url = new URL(`${API_BASE}/positions`);
+  if (buyer) url.searchParams.append('buyer', buyer);
+  const response = await fetch(url.toString());
+  return handleResponse<Position[]>(response);
+}
+
+export async function deletePosition(buyerLabel: string, lotCode: string, auctionCode?: string): Promise<void> {
+  const url = new URL(`${API_BASE}/positions/${encodeURIComponent(buyerLabel)}/${encodeURIComponent(lotCode)}`);
+  if (auctionCode) url.searchParams.append('auction_code', auctionCode);
+  const response = await fetch(url.toString(), { method: 'DELETE' });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || 'Failed to delete position');
+  }
+}
+
+export async function createPosition(data: {
+  buyer_label: string;
+  lot_code: string;
+  auction_code?: string;
+  max_budget_total_eur?: number;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/positions/batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ updates: [data] }),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || 'Failed to create position');
+  }
+}
+
 /**
  * Create a new buyer.
  * @see POST /buyers in troostwatch/app/api.py
@@ -744,4 +849,38 @@ export async function deleteAuction(auctionCode: string, deleteLots: boolean = f
   }
   const response = await fetch(url.toString(), { method: 'DELETE' });
   return handleResponse<AuctionDeleteResponse>(response);
+}
+
+// =============================================================================
+// Reports Endpoints
+// =============================================================================
+
+export interface BuyerSummaryReport {
+  buyer_label: string;
+  tracked_count: number;
+  open_count: number;
+  closed_count: number;
+  open_exposure_min_eur: number;
+  open_exposure_max_eur: number;
+  open_tracked_lots: Array<{
+    lot_code: string;
+    title: string;
+    state: string;
+    current_bid_eur: number | null;
+    max_budget_total_eur: number | null;
+    track_active: boolean;
+  }>;
+  won_lots: Array<{
+    lot_code: string;
+    title: string;
+    state: string;
+    current_bid_eur: number | null;
+    max_budget_total_eur: number | null;
+    track_active: boolean;
+  }>;
+}
+
+export async function fetchBuyerSummary(buyerLabel: string): Promise<BuyerSummaryReport> {
+  const response = await fetch(`${API_BASE}/reports/buyer/${encodeURIComponent(buyerLabel)}`);
+  return handleResponse<BuyerSummaryReport>(response);
 }

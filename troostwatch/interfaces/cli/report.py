@@ -42,11 +42,13 @@ def report_buyer(db_path: str, buyer: str, json_output: bool) -> None:
             budget = lot["max_budget_total_eur"]
             budget_str = f"(max €{budget:.2f})" if budget is not None else "(no max)"
             click.echo(
-                f"  {lot['lot_code']} – {lot['title']} – state={lot['state']} – current €{lot['current_bid_eur'] or 0:.2f} {budget_str}"
+                f"  {lot['lot_code']} – {lot['title']} – state={lot['state']} – "
+                f"current €{lot['current_bid_eur'] or 0:.2f} {budget_str}"
             )
     if summary["won_lots"]:
         click.echo("\nClosed lots:")
         for lot in summary["won_lots"]:
             click.echo(
-                f"  {lot['lot_code']} – {lot['title']} – state={lot['state']} – final €{lot['current_bid_eur'] or 0:.2f}"
+                f"  {lot['lot_code']} – {lot['title']} – state={lot['state']} – "
+                f"final €{lot['current_bid_eur'] or 0:.2f}"
             )

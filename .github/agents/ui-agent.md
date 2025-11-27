@@ -18,7 +18,8 @@ for future or existing user interfaces.
 
 ## Project knowledge
 
-- Troostwatch has a Next.js UI layer under `ui/`.
+- Troostwatch has a Next.js 16 UI layer under `ui/`.
+- Uses React 19, TypeScript 5.9, and ESLint 9.x.
 - TypeScript types are auto-generated from the FastAPI OpenAPI schema.
 - Align UX flows with existing API capabilities in `troostwatch/app/api.py` and
   domain models in `troostwatch/domain/`.
@@ -42,6 +43,39 @@ import type { LotView, BuyerResponse, SyncSummaryResponse } from '@/lib/generate
 3. Commit both schema and generated types
 
 **CI enforcement:** The `ui-types` job validates types match the backend.
+
+## React 19 patterns
+
+React 19 introduces breaking changes from React 18:
+
+- **`forwardRef` is deprecated** – use refs as regular props:
+  ```typescript
+  // Old (deprecated)
+  const Button = forwardRef<HTMLButtonElement, Props>((props, ref) => ...)
+
+  // New (React 19)
+  function Button({ ref, ...props }: Props & { ref?: Ref<HTMLButtonElement> }) { ... }
+  ```
+- **`use()` hook** – new hook for reading promises and context
+- **JSX namespace changes** – use `React.ReactElement` instead of `JSX.Element`
+
+## Next.js 16 patterns
+
+Next.js 16 defaults to the App Router:
+
+- **Server Components by default** – add `'use client'` directive for client components
+- **App Router structure** – use `app/` directory for routing
+- **Metadata API** – use `generateMetadata()` instead of `<Head>` component
+- **Server Actions** – prefer for mutations over API routes
+- **Nested `<style jsx>`** – not allowed; consolidate styles at component end
+
+## ESLint 9.x configuration
+
+ESLint 9.x uses flat config format:
+
+- Use `eslint.config.js` instead of `.eslintrc.json`
+- Import configs directly: `import eslintRecommended from '@eslint/js'`
+- No more `extends` – compose configs with spread operator
 
 ## Tools you can use
 

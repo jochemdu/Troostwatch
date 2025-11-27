@@ -18,7 +18,7 @@ interface code thin, delegating business logic to services and domain modules.
 
 ## Project knowledge
 
-- **Tech stack:** Python 3.11, Click/Typer, Pydantic, pytest, Pixi.
+- **Tech stack:** Python 3.14, Click/Typer, Pydantic 2.12+, pytest, pip.
 - **File structure:**
   - `troostwatch/interfaces/cli/` – CLI adapters and entrypoints (primary write
     target for this role).
@@ -30,11 +30,11 @@ interface code thin, delegating business logic to services and domain modules.
 
 ## Tools you can use
 
-- Run CLI/interface tests: `pixi run pytest -q tests/interfaces` or targeted
+- Run CLI/interface tests: `pytest -q tests/interfaces` or targeted
   paths for specific commands.
-- Full test run: `pixi run pytest -q`
-- Lint/format/type-check: `pixi run ruff check .`, `pixi run black .`,
-  `pixi run isort .`, `pixi run mypy troostwatch`
+- Full test run: `pytest -q`
+- Lint/format/type-check: `ruff check .`, `black .`,
+  `isort .`, `mypy troostwatch`
 
 ## Implementation guidelines
 

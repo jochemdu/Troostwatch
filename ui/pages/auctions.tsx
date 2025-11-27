@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import type { Auction, AuctionUpdateRequest } from '../lib/api';
-import { fetchAuctions as fetchAuctionsApi, updateAuction, deleteAuction } from '../lib/api';
+import { fetchAuctions as fetchAuctionsApi, updateAuction, deleteAuction, triggerSync } from '../lib/api';
+import { formatDateTime } from '../lib/format';
 
 interface SyncResult {
   auction_code: string;
@@ -10,8 +11,6 @@ interface SyncResult {
   lots_updated?: number;
   pages_scanned?: number;
 }
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function AuctionsPage() {
   const [auctions, setAuctions] = useState<Auction[]>([]);
@@ -96,17 +95,11 @@ export default function AuctionsPage() {
       setSyncResults(new Map(results));
 
       try {
-        const res = await fetch(`${API_BASE}/sync`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            auction_code: code,
-            auction_url: auction.url,
-            dry_run: false,
-          }),
+        const data = await triggerSync({
+          auction_code: code,
+          auction_url: auction.url,
+          dry_run: false,
         });
-
-        const data = await res.json();
         
         if (data.status === 'success') {
           results.set(code, {
@@ -193,21 +186,6 @@ export default function AuctionsPage() {
       setError(err instanceof Error ? err.message : 'Kon veiling niet verwijderen');
     } finally {
       setDeleting(false);
-    }
-  };
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '—';
-    try {
-      return new Date(dateStr).toLocaleString('nl-NL', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateStr;
     }
   };
 
@@ -407,7 +385,7 @@ export default function AuctionsPage() {
                       </span>
                     </td>
                     <td className="col-center text-muted">{auction.lot_count}</td>
-                    <td className="text-muted">{formatDate(auction.ends_at_planned)}</td>
+                    <td className="text-muted">{formatDateTime(auction.ends_at_planned)}</td>
                     <td>{getStatusBadge(syncResults.get(auction.auction_code))}</td>
                     <td className="col-actions">
                       <button 

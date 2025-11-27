@@ -1,14 +1,20 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+import sqlite3
 
+from .base import BaseRepository
 from .buyers import BuyerRepository
 from .lots import LotRepository
 
 
-class PositionRepository:
-    def __init__(self, conn, buyers: BuyerRepository | None = None, lots: LotRepository | None = None) -> None:
-        self.conn = conn
+class PositionRepository(BaseRepository):
+    def __init__(
+        self,
+        conn: sqlite3.Connection,
+        buyers: BuyerRepository | None = None,
+        lots: LotRepository | None = None,
+    ) -> None:
+        super().__init__(conn)
         self.buyers = buyers or BuyerRepository(conn)
         self.lots = lots or LotRepository(conn)
 
@@ -16,11 +22,11 @@ class PositionRepository:
         self,
         buyer_label: str,
         lot_code: str,
-        auction_code: Optional[str] = None,
+        auction_code: str | None = None,
         *,
         track_active: bool = True,
-        max_budget_total_eur: Optional[float] = None,
-        my_highest_bid_eur: Optional[float] = None,
+        max_budget_total_eur: float | None = None,
+        my_highest_bid_eur: float | None = None,
     ) -> None:
         buyer_id = self.buyers.get_id(buyer_label)
         if buyer_id is None:
@@ -28,7 +34,7 @@ class PositionRepository:
         lot_id = self.lots.get_id(lot_code, auction_code)
         if lot_id is None:
             raise ValueError(f"Lot with code '{lot_code}' not found (auction: {auction_code})")
-        self.conn.execute(
+        self._execute(
             """
             INSERT INTO my_lot_positions (buyer_id, lot_id, track_active, max_budget_total_eur, my_highest_bid_eur)
             VALUES (?, ?, ?, ?, ?)
@@ -41,8 +47,8 @@ class PositionRepository:
         )
         self.conn.commit()
 
-    def list(self, buyer_label: Optional[str] = None) -> List[Dict[str, Optional[str]]]:
-        params: List = []
+    def list(self, buyer_label: str | None = None) -> list[dict[str, str | None]]:
+        params: list[str] = []
         query = """
             SELECT b.label AS buyer_label,
                    a.auction_code AS auction_code,
@@ -62,18 +68,18 @@ class PositionRepository:
             query += " WHERE b.label = ?"
             params.append(buyer_label)
         query += " ORDER BY a.auction_code, l.lot_code"
-        cur = self.conn.execute(query, tuple(params))
-        columns = [c[0] for c in cur.description]
-        return [dict(zip(columns, row)) for row in cur.fetchall()]
+        return self._fetch_all_as_dicts(query, tuple(params))
 
-    def delete(self, buyer_label: str, lot_code: str, auction_code: Optional[str] = None) -> None:
+    def delete(
+        self, buyer_label: str, lot_code: str, auction_code: str | None = None
+    ) -> None:
         buyer_id = self.buyers.get_id(buyer_label)
         if buyer_id is None:
             raise ValueError(f"Buyer with label '{buyer_label}' does not exist")
         lot_id = self.lots.get_id(lot_code, auction_code)
         if lot_id is None:
             raise ValueError(f"Lot with code '{lot_code}' not found (auction: {auction_code})")
-        self.conn.execute(
+        self._execute(
             "DELETE FROM my_lot_positions WHERE buyer_id = ? AND lot_id = ?",
             (buyer_id, lot_id),
         )

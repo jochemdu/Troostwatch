@@ -393,4 +393,3 @@ def menu(ctx: click.Context) -> None:
         handler = choices[selection][1]
         if handler:
             handler(ctx)
-

@@ -17,14 +17,14 @@ data tasks and developer workflows.
 
 - Place Python CLIs under `scripts/` or within `troostwatch/utils/` as
   appropriate; keep executable entry points thin and reusable.
-- Respect dependency management via Pixi and project configuration in
+- Respect dependency management via pip and project configuration in
   `pyproject.toml` or `config.json`.
 
 ## Tools you can use
 
-- Run scripts with `pixi run python <script>`; add entry points through
+- Run scripts with `python <script>`; add entry points through
   `pyproject.toml` when needed.
-- Use `pixi run ruff`, `black` and `mypy` to keep scripts linted, formatted and
+- Use `ruff`, `black` and `mypy` to keep scripts linted, formatted and
   type-safe.
 - Provide `--dry-run` modes and structured logging for operational tasks.
 

@@ -57,7 +57,7 @@ def _strip_html_tags(text: str) -> str:
 
 def _extract_lot_number_from_url(url: str) -> str | None:
     """Extract the lot number from a Troostwijk lot URL.
-    
+
     URL format: /l/description-AUCTION_CODE-LOT_NUMBER
     Example: /l/samsung-wm75a-flip-interactive-display-75-A1-39500-1801
     Returns: 1801
@@ -111,10 +111,10 @@ def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> L
         else:
             state = None
 
-        opens_at = utils.epoch_to_iso(lot.get("openingTime")) or utils.parse_datetime_from_text(utils.extract_by_data_cy(soup, "opening-time"))
-        closing_time_current = utils.epoch_to_iso(lot.get("closingTime")) or utils.parse_datetime_from_text(
-            utils.extract_by_data_cy(soup, "closing-time")
-        )
+        opens_at = utils.epoch_to_iso(lot.get("openingTime")) or \
+            utils.parse_datetime_from_text(utils.extract_by_data_cy(soup, "opening-time"))
+        closing_time_current = utils.epoch_to_iso(lot.get("closingTime")) or \
+            utils.parse_datetime_from_text(utils.extract_by_data_cy(soup, "closing-time"))
         closing_time_original = utils.epoch_to_iso(lot.get("originalClosingTime"))
 
         bid_info = lot.get("bidInfo", {})
@@ -123,8 +123,14 @@ def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> L
         current_bid_eur = _parse_amount_field(bid_info.get("currentBid"))
         current_bidder_label = bid_info.get("currentBidderLabel")
 
-        vat_on_bid_pct = utils.parse_percent(str(fees.get("vatOnBidPct"))) if fees.get("vatOnBidPct") is not None else None
-        auction_fee_pct = utils.parse_percent(str(fees.get("buyerFeePct"))) if fees.get("buyerFeePct") is not None else None
+        vat_on_bid_pct = (
+            utils.parse_percent(str(fees.get("vatOnBidPct")))
+            if fees.get("vatOnBidPct") is not None else None
+        )
+        auction_fee_pct = (
+            utils.parse_percent(str(fees.get("buyerFeePct")))
+            if fees.get("buyerFeePct") is not None else None
+        )
         auction_fee_vat_pct = (
             utils.parse_percent(str(fees.get("buyerFeeVatPct"))) if fees.get("buyerFeeVatPct") is not None else None
         )
@@ -220,6 +226,7 @@ def _parse_bid_history(lot: dict) -> list[BidHistoryEntry]:
         bidder = bid.get("bidderLabel") or bid.get("bidder") or ""
         amount_data = bid.get("amount") or bid.get("bidAmount") or {}
 
+        amount_eur: float | None = None
         if isinstance(amount_data, dict):
             amount = amount_data.get("amount")
             if amount is not None:
@@ -229,8 +236,6 @@ def _parse_bid_history(lot: dict) -> list[BidHistoryEntry]:
                 amount_eur = utils.parse_eur_to_float(str(display))
         elif isinstance(amount_data, (int, float)):
             amount_eur = float(amount_data) / 100
-        else:
-            amount_eur = None
 
         timestamp = utils.epoch_to_iso(bid.get("timestamp") or bid.get("time"))
 

@@ -24,7 +24,7 @@ approval.
 
 ## Project knowledge
 
-- **Tech stack:** Python 3.11, FastAPI, Pydantic.  The project uses a custom
+- **Tech stack:** Python 3.14, FastAPI 0.122+, Pydantic 2.12+.  The project uses a custom
   `SchemaMigrator` for SQLite migrations and `pytest` for testing.
 - **File structure:**
   - `troostwatch/app/api.py` – Contains FastAPI routes and Pydantic response
@@ -61,6 +61,40 @@ The UI uses TypeScript types generated from the FastAPI OpenAPI schema:
 - Lint and format code: `flake8 .` and `black .`
 - Type check: `mypy troostwatch`
 - Regenerate UI types: `cd ui && npm run generate:api-types`
+
+## FastAPI 0.122+ patterns
+
+FastAPI 0.122+ deprecates `@app.on_event()` in favor of lifespan context managers:
+
+```python
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # startup code
+    yield
+    # shutdown code
+
+app = FastAPI(lifespan=lifespan)
+```
+
+Additional modern patterns:
+- Prefer `Annotated[T, Depends(...)]` for dependency injection
+- Use `response_model_exclude_unset=True` where appropriate
+- Use `HTTPException` with `detail` for error responses
+
+## Pydantic 2.12+ patterns
+
+Pydantic 2.x has breaking API changes from 1.x:
+
+| Old (Pydantic 1.x) | New (Pydantic 2.x) |
+|--------------------|---------------------|
+| `.dict()` | `.model_dump()` |
+| `.json()` | `.model_dump_json()` |
+| `parse_obj()` | `model_validate()` |
+| `class Config:` | `model_config = ConfigDict(...)` |
+| `@validator` | `@field_validator` |
+| `@root_validator` | `@model_validator` |
 
 ## API development guidelines
 

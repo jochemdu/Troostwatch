@@ -2,43 +2,68 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Dict, Optional
+import sqlite3
+from contextlib import AbstractContextManager
+from typing import Any, Callable, Dict, Optional
 from urllib.parse import urljoin
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import BidRepository
 from troostwatch.infrastructure.http import AuthenticationError, TroostwatchHttpClient
 from troostwatch.infrastructure.observability import get_logger, log_context
+from troostwatch.services.dto import BidResultDTO
 
-_logger = get_logger(__name__)
+ConnectionFactory = Callable[[], AbstractContextManager[sqlite3.Connection]]
+
+# Re-export for backward compatibility
+BidResult = BidResultDTO
 
 
 class BidError(Exception):
     """Raised when a bid cannot be submitted."""
 
 
-@dataclass
-class BidResult:
-    """Structured response from the bidding API."""
-
-    lot_code: str
-    auction_code: str
-    amount_eur: float
-    raw_response: Dict[str, Any]
-
-
 class BiddingService:
-    """Service for submitting bids against the remote Troostwijk API."""
+    """Service for submitting bids against the remote Troostwijk API.
+
+    Uses connection factory pattern for optional bid persistence.
+    """
 
     def __init__(
         self,
         client: TroostwatchHttpClient,
         *,
         api_base_url: str = "https://www.troostwijkauctions.com/api",
+        connection_factory: ConnectionFactory | None = None,
     ) -> None:
         self.client = client
         self.api_base_url = api_base_url.rstrip("/")
+        self._connection_factory = connection_factory
+        self._logger = get_logger(__name__)
+
+    @classmethod
+    def from_sqlite_path(
+        cls,
+        client: TroostwatchHttpClient,
+        db_path: str,
+        *,
+        api_base_url: str = "https://www.troostwijkauctions.com/api",
+    ) -> "BiddingService":
+        """Create a BiddingService with database persistence enabled.
+
+        Args:
+            client: Authenticated HTTP client for bid submission
+            db_path: Path to the SQLite database file
+            api_base_url: Base URL for the bidding API
+
+        Returns:
+            BiddingService instance with persistence enabled
+        """
+
+        def connection_factory() -> AbstractContextManager[sqlite3.Connection]:
+            return get_connection(db_path)
+
+        return cls(client, api_base_url=api_base_url, connection_factory=connection_factory)
 
     def _resolve(self, path: str) -> str:
         return urljoin(self.api_base_url + "/", path.lstrip("/"))
@@ -51,7 +76,6 @@ class BiddingService:
         lot_code: str,
         amount_eur: float,
         note: Optional[str] = None,
-        db_path: str | None = None,
     ) -> BidResult:
         if amount_eur <= 0:
             raise ValueError("Bid amount must be positive")
@@ -59,7 +83,7 @@ class BiddingService:
         with log_context(
             auction_code=auction_code, lot_code=lot_code, buyer=buyer_label
         ):
-            _logger.info("Submitting bid for %.2f EUR", amount_eur)
+            self._logger.info("Submitting bid for %.2f EUR", amount_eur)
 
             payload: Dict[str, Any] = {
                 "auctionCode": auction_code,
@@ -73,14 +97,14 @@ class BiddingService:
             try:
                 response = self.client.post_json(self._resolve("bids"), payload)
             except AuthenticationError:
-                _logger.error("Authentication failed during bid submission")
+                self._logger.error("Authentication failed during bid submission")
                 raise
             except Exception as exc:  # pragma: no cover - runtime safety
-                _logger.error("Bid submission failed: %s", exc)
+                self._logger.error("Bid submission failed: %s", exc)
                 raise BidError(f"Failed to submit bid: {exc}")
 
-            self._persist_bid(db_path, buyer_label, auction_code, lot_code, amount_eur, note)
-            _logger.info("Bid submitted successfully for %.2f EUR", amount_eur)
+            self._persist_bid(buyer_label, auction_code, lot_code, amount_eur, note)
+            self._logger.info("Bid submitted successfully for %.2f EUR", amount_eur)
 
             return BidResult(
                 lot_code=lot_code,
@@ -91,16 +115,15 @@ class BiddingService:
 
     def _persist_bid(
         self,
-        db_path: str | None,
         buyer_label: str,
         auction_code: str,
         lot_code: str,
         amount_eur: float,
         note: Optional[str],
     ) -> None:
-        if db_path is None:
+        if self._connection_factory is None:
             return
-        with get_connection(db_path) as conn:
+        with self._connection_factory() as conn:
             ensure_schema(conn)
             try:
                 BidRepository(conn).record_bid(

@@ -4,23 +4,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
 
 
 @dataclass
 class Auction:
     """Domain model representing an auction.
-    
+
     This model encapsulates the business logic related to auctions,
     such as determining if an auction is active and managing pagination.
     """
 
     auction_code: str
-    title: Optional[str] = None
-    url: Optional[str] = None
-    pagination_pages: List[str] = field(default_factory=list)
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    title: str | None = None
+    url: str | None = None
+    pagination_pages: list[str] = field(default_factory=list)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     @property
     def has_url(self) -> bool:
@@ -32,9 +31,9 @@ class Auction:
         """Return the number of pagination pages discovered."""
         return len(self.pagination_pages) + 1  # +1 for the main page
 
-    def get_all_page_urls(self) -> List[str]:
+    def get_all_page_urls(self) -> list[str]:
         """Return all page URLs including the main URL.
-        
+
         Returns:
             List of URLs starting with the main URL, followed by pagination pages.
         """
@@ -52,8 +51,8 @@ class Auction:
                 pagination = json.loads(pagination)
             except (json.JSONDecodeError, TypeError):
                 pagination = []
-        
-        def parse_datetime(value) -> Optional[datetime]:
+
+        def parse_datetime(value: object) -> datetime | None:
             if value is None:
                 return None
             if isinstance(value, datetime):
@@ -76,4 +75,3 @@ class Auction:
 
 
 __all__ = ["Auction"]
-

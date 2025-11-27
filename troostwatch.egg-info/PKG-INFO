@@ -4,22 +4,24 @@ Version: 0.7.0
 Summary: Scrape Troostwijk auctions, track bids, analyse exposure and view results via a CLI.
 Author-email: Jochem <jochem@example.com>
 License: MIT
-Requires-Python: >=3.10
+Requires-Python: >=3.11
 Description-Content-Type: text/markdown
-Requires-Dist: click>=8.0
-Requires-Dist: beautifulsoup4>=4.10
-Requires-Dist: requests>=2.31
-Requires-Dist: rich>=13.4
-Requires-Dist: aiohttp>=3.9
-Requires-Dist: PyYAML>=5.0
-Requires-Dist: fastapi>=0.110
-Requires-Dist: uvicorn>=0.20
+Requires-Dist: click>=8.3
+Requires-Dist: beautifulsoup4>=4.14
+Requires-Dist: requests>=2.32
+Requires-Dist: rich>=14.0
+Requires-Dist: aiohttp>=3.13
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: fastapi>=0.122
+Requires-Dist: uvicorn>=0.38
+Requires-Dist: websockets>=15.0
+Requires-Dist: pydantic>=2.12
 Provides-Extra: dev
-Requires-Dist: pytest>=7.0; extra == "dev"
-Requires-Dist: black>=23.0; extra == "dev"
-Requires-Dist: flake8>=6.0; extra == "dev"
-Requires-Dist: mypy>=1.2; extra == "dev"
-Requires-Dist: import-linter>=2.0; extra == "dev"
+Requires-Dist: pytest>=9.0; extra == "dev"
+Requires-Dist: black>=24.0; extra == "dev"
+Requires-Dist: flake8>=7.0; extra == "dev"
+Requires-Dist: mypy>=1.13; extra == "dev"
+Requires-Dist: import-linter>=2.1; extra == "dev"
 Provides-Extra: docs
 Requires-Dist: markdown-it-py>=2.2; extra == "docs"
 

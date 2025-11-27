@@ -2,19 +2,14 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import asdict, dataclass
-from typing import Awaitable, Callable, Dict, List, Optional
 
 from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.db import ensure_core_schema, ensure_schema, get_connection, get_path_config
 from troostwatch.infrastructure.db.repositories import AuctionRepository, PreferenceRepository
+from troostwatch.infrastructure.observability import get_logger
+from troostwatch.services.dto import EventPublisher, noop_event_publisher
 from troostwatch.services.live_runner import LiveSyncConfig, LiveSyncRunner, LiveSyncState
 from troostwatch.services.sync import SyncRunResult, sync_auction_to_db
-
-EventPublisher = Callable[[dict[str, object]], Awaitable[None]]
-
-
-async def _noop_event(_: dict[str, object]) -> None:
-    """Default event publisher when none is provided."""
 
 
 @dataclass(frozen=True)
@@ -23,7 +18,7 @@ class AuctionSelection:
 
     resolved_code: str | None
     resolved_url: str | None
-    available: list[dict[str, object]]
+    available: list[dict[str, str | None]]
     preferred_index: int | None
 
     @property
@@ -76,17 +71,18 @@ class SyncService:
         live_sync_runner: LiveSyncRunner | None = None,
     ) -> None:
         self._db_path = db_path or str(get_path_config()["db_path"])
-        self._event_publisher = event_publisher or _noop_event
+        self._event_publisher = event_publisher or noop_event_publisher
         self._live_sync_runner = live_sync_runner or LiveSyncRunner(
             db_path=self._db_path, event_publisher=self._event_publisher
         )
+        self._logger = get_logger(__name__)
 
     async def run_sync(
         self,
         *,
         auction_code: str,
         auction_url: str,
-        max_pages: Optional[int] = None,
+        max_pages: int | None = None,
         dry_run: bool = False,
         delay_seconds: float | None = None,
         max_concurrent_requests: int = 5,
@@ -100,6 +96,10 @@ class SyncService:
         http_client: TroostwatchHttpClient | None = None,
     ) -> SyncRunSummary:
         """Run a one-off sync for a single auction."""
+        self._logger.info(
+            "Starting sync for auction %s (dry_run=%s, max_pages=%s)",
+            auction_code, dry_run, max_pages
+        )
 
         try:
             result = await asyncio.to_thread(
@@ -121,6 +121,7 @@ class SyncService:
                 http_client=http_client,
             )
         except Exception as exc:  # pragma: no cover - defensive guard
+            self._logger.error("Sync failed for auction %s: %s", auction_code, exc)
             return SyncRunSummary(status="error", auction_code=auction_code, result=None, error=str(exc))
 
         summary = SyncRunSummary(
@@ -128,6 +129,10 @@ class SyncService:
             auction_code=auction_code,
             result=result,
             error="; ".join(result.errors) if result.status != "success" and result.errors else None,
+        )
+        self._logger.info(
+            "Sync completed for auction %s: status=%s, lots_scanned=%d, lots_updated=%d",
+            auction_code, result.status, result.lots_scanned, result.lots_updated
         )
         await self._event_publisher(summary.to_event_payload())
         return summary
@@ -138,10 +143,14 @@ class SyncService:
         include_inactive: bool = False,
         max_pages: int | None = None,
         dry_run: bool = False,
-    ) -> List[SyncRunSummary]:
+    ) -> list[SyncRunSummary]:
         """Synchronize all auctions stored locally."""
 
         auctions = self._load_auctions(include_inactive=include_inactive)
+        self._logger.info(
+            "Starting multi-sync for %d auctions (include_inactive=%s)",
+            len(auctions), include_inactive
+        )
         results: list[SyncRunSummary] = []
         for auction in auctions:
             code = auction.get("auction_code") or auction.get("code")
@@ -155,18 +164,20 @@ class SyncService:
                 continue
             results.append(
                 await self.run_sync(
-                    auction_code=code,
-                    auction_url=url,
+                    auction_code=str(code),
+                    auction_url=str(url),
                     max_pages=max_pages,
                     dry_run=dry_run,
                 )
             )
+        self._logger.info("Multi-sync completed: %d auctions processed", len(results))
         return results
 
     def choose_auction(
         self, *, auction_code: str | None = None, auction_url: str | None = None
     ) -> AuctionSelection:
         """Resolve which auction to sync using stored auctions and preferences."""
+        self._logger.debug("Choosing auction: code=%s, url=%s", auction_code, auction_url)
 
         available, preferred_code = self._load_auctions_and_preference(include_inactive=True)
         preferred_index: int | None = None
@@ -178,13 +189,17 @@ class SyncService:
             if preferred_index is None:
                 preferred_index = 0
 
-        resolved_code = auction_code or (available[preferred_index]["auction_code"] if preferred_index is not None else None)
-        resolved_url = auction_url
+        resolved_code: str | None = auction_code
+        if not resolved_code and preferred_index is not None:
+            code_val = available[preferred_index].get("auction_code")
+            resolved_code = str(code_val) if code_val else None
 
+        resolved_url: str | None = auction_url
         if resolved_code and not resolved_url:
             match = next((a for a in available if a.get("auction_code") == resolved_code), None)
             if match:
-                resolved_url = match.get("url") or resolved_url
+                url_val = match.get("url")
+                resolved_url = str(url_val) if url_val else resolved_url
 
         return AuctionSelection(
             resolved_code=resolved_code,
@@ -201,7 +216,11 @@ class SyncService:
         max_pages: int | None = None,
         dry_run: bool = False,
         interval_seconds: float | None = None,
-    ) -> Dict[str, object]:
+    ) -> dict[str, object]:
+        self._logger.info(
+            "Starting live sync for auction %s (interval=%s)",
+            auction_code, interval_seconds
+        )
         state = await self._live_sync_runner.start(
             LiveSyncConfig(
                 auction_code=auction_code,
@@ -213,21 +232,23 @@ class SyncService:
         )
         return self._format_live_state(state)
 
-    async def pause_live_sync(self) -> Dict[str, object]:
+    async def pause_live_sync(self) -> dict[str, object]:
+        self._logger.info("Pausing live sync")
         state = await self._live_sync_runner.pause()
         return self._format_live_state(state)
 
-    async def stop_live_sync(self) -> Dict[str, object]:
+    async def stop_live_sync(self) -> dict[str, object]:
+        self._logger.info("Stopping live sync")
         state = await self._live_sync_runner.stop()
         return self._format_live_state(state)
 
-    def get_live_sync_status(self) -> Dict:
+    def get_live_sync_status(self) -> dict[str, object]:
         return self._live_sync_runner.get_status()
 
-    def _format_live_state(self, state: LiveSyncState) -> Dict[str, object]:
+    def _format_live_state(self, state: LiveSyncState) -> dict[str, object]:
         return {"state": state.status, "detail": None}
 
-    def _load_auctions(self, *, include_inactive: bool) -> list[dict[str, object]]:
+    def _load_auctions(self, *, include_inactive: bool) -> list[dict[str, str | None]]:
         with get_connection(self._db_path) as conn:
             ensure_core_schema(conn)
             ensure_schema(conn)
@@ -236,7 +257,7 @@ class SyncService:
 
     def _load_auctions_and_preference(
         self, *, include_inactive: bool
-    ) -> tuple[list[dict[str, object]], str | None]:
+    ) -> tuple[list[dict[str, str | None]], str | None]:
         with get_connection(self._db_path) as conn:
             ensure_core_schema(conn)
             ensure_schema(conn)

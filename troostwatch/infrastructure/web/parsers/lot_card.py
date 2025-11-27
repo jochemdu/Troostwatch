@@ -18,39 +18,39 @@ logger = get_logger(__name__)
 
 def _extract_lot_number_from_url(url: str) -> str | None:
     """Extract the lot number from a Troostwijk lot URL.
-    
+
     URL formats:
     - /l/description-AUCTION_CODE-LOT_NUMBER (e.g., /l/samsung-wm75a-A1-39500-1801)
     - /l/description-LOT_CODE (e.g., /l/daimler-benz-mb-trac-1300-voorlader-03T-SMD-1)
-    
+
     Returns the lot identifier which may be numeric (1801) or alphanumeric (03T-SMD-1)
     """
     if not url:
         return None
-    
+
     # Get the path part after /l/
     path = url.split("/l/")[-1] if "/l/" in url else url
     # Remove query string
     path = path.split("?")[0]
-    
+
     # Try to extract the lot code from the end of the URL
     # Pattern: ends with alphanumeric lot code like 03T-SMD-1 or just 1801
-    # Look for pattern after auction code (e.g., A1-39500-1801) 
+    # Look for pattern after auction code (e.g., A1-39500-1801)
     match = re.search(r"-([A-Z]+\d*-\d+)-(\d+)$", path, re.IGNORECASE)
     if match:
         # URL has auction code followed by numeric lot number
         return match.group(2)
-    
+
     # Try to match alphanumeric lot code pattern (e.g., 03T-SMD-1)
     match = re.search(r"-(\d+[A-Z]+-[A-Z]+-\d+)$", path, re.IGNORECASE)
     if match:
         return match.group(1)
-    
+
     # Fallback: just get the last segment after the last hyphen
     match = re.search(r"-(\d+)$", path)
     if match:
         return match.group(1)
-    
+
     return None
 
 
@@ -87,14 +87,16 @@ def parse_lot_card(html: str, auction_code: str, base_url: str | None = None) ->
         display_id = _text("display-id-text")
         title_link = card.find(attrs={"data-cy": "title-link"})
         title = utils.extract_text(title_link)
-        url = title_link.get("href", "") if title_link else ""
+        href = title_link.get("href", "") if title_link else ""
+        url = str(href) if isinstance(href, str) else (href[0] if href else "")
         if base_url and url.startswith("/"):
             url = base_url.rstrip("/") + url
 
         # Extract lot number from URL, fallback to display_id
         lot_code = _extract_lot_number_from_url(url) or display_id
 
-        state_text = (_text("state-chip") or (card.get("data-state") or "")).strip().lower()
+        state_attr = card.get("data-state") if hasattr(card, "get") else None
+        state_text = (_text("state-chip") or (str(state_attr) if state_attr else "")).strip().lower()
         state: Optional[str]
         if state_text.startswith("run"):
             state = "running"
@@ -186,7 +188,10 @@ def parse_auction_page(html: str, base_url: str | None = None) -> Iterable[LotCa
             state = None
 
         location = lot.get("location") or {}
-        city, country = utils.split_location("{city}, {countryCode}".format(**{**{"city": "", "countryCode": ""}, **location}))
+        loc_data = {**{"city": "", "countryCode": ""}, **location}
+        city, country = utils.split_location(
+            "{city}, {countryCode}".format(**loc_data)
+        )
         country_code = (location.get("countryCode") or "").lower()
         country = utils.COUNTRY_CODES.get(country_code, country)
 
@@ -256,7 +261,7 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
 
         for page_num in range(2, total_pages_int + 1):
             query = base_query.copy()
-            query["page"] = page_num
+            query["page"] = str(page_num)
             page_urls.append(
                 urlunsplit(
                     (

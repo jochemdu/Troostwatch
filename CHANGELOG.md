@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Python 3.11+ required**: Minimum Python version bumped from 3.10 to 3.11. Python 3.14 is supported.
+- **Major dependency upgrades**:
+  - FastAPI 0.122+ (was 0.110)
+  - uvicorn 0.38+ (was 0.20)
+  - pytest 9.0+ (was 7.0)
+  - aiohttp 3.13+ (was 3.9)
+  - beautifulsoup4 4.14+ (was 4.10)
+  - rich 14.0+ (was 13.4)
+  - websockets 15.0+ (was 10.0)
+  - pydantic 2.12+
+- **Frontend upgrades**:
+  - Next.js 16.0+ (was 15.x)
+  - React 19.1+ 
+  - TypeScript 5.8+
+  - ESLint 9.28+
+
 ## [0.7.0] – 2025-11-27
 
 ### Added

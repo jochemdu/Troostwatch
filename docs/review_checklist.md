@@ -96,6 +96,33 @@ PRs that introduce new violations.
 
 ---
 
+## Full-Stack Changes Checklist
+
+For PRs that touch both backend API and frontend UI:
+
+### API Contract Sync
+
+- [ ] TypeScript types regenerated: `cd ui && npm run generate:api-types`
+- [ ] `openapi.json` committed with changes
+- [ ] `ui/lib/generated/api-types.ts` committed with changes
+- [ ] UI compiles without errors: `cd ui && npx tsc --noEmit`
+
+### Breaking API Changes
+
+- [ ] Change documented in PR description with migration notes
+- [ ] Endpoint stability level reviewed (see [API stability policy](api.md#api-stability-policy))
+- [ ] UI and API changes merged together (not separately)
+- [ ] Deprecation period considered for stable endpoints
+
+### New Endpoints
+
+- [ ] Response model defined as Pydantic class in `app/api.py`
+- [ ] Type re-exported in `ui/lib/generated/index.ts`
+- [ ] Stability level documented in `docs/api.md`
+- [ ] API client function added in `ui/lib/api.ts`
+
+---
+
 ## Code Style Checklist
 
 - [ ] Type hints on public functions and methods

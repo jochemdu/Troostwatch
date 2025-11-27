@@ -11,6 +11,29 @@
 - [ ] 🔧 Refactoring (no functional changes)
 - [ ] 🧪 Test improvements
 
+## Impact Assessment
+
+<!-- Answer these questions to help reviewers assess version impact -->
+
+### API Impact
+- [ ] This PR modifies the public API (endpoints, request/response models)
+- [ ] This PR is a **breaking** API change (removed/renamed fields, changed behavior)
+
+### Schema/Migration Impact
+- [ ] This PR modifies the database schema
+- [ ] This PR requires a migration for existing databases
+
+### Version Bump
+<!-- Check one. See docs/versioning.md for guidelines -->
+- [ ] No version bump needed (internal refactoring, docs only)
+- [ ] PATCH bump needed (bug fix, internal changes)
+- [ ] MINOR bump needed (new features, backwards-compatible schema changes)
+- [ ] MAJOR bump needed (breaking API changes)
+
+**If version bump is needed:**
+- [ ] I have updated `version` in `pyproject.toml`
+- [ ] I have updated `CHANGELOG.md`
+
 ## Checklist
 
 ### General

@@ -96,6 +96,36 @@ PRs that introduce new violations.
 
 ---
 
+## Version Review Checklist
+
+For every PR, reviewers should verify version handling:
+
+### Version Bump Assessment
+
+- [ ] **Does the change require a version bump?**
+  - API changes → at least MINOR (MAJOR if breaking)
+  - Schema changes → at least MINOR (if externally visible)
+  - Bug fixes → PATCH
+  - Internal refactoring/docs → often no bump needed
+
+- [ ] **Is the version bump appropriate for the change?**
+  - Reject over-bumping (MAJOR for a bug fix)
+  - Reject under-bumping (PATCH for breaking changes)
+
+- [ ] **Are version files updated correctly?**
+  - `pyproject.toml` has correct new version
+  - `CHANGELOG.md` documents the changes
+  - PR author has explained the version decision
+
+### Version Review Policy
+
+1. **Explicit review**: Every version bump must be explicitly acknowledged in review
+2. **Justification required**: Reject PRs with unexplained version changes
+3. **No silent bumps**: Version changes should never be "hidden" in large diffs
+4. **Consistency**: Ensure version in `pyproject.toml` matches the stated bump type
+
+---
+
 ## Full-Stack Changes Checklist
 
 For PRs that touch both backend API and frontend UI:

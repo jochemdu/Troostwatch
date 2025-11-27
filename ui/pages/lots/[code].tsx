@@ -3,8 +3,8 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import LotEditModal from '../../components/LotEditModal';
-import type { LotDetailResponse, SpecTemplate } from '../../lib/api';
-import { fetchLotDetail, fetchSpecTemplates } from '../../lib/api';
+import type { LotDetailResponse, SpecTemplate, BidHistoryEntry } from '../../lib/api';
+import { fetchLotDetail, fetchSpecTemplates, fetchBidHistory } from '../../lib/api';
 import { buildSpecTree, getDepthColor, type SpecNode } from '../../lib/specs';
 
 export default function LotDetailPage() {
@@ -14,6 +14,7 @@ export default function LotDetailPage() {
   
   const [lot, setLot] = useState<LotDetailResponse | null>(null);
   const [templates, setTemplates] = useState<SpecTemplate[]>([]);
+  const [bidHistory, setBidHistory] = useState<BidHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -22,6 +23,7 @@ export default function LotDetailPage() {
     if (typeof code === 'string') {
       loadLot(code);
       loadTemplates();
+      loadBidHistory(code);
     }
   }, [code, auctionCode]);
 
@@ -44,6 +46,15 @@ export default function LotDetailPage() {
       setTemplates(data);
     } catch (err) {
       console.error('Failed to load templates:', err);
+    }
+  };
+
+  const loadBidHistory = async (lotCode: string) => {
+    try {
+      const data = await fetchBidHistory(lotCode, auctionCode);
+      setBidHistory(data);
+    } catch (err) {
+      console.error('Failed to load bid history:', err);
     }
   };
 
@@ -222,6 +233,25 @@ export default function LotDetailPage() {
             <div className="notes">{lot.notes}</div>
           </div>
         )}
+
+        {/* Bid History */}
+        {bidHistory.length > 0 && (
+          <div className="section">
+            <h2>Biedgeschiedenis ({bidHistory.length})</h2>
+            <div className="bid-history">
+              {bidHistory.map((bid, index) => (
+                <div key={bid.id} className={`bid-row ${index === 0 ? 'latest' : ''}`}>
+                  <span className="bid-rank">#{bidHistory.length - index}</span>
+                  <span className="bid-amount">€{bid.amount_eur.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>
+                  <span className="bid-bidder">{bid.bidder_label}</span>
+                  {bid.timestamp && (
+                    <span className="bid-time">{new Date(bid.timestamp).toLocaleString('nl-NL')}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Edit Modal */}
@@ -295,6 +325,21 @@ export default function LotDetailPage() {
         .spec-category { font-size: 0.8rem; color: #60a5fa; background: #1a1a2e; padding: 2px 8px; border-radius: 4px; }
         
         .notes { background: #252540; border-radius: 6px; padding: 14px; white-space: pre-wrap; color: #e0e0e0; line-height: 1.5; }
+        
+        .bid-history { display: flex; flex-direction: column; gap: 8px; }
+        .bid-row { 
+          display: flex; 
+          align-items: center; 
+          gap: 16px; 
+          padding: 10px 14px; 
+          background: #252540; 
+          border-radius: 6px;
+        }
+        .bid-row.latest { background: #1e3a2f; border: 1px solid #4ade80; }
+        .bid-rank { font-size: 0.8rem; color: #666; min-width: 30px; }
+        .bid-amount { font-size: 1rem; font-weight: 600; color: #4ade80; font-family: monospace; min-width: 100px; }
+        .bid-bidder { color: #a0a0c0; flex: 1; }
+        .bid-time { font-size: 0.8rem; color: #666; }
       `}</style>
     </Layout>
   );

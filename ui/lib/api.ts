@@ -264,6 +264,99 @@ export async function deleteReferencePrice(lotCode: string, refId: number): Prom
 }
 
 // =============================================================================
+// Bid History Endpoints
+// =============================================================================
+
+/**
+ * A single bid in the lot's bid history.
+ */
+export interface BidHistoryEntry {
+  id: number;
+  bidder_label: string;
+  amount_eur: number;
+  timestamp: string | null;
+  created_at: string | null;
+}
+
+/**
+ * Fetch bid history for a lot.
+ * @see GET /lots/{lot_code}/bid-history in troostwatch/app/api.py
+ */
+export async function fetchBidHistory(lotCode: string, auctionCode?: string): Promise<BidHistoryEntry[]> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}/bid-history`);
+  if (auctionCode) {
+    url.searchParams.append('auction_code', auctionCode);
+  }
+  const response = await fetch(url.toString());
+  return handleResponse<BidHistoryEntry[]>(response);
+}
+
+// =============================================================================
+// Search Endpoints
+// =============================================================================
+
+/**
+ * A search result with lot details and match info.
+ */
+export interface SearchResult {
+  auction_code: string;
+  lot_code: string;
+  title: string | null;
+  state: string | null;
+  current_bid_eur: number | null;
+  brand: string | null;
+  match_field: 'title' | 'brand' | 'lot_code' | 'ean';
+}
+
+/**
+ * Search lots by title, brand, lot code, or EAN.
+ * @see GET /search in troostwatch/app/api.py
+ */
+export async function searchLots(
+  query: string,
+  options?: { state?: string; limit?: number }
+): Promise<SearchResult[]> {
+  const url = new URL(`${API_BASE}/search`);
+  url.searchParams.append('q', query);
+  if (options?.state) {
+    url.searchParams.append('state', options.state);
+  }
+  if (options?.limit) {
+    url.searchParams.append('limit', options.limit.toString());
+  }
+  const response = await fetch(url.toString());
+  return handleResponse<SearchResult[]>(response);
+}
+
+// =============================================================================
+// Dashboard Stats Endpoints
+// =============================================================================
+
+/**
+ * Dashboard statistics overview.
+ */
+export interface DashboardStats {
+  total_auctions: number;
+  active_auctions: number;
+  total_lots: number;
+  running_lots: number;
+  scheduled_lots: number;
+  closed_lots: number;
+  total_bids: number;
+  total_positions: number;
+  total_buyers: number;
+}
+
+/**
+ * Fetch dashboard statistics.
+ * @see GET /stats in troostwatch/app/api.py
+ */
+export async function fetchDashboardStats(): Promise<DashboardStats> {
+  const response = await fetch(`${API_BASE}/stats`);
+  return handleResponse<DashboardStats>(response);
+}
+
+// =============================================================================
 // Lot Spec Endpoints (POST/DELETE /lots/{lot_code}/specs)
 // =============================================================================
 

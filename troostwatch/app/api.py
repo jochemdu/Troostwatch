@@ -648,6 +648,14 @@ class SpecTemplateCreateRequest(BaseModel):
     parent_id: Optional[int] = None
 
 
+class SpecTemplateUpdateRequest(BaseModel):
+    """Request to update a spec template."""
+    title: Optional[str] = None
+    value: Optional[str] = None
+    ean: Optional[str] = None
+    price_eur: Optional[float] = None
+
+
 class ApplyTemplateRequest(BaseModel):
     """Request to apply a template to a lot."""
     template_id: int
@@ -685,6 +693,28 @@ async def create_spec_template(
         ean=payload.ean,
         price_eur=payload.price_eur,
     )
+
+
+@app.patch("/spec-templates/{template_id}", response_model=SpecTemplateResponse)
+async def update_spec_template(
+    template_id: int,
+    payload: SpecTemplateUpdateRequest,
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> SpecTemplateResponse:
+    """Update a spec template."""
+    if not lot_repository.update_spec_template(
+        template_id,
+        title=payload.title,
+        value=payload.value,
+        ean=payload.ean,
+        price_eur=payload.price_eur,
+    ):
+        raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
+    
+    template = lot_repository.get_spec_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
+    return SpecTemplateResponse(**template)
 
 
 @app.delete("/spec-templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)

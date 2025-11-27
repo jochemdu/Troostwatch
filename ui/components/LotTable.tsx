@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Link from 'next/link';
 import type { LotView } from '../lib/api';
 import LotEditModal from './LotEditModal';
 
@@ -78,7 +79,11 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
                     onChange={() => onToggleLot(lot.lot_code)}
                   />
                 </td>
-                <td>{lot.title ?? lot.lot_code}</td>
+                <td>
+                  <Link href={`/lots/${encodeURIComponent(lot.lot_code)}?auction=${encodeURIComponent(lot.auction_code)}`} className="lot-link">
+                    {lot.title ?? lot.lot_code}
+                  </Link>
+                </td>
                 <td>{lot.auction_code}</td>
                 <td>
                   <span className={`badge ${lot.state === 'closed' ? 'error' : ''}`}>{lot.state ?? 'onbekend'}</span>
@@ -152,6 +157,16 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
 
         .sortable-header:hover .sort-indicator {
           opacity: 0.8;
+        }
+      `}</style>
+      <style jsx global>{`
+        .lot-link {
+          color: #6366f1;
+          text-decoration: none;
+        }
+        .lot-link:hover {
+          text-decoration: underline;
+          color: #818cf8;
         }
       `}</style>
     </>

@@ -2,13 +2,29 @@ import { useState, useEffect } from 'react';
 import type { LotDetailResponse, ReferencePrice, ReferencePriceCreateRequest, LotSpec, LotSpecCreateRequest, SpecTemplate } from '../lib/api';
 import { fetchLotDetail, updateLot, addReferencePrice, deleteReferencePrice, addLotSpec, deleteLotSpec, fetchSpecTemplates, createSpecTemplate, applyTemplateToLot } from '../lib/api';
 
-interface Props {
+interface BaseProps {
+  onClose: () => void;
+  onSave?: () => void;
+  onSaved?: () => void;
+}
+
+interface PropsWithCodes extends BaseProps {
   lotCode: string;
   auctionCode: string;
   isOpen: boolean;
-  onClose: () => void;
-  onSaved: () => void;
+  lot?: never;
+  templates?: never;
 }
+
+interface PropsWithLot extends BaseProps {
+  lot: LotDetailResponse;
+  templates: SpecTemplate[];
+  lotCode?: never;
+  auctionCode?: never;
+  isOpen?: never;
+}
+
+type Props = PropsWithCodes | PropsWithLot;
 
 const CONDITION_OPTIONS = [
   { value: 'new', label: 'Nieuw' },
@@ -77,25 +93,34 @@ function buildSpecTree(specs: LotSpec[]): SpecNode[] {
   return roots;
 }
 
-export default function LotEditModal({ lotCode, auctionCode, isOpen, onClose, onSaved }: Props) {
-  const [loading, setLoading] = useState(true);
+export default function LotEditModal(props: Props) {
+  // Determine if we have a lot directly or need to fetch
+  const providedLot = 'lot' in props ? props.lot : null;
+  const lotCode = providedLot ? providedLot.lot_code : props.lotCode!;
+  const auctionCode = providedLot ? providedLot.auction_code : props.auctionCode!;
+  const isOpen = 'isOpen' in props ? props.isOpen : true;
+  const onSaved = props.onSave || props.onSaved || (() => {});
+  const onClose = props.onClose;
+  const providedTemplates = 'templates' in props ? props.templates : null;
+
+  const [loading, setLoading] = useState(!providedLot);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lot, setLot] = useState<LotDetailResponse | null>(null);
-  const [notes, setNotes] = useState<string>('');
-  const [ean, setEan] = useState<string>('');
-  const [referencePrices, setReferencePrices] = useState<ReferencePrice[]>([]);
+  const [lot, setLot] = useState<LotDetailResponse | null>(providedLot ?? null);
+  const [notes, setNotes] = useState<string>(providedLot?.notes ?? '');
+  const [ean, setEan] = useState<string>(providedLot?.ean ?? '');
+  const [referencePrices, setReferencePrices] = useState<ReferencePrice[]>(providedLot?.reference_prices ?? []);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPrice, setNewPrice] = useState<NewPriceForm>(emptyPriceForm);
-  const [specs, setSpecs] = useState<LotSpec[]>([]);
+  const [specs, setSpecs] = useState<LotSpec[]>(providedLot?.specs ?? []);
   const [showAddSpecForm, setShowAddSpecForm] = useState(false);
   const [newSpec, setNewSpec] = useState<NewSpecForm>(emptySpecForm);
   const [addingSubspecTo, setAddingSubspecTo] = useState<number | null>(null);
-  const [specTemplates, setSpecTemplates] = useState<SpecTemplate[]>([]);
+  const [specTemplates, setSpecTemplates] = useState<SpecTemplate[]>(providedTemplates ?? []);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || providedLot) return;
     const loadLot = async () => {
       setLoading(true);
       setError(null);
@@ -117,7 +142,7 @@ export default function LotEditModal({ lotCode, auctionCode, isOpen, onClose, on
       }
     };
     loadLot();
-  }, [isOpen, lotCode, auctionCode]);
+  }, [isOpen, lotCode, auctionCode, providedLot]);
 
   const handleSaveLotInfo = async () => {
     setSaving(true);

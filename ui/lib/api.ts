@@ -363,6 +363,32 @@ export async function deleteSpecTemplate(templateId: number): Promise<void> {
 }
 
 /**
+ * Request to update a spec template.
+ */
+export interface SpecTemplateUpdateRequest {
+  title?: string;
+  value?: string | null;
+  ean?: string | null;
+  price_eur?: number | null;
+}
+
+/**
+ * Update a spec template.
+ * @see PATCH /spec-templates/{template_id} in troostwatch/app/api.py
+ */
+export async function updateSpecTemplate(
+  templateId: number,
+  data: SpecTemplateUpdateRequest
+): Promise<SpecTemplate> {
+  const response = await fetch(`${API_BASE}/spec-templates/${templateId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<SpecTemplate>(response);
+}
+
+/**
  * Apply a spec template to a lot.
  * @see POST /lots/{lot_code}/apply-template in troostwatch/app/api.py
  */

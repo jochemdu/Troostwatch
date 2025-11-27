@@ -19,18 +19,38 @@ logger = get_logger(__name__)
 def _extract_lot_number_from_url(url: str) -> str | None:
     """Extract the lot number from a Troostwijk lot URL.
     
-    URL format: /l/description-AUCTION_CODE-LOT_NUMBER
-    Example: /l/samsung-wm75a-flip-interactive-display-75-A1-39500-1801
-    Returns: 1801
+    URL formats:
+    - /l/description-AUCTION_CODE-LOT_NUMBER (e.g., /l/samsung-wm75a-A1-39500-1801)
+    - /l/description-LOT_CODE (e.g., /l/daimler-benz-mb-trac-1300-voorlader-03T-SMD-1)
+    
+    Returns the lot identifier which may be numeric (1801) or alphanumeric (03T-SMD-1)
     """
-    # Match the last numeric segment after the auction code pattern
-    match = re.search(r"-([A-Z]+\d*-\d+)-(\d+)(?:\?|$)", url, re.IGNORECASE)
+    if not url:
+        return None
+    
+    # Get the path part after /l/
+    path = url.split("/l/")[-1] if "/l/" in url else url
+    # Remove query string
+    path = path.split("?")[0]
+    
+    # Try to extract the lot code from the end of the URL
+    # Pattern: ends with alphanumeric lot code like 03T-SMD-1 or just 1801
+    # Look for pattern after auction code (e.g., A1-39500-1801) 
+    match = re.search(r"-([A-Z]+\d*-\d+)-(\d+)$", path, re.IGNORECASE)
     if match:
+        # URL has auction code followed by numeric lot number
         return match.group(2)
-    # Fallback: just get the last segment after the last hyphen
-    match = re.search(r"-(\d+)(?:\?|$)", url)
+    
+    # Try to match alphanumeric lot code pattern (e.g., 03T-SMD-1)
+    match = re.search(r"-(\d+[A-Z]+-[A-Z]+-\d+)$", path, re.IGNORECASE)
     if match:
         return match.group(1)
+    
+    # Fallback: just get the last segment after the last hyphen
+    match = re.search(r"-(\d+)$", path)
+    if match:
+        return match.group(1)
+    
     return None
 
 
@@ -145,8 +165,9 @@ def parse_auction_page(html: str, base_url: str | None = None) -> Iterable[LotCa
         if base_url and url_slug:
             url = f"{base_url.rstrip('/')}/l/{url_slug}"
 
-        # Extract lot number from URL (e.g., "1801" from "...-A1-39500-1801")
-        lot_code = _extract_lot_number_from_url(url) or display_id
+        # Use displayId as the lot_code - this contains the full identifier
+        # (e.g., "A1-39500-1801" or "03T-SMD-1")
+        lot_code = display_id
 
         bids = lot.get("bidsCount")
         current_bid_amount = utils.amount_from_cents_dict(lot.get("currentBidAmount"))

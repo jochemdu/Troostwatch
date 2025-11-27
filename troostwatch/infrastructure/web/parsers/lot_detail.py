@@ -147,13 +147,9 @@ def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> L
         brand = _parse_brand(lot)
         bid_history = _parse_bid_history(lot)
 
-        # Determine the lot code - prefer displayId, but extract lot number from URL as fallback
+        # Determine the lot code - prefer displayId from the API data
+        # The displayId contains the full lot code (e.g., "A1-39500-1802" or "03T-SMD-1")
         resolved_lot_code = lot.get("displayId") or lot_code
-        # If the lot_code looks like a combined ID (e.g., "A1-39500-1801"), extract just the lot number
-        if resolved_lot_code and url:
-            lot_number_from_url = _extract_lot_number_from_url(url)
-            if lot_number_from_url:
-                resolved_lot_code = lot_number_from_url
 
         return LotDetailData(
             lot_code=resolved_lot_code,

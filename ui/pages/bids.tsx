@@ -1,48 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
-import { fetchBuyers, fetchLots } from '../lib/api';
+import { fetchBuyers, fetchLots, fetchBids, createBid, type Bid } from '../lib/api';
 import type { BuyerResponse, LotView } from '../lib/api';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000';
-
-interface Bid {
-  id: number;
-  buyer_label: string;
-  lot_code: string;
-  auction_code: string;
-  lot_title: string | null;
-  amount_eur: number;
-  placed_at: string;
-  note: string | null;
-}
-
-async function fetchBids(buyer?: string, lotCode?: string): Promise<Bid[]> {
-  const url = new URL(`${API_BASE}/bids`);
-  if (buyer) url.searchParams.append('buyer', buyer);
-  if (lotCode) url.searchParams.append('lot_code', lotCode);
-  const response = await fetch(url.toString());
-  if (!response.ok) throw new Error('Failed to fetch bids');
-  return response.json();
-}
-
-async function createBid(data: {
-  buyer_label: string;
-  auction_code: string;
-  lot_code: string;
-  amount_eur: number;
-  note?: string;
-}): Promise<Bid> {
-  const response = await fetch(`${API_BASE}/bids`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || 'Failed to create bid');
-  }
-  return response.json();
-}
 
 export default function BidsPage() {
   const [bids, setBids] = useState<Bid[]>([]);

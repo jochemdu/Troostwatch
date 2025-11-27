@@ -207,6 +207,64 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
         .sortable-header:hover .sort-indicator {
           opacity: 0.8;
         }
+
+        .delete-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+        .delete-dialog {
+          background: #1a1a2e;
+          border-radius: 8px;
+          padding: 24px;
+          max-width: 400px;
+          color: #e0e0e0;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        .delete-dialog h3 {
+          margin: 0 0 12px 0;
+          color: #f56565;
+        }
+        .delete-dialog p {
+          margin: 8px 0;
+        }
+        .warning {
+          font-size: 0.9em;
+          color: #ed8936;
+        }
+        .delete-actions {
+          display: flex;
+          gap: 12px;
+          margin-top: 20px;
+          justify-content: flex-end;
+        }
+        .btn-cancel {
+          background: #333;
+          border: 1px solid #555;
+          color: #e0e0e0;
+          padding: 8px 16px;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        .btn-cancel:hover {
+          background: #444;
+        }
+        .btn-confirm-delete {
+          background: #f56565;
+          border: none;
+          color: #fff;
+          padding: 8px 16px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-weight: 600;
+        }
+        .btn-confirm-delete:hover {
+          background: #e53e3e;
+        }
       `}</style>
       <style jsx global>{`
         .lot-link {
@@ -231,65 +289,6 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
               <button className="btn-confirm-delete" onClick={handleConfirmDelete}>Verwijderen</button>
             </div>
           </div>
-          <style jsx>{`
-            .delete-overlay {
-              position: fixed;
-              inset: 0;
-              background: rgba(0, 0, 0, 0.6);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              z-index: 1000;
-            }
-            .delete-dialog {
-              background: #1a1a2e;
-              border-radius: 8px;
-              padding: 24px;
-              max-width: 400px;
-              color: #e0e0e0;
-              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            }
-            .delete-dialog h3 {
-              margin: 0 0 12px 0;
-              color: #f56565;
-            }
-            .delete-dialog p {
-              margin: 8px 0;
-            }
-            .warning {
-              font-size: 0.9em;
-              color: #ed8936;
-            }
-            .delete-actions {
-              display: flex;
-              gap: 12px;
-              margin-top: 20px;
-              justify-content: flex-end;
-            }
-            .btn-cancel {
-              background: #333;
-              border: 1px solid #555;
-              color: #e0e0e0;
-              padding: 8px 16px;
-              border-radius: 4px;
-              cursor: pointer;
-            }
-            .btn-cancel:hover {
-              background: #444;
-            }
-            .btn-confirm-delete {
-              background: #f56565;
-              border: none;
-              color: #fff;
-              padding: 8px 16px;
-              border-radius: 4px;
-              cursor: pointer;
-              font-weight: 600;
-            }
-            .btn-confirm-delete:hover {
-              background: #e53e3e;
-            }
-          `}</style>
         </div>
       )}
     </>

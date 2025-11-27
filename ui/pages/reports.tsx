@@ -1,52 +1,25 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-
-interface TrackedLotSummary {
-  lot_code: string;
-  title: string;
-  state: string;
-  current_bid_eur: number | null;
-  max_budget_total_eur: number | null;
-  track_active: boolean;
-}
-
-interface BuyerSummary {
-  buyer_label: string;
-  tracked_count: number;
-  open_count: number;
-  closed_count: number;
-  open_exposure_min_eur: number;
-  open_exposure_max_eur: number;
-  open_tracked_lots: TrackedLotSummary[];
-  won_lots: TrackedLotSummary[];
-}
-
-interface Buyer {
-  id: number;
-  label: string;
-  name: string | null;
-}
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { fetchBuyers, fetchBuyerSummary, type BuyerSummaryReport } from '../lib/api';
+import type { BuyerResponse } from '../lib/api';
 
 export default function ReportsPage() {
-  const [buyers, setBuyers] = useState<Buyer[]>([]);
+  const [buyers, setBuyers] = useState<BuyerResponse[]>([]);
   const [selectedBuyer, setSelectedBuyer] = useState<string>('');
-  const [report, setReport] = useState<BuyerSummary | null>(null);
+  const [report, setReport] = useState<BuyerSummaryReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch buyers on mount
   useEffect(() => {
-    fetch(`${API_BASE}/buyers`)
-      .then((res) => res.json())
+    fetchBuyers()
       .then((data) => {
         setBuyers(data);
         if (data.length > 0 && !selectedBuyer) {
           setSelectedBuyer(data[0].label);
         }
       })
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to fetch buyers'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -57,17 +30,13 @@ export default function ReportsPage() {
     setLoading(true);
     setError(null);
 
-    fetch(`${API_BASE}/reports/buyer/${encodeURIComponent(selectedBuyer)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch report');
-        return res.json();
-      })
+    fetchBuyerSummary(selectedBuyer)
       .then((data) => {
         setReport(data);
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'Failed to fetch report');
         setLoading(false);
       });
   }, [selectedBuyer]);

@@ -1049,6 +1049,95 @@ async def list_auctions(
     ]
 
 
+class AuctionDetailResponse(BaseModel):
+    """Detailed auction information."""
+    auction_code: str
+    title: Optional[str] = None
+    url: Optional[str] = None
+    starts_at: Optional[str] = None
+    ends_at_planned: Optional[str] = None
+    lot_count: int = 0
+
+
+class AuctionUpdateRequest(BaseModel):
+    """Request to update an auction."""
+    title: Optional[str] = None
+    url: Optional[str] = None
+    starts_at: Optional[str] = None
+    ends_at_planned: Optional[str] = None
+
+
+class AuctionDeleteResponse(BaseModel):
+    """Response after deleting an auction."""
+    status: str
+    auction_deleted: int
+    lots_deleted: int
+
+
+@app.get("/auctions/{auction_code}", response_model=AuctionDetailResponse)
+async def get_auction(auction_code: str) -> AuctionDetailResponse:
+    """Get a single auction by code."""
+    repo = get_auction_repository()
+    auction = repo.get_by_code(auction_code)
+    if not auction:
+        raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
+    return AuctionDetailResponse(
+        auction_code=auction["auction_code"],
+        title=auction.get("title"),
+        url=auction.get("url"),
+        starts_at=auction.get("starts_at"),
+        ends_at_planned=auction.get("ends_at_planned"),
+        lot_count=auction.get("lot_count", 0),
+    )
+
+
+@app.patch("/auctions/{auction_code}", response_model=AuctionDetailResponse)
+async def update_auction(
+    auction_code: str,
+    payload: AuctionUpdateRequest,
+) -> AuctionDetailResponse:
+    """Update an auction."""
+    repo = get_auction_repository()
+    if not repo.update(
+        auction_code,
+        title=payload.title,
+        url=payload.url,
+        starts_at=payload.starts_at,
+        ends_at_planned=payload.ends_at_planned,
+    ):
+        raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
+    
+    updated = repo.get_by_code(auction_code)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found after update")
+    
+    return AuctionDetailResponse(
+        auction_code=updated["auction_code"],
+        title=updated.get("title"),
+        url=updated.get("url"),
+        starts_at=updated.get("starts_at"),
+        ends_at_planned=updated.get("ends_at_planned"),
+        lot_count=updated.get("lot_count", 0),
+    )
+
+
+@app.delete("/auctions/{auction_code}", response_model=AuctionDeleteResponse)
+async def delete_auction(
+    auction_code: str,
+    delete_lots: bool = Query(False, description="Also delete all lots in this auction"),
+) -> AuctionDeleteResponse:
+    """Delete an auction. Optionally delete all associated lots."""
+    repo = get_auction_repository()
+    result = repo.delete(auction_code, delete_lots=delete_lots)
+    if result["auction"] == 0:
+        raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
+    return AuctionDeleteResponse(
+        status="deleted",
+        auction_deleted=result["auction"],
+        lots_deleted=result["lots"],
+    )
+
+
 # =============================================================================
 # Lot Management Endpoints
 # =============================================================================

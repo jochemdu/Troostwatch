@@ -556,3 +556,99 @@ export async function loadDebugSample(): Promise<{ lots: LotView[]; buyers: Buye
   const [lots, buyers] = await Promise.all([fetchLots(), fetchBuyers()]);
   return { lots, buyers };
 }
+
+// =============================================================================
+// Auction Endpoints
+// =============================================================================
+
+/**
+ * Auction summary from list endpoint.
+ */
+export interface Auction {
+  auction_code: string;
+  title: string | null;
+  url: string | null;
+  starts_at: string | null;
+  ends_at_planned: string | null;
+  active_lots: number;
+  lot_count: number;
+}
+
+/**
+ * Detailed auction information.
+ */
+export interface AuctionDetail {
+  auction_code: string;
+  title: string | null;
+  url: string | null;
+  starts_at: string | null;
+  ends_at_planned: string | null;
+  lot_count: number;
+}
+
+/**
+ * Request to update an auction.
+ */
+export interface AuctionUpdateRequest {
+  title?: string | null;
+  url?: string | null;
+  starts_at?: string | null;
+  ends_at_planned?: string | null;
+}
+
+/**
+ * Response after deleting an auction.
+ */
+export interface AuctionDeleteResponse {
+  status: string;
+  auction_deleted: number;
+  lots_deleted: number;
+}
+
+/**
+ * Fetch all auctions.
+ * @see GET /auctions in troostwatch/app/api.py
+ */
+export async function fetchAuctions(includeInactive: boolean = false): Promise<Auction[]> {
+  const url = new URL(`${API_BASE}/auctions`);
+  if (includeInactive) {
+    url.searchParams.append('include_inactive', 'true');
+  }
+  const response = await fetch(url.toString());
+  return handleResponse<Auction[]>(response);
+}
+
+/**
+ * Fetch a single auction by code.
+ * @see GET /auctions/{auction_code} in troostwatch/app/api.py
+ */
+export async function fetchAuction(auctionCode: string): Promise<AuctionDetail> {
+  const response = await fetch(`${API_BASE}/auctions/${encodeURIComponent(auctionCode)}`);
+  return handleResponse<AuctionDetail>(response);
+}
+
+/**
+ * Update an auction.
+ * @see PATCH /auctions/{auction_code} in troostwatch/app/api.py
+ */
+export async function updateAuction(auctionCode: string, updates: AuctionUpdateRequest): Promise<AuctionDetail> {
+  const response = await fetch(`${API_BASE}/auctions/${encodeURIComponent(auctionCode)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  return handleResponse<AuctionDetail>(response);
+}
+
+/**
+ * Delete an auction.
+ * @see DELETE /auctions/{auction_code} in troostwatch/app/api.py
+ */
+export async function deleteAuction(auctionCode: string, deleteLots: boolean = false): Promise<AuctionDeleteResponse> {
+  const url = new URL(`${API_BASE}/auctions/${encodeURIComponent(auctionCode)}`);
+  if (deleteLots) {
+    url.searchParams.append('delete_lots', 'true');
+  }
+  const response = await fetch(url.toString(), { method: 'DELETE' });
+  return handleResponse<AuctionDeleteResponse>(response);
+}

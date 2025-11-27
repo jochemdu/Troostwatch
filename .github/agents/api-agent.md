@@ -66,8 +66,7 @@ The UI uses TypeScript types generated from the FastAPI OpenAPI schema:
 
 > **Enforcement level:** These rules are currently enforced at **Level 1
 > (Guidelines)** – best effort with reviewer signaling. See
-> [Architecture Maturity Levels](../../docs/architecture.md#maturity-levels)
-> for context.
+> `docs/architecture.md` for context.
 
 - Use Pydantic models for request bodies and responses; include type hints and
   field validations.

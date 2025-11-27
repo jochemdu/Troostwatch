@@ -69,3 +69,121 @@ class AuctionRepository:
         if not only_active:
             return auctions
         return [a for a in auctions if a["active_lots"] > 0]
+
+    def get_by_code(self, auction_code: str) -> Optional[Dict[str, Any]]:
+        """Get a single auction by code."""
+        cur = self.conn.execute(
+            """
+            SELECT a.id, a.auction_code, a.title, a.url, a.pagination_pages,
+                   a.starts_at, a.ends_at_planned,
+                   COUNT(l.id) AS lot_count
+            FROM auctions a
+            LEFT JOIN lots l ON l.auction_id = a.id
+            WHERE a.auction_code = ?
+            GROUP BY a.id
+            """,
+            (auction_code,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "auction_code": row[1],
+            "title": row[2],
+            "url": row[3],
+            "pagination_pages": json.loads(row[4]) if row[4] else [],
+            "starts_at": row[5],
+            "ends_at_planned": row[6],
+            "lot_count": row[7] or 0,
+        }
+
+    def update(
+        self,
+        auction_code: str,
+        title: Optional[str] = None,
+        url: Optional[str] = None,
+        starts_at: Optional[str] = None,
+        ends_at_planned: Optional[str] = None,
+    ) -> bool:
+        """Update an auction. Returns True if updated."""
+        updates = []
+        params: List[Any] = []
+        
+        if title is not None:
+            updates.append("title = ?")
+            params.append(title)
+        if url is not None:
+            updates.append("url = ?")
+            params.append(url)
+        if starts_at is not None:
+            updates.append("starts_at = ?")
+            params.append(starts_at)
+        if ends_at_planned is not None:
+            updates.append("ends_at_planned = ?")
+            params.append(ends_at_planned)
+        
+        if not updates:
+            return True
+        
+        params.append(auction_code)
+        cur = self.conn.execute(
+            f"UPDATE auctions SET {', '.join(updates)} WHERE auction_code = ?",
+            tuple(params),
+        )
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def delete(self, auction_code: str, delete_lots: bool = False) -> Dict[str, int]:
+        """
+        Delete an auction. 
+        If delete_lots is True, also delete all associated lots.
+        Returns dict with counts of deleted items.
+        """
+        # Get auction id first
+        cur = self.conn.execute(
+            "SELECT id FROM auctions WHERE auction_code = ?", (auction_code,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return {"auction": 0, "lots": 0}
+        
+        auction_id = row[0]
+        lots_deleted = 0
+        
+        if delete_lots:
+            # Delete associated data first (bid_history, reference_prices, product_layers)
+            cur = self.conn.execute(
+                "SELECT id FROM lots WHERE auction_id = ?", (auction_id,)
+            )
+            lot_ids = [r[0] for r in cur.fetchall()]
+            
+            if lot_ids:
+                placeholders = ",".join("?" * len(lot_ids))
+                self.conn.execute(
+                    f"DELETE FROM bid_history WHERE lot_id IN ({placeholders})",
+                    lot_ids,
+                )
+                self.conn.execute(
+                    f"DELETE FROM reference_prices WHERE lot_id IN ({placeholders})",
+                    lot_ids,
+                )
+                self.conn.execute(
+                    f"DELETE FROM product_layers WHERE lot_id IN ({placeholders})",
+                    lot_ids,
+                )
+            
+            # Delete lots
+            cur = self.conn.execute(
+                "DELETE FROM lots WHERE auction_id = ?", (auction_id,)
+            )
+            lots_deleted = cur.rowcount
+        
+        # Delete the auction
+        cur = self.conn.execute(
+            "DELETE FROM auctions WHERE id = ?", (auction_id,)
+        )
+        auction_deleted = cur.rowcount
+        
+        self.conn.commit()
+        return {"auction": auction_deleted, "lots": lots_deleted}

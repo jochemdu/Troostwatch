@@ -5,23 +5,39 @@ import { fetchSpecTemplates, createSpecTemplate, deleteSpecTemplate, updateSpecT
 
 interface TemplateNode extends SpecTemplate {
   children: TemplateNode[];
+  depth: number;
 }
 
 function buildTemplateTree(templates: SpecTemplate[]): TemplateNode[] {
   const map = new Map<number, TemplateNode>();
   const roots: TemplateNode[] = [];
 
+  // First pass: create nodes with depth 0
   for (const template of templates) {
-    map.set(template.id, { ...template, children: [] });
+    map.set(template.id, { ...template, children: [], depth: 0 });
   }
 
+  // Second pass: build tree and calculate depths
   for (const template of templates) {
     const node = map.get(template.id)!;
     if (template.parent_id && map.has(template.parent_id)) {
-      map.get(template.parent_id)!.children.push(node);
+      const parent = map.get(template.parent_id)!;
+      parent.children.push(node);
+      node.depth = parent.depth + 1;
     } else {
       roots.push(node);
     }
+  }
+
+  // Third pass: recalculate depths for deeply nested items
+  function setDepths(node: TemplateNode, depth: number) {
+    node.depth = depth;
+    for (const child of node.children) {
+      setDepths(child, depth + 1);
+    }
+  }
+  for (const root of roots) {
+    setDepths(root, 0);
   }
 
   return roots;
@@ -236,10 +252,11 @@ export default function TemplatesPage() {
     </div>
   );
 
-  const renderTemplateRow = (template: TemplateNode, depth: number = 0) => (
+  const renderTemplateRow = (template: TemplateNode) => (
     <div key={template.id} className="template-item">
-      <div className={`template-row depth-${depth}`}>
+      <div className={`template-row depth-${template.depth}`} style={{ marginLeft: template.depth * 32 }}>
         <div className="template-info">
+          <span className="template-indent">{template.depth > 0 ? '└─ ' : ''}</span>
           <span className="template-title">{template.title}</span>
           {template.value && <span className="template-value">{template.value}</span>}
           {template.ean && <span className="template-ean">📦 {template.ean}</span>}
@@ -248,6 +265,7 @@ export default function TemplatesPage() {
           )}
           {template.release_date && <span className="template-release-date">📅 {template.release_date}</span>}
           {template.category && <span className="template-category">🏷️ {template.category}</span>}
+          {template.parent_id && <span className="template-parent-badge">sub</span>}
         </div>
         <div className="template-actions">
           <button 
@@ -310,7 +328,7 @@ export default function TemplatesPage() {
 
       {template.children.length > 0 && (
         <div className="template-children">
-          {template.children.map(child => renderTemplateRow(child, depth + 1))}
+          {template.children.map(child => renderTemplateRow(child))}
         </div>
       )}
     </div>
@@ -422,16 +440,19 @@ export default function TemplatesPage() {
           border-radius: 6px; 
           border: 1px solid #333;
         }
-        .template-row.depth-1 { margin-left: 32px; background: #151528; }
-        .template-row.depth-2 { margin-left: 64px; background: #121225; }
-        .template-row.depth-3 { margin-left: 96px; background: #0f0f20; }
-        .template-info { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .template-row.depth-0 { background: #1a1a2e; border-left: 3px solid #6366f1; }
+        .template-row.depth-1 { background: #151528; border-left: 3px solid #4ade80; }
+        .template-row.depth-2 { background: #121225; border-left: 3px solid #f59e0b; }
+        .template-row.depth-3 { background: #0f0f20; border-left: 3px solid #ef4444; }
+        .template-info { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .template-indent { color: #555; font-family: monospace; }
         .template-title { font-weight: 600; color: #fff; font-size: 1rem; }
         .template-value { color: #a0a0c0; }
         .template-ean { font-size: 0.8rem; color: #888; background: #252540; padding: 3px 8px; border-radius: 4px; }
         .template-price { font-size: 0.9rem; color: #4ade80; font-weight: 600; font-family: monospace; }
         .template-release-date { font-size: 0.8rem; color: #a0a0c0; background: #252540; padding: 3px 8px; border-radius: 4px; }
         .template-category { font-size: 0.8rem; color: #60a5fa; background: #252540; padding: 3px 8px; border-radius: 4px; }
+        .template-parent-badge { font-size: 0.7rem; color: #888; background: #333; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; }
         .template-actions { display: flex; gap: 8px; }
         .btn-icon { 
           background: none; 

@@ -1,15 +1,7 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-
-interface Auction {
-  auction_code: string;
-  title: string | null;
-  url: string | null;
-  starts_at: string | null;
-  ends_at_planned: string | null;
-  active_lots: number;
-  lot_count: number;
-}
+import type { Auction, AuctionUpdateRequest } from '../lib/api';
+import { fetchAuctions as fetchAuctionsApi, updateAuction, deleteAuction } from '../lib/api';
 
 interface SyncResult {
   auction_code: string;
@@ -29,14 +21,22 @@ export default function AuctionsPage() {
   const [selectedAuctions, setSelectedAuctions] = useState<Set<string>>(new Set());
   const [syncResults, setSyncResults] = useState<Map<string, SyncResult>>(new Map());
   const [syncing, setSyncing] = useState(false);
+  
+  // Edit state
+  const [editingAuction, setEditingAuction] = useState<Auction | null>(null);
+  const [editForm, setEditForm] = useState<AuctionUpdateRequest>({});
+  const [saving, setSaving] = useState(false);
+  
+  // Delete state
+  const [deletingAuction, setDeletingAuction] = useState<Auction | null>(null);
+  const [deleteWithLots, setDeleteWithLots] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const fetchAuctions = async () => {
+  const loadAuctions = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/auctions?include_inactive=${includeInactive}`);
-      if (!res.ok) throw new Error('Failed to fetch auctions');
-      const data = await res.json();
+      const data = await fetchAuctionsApi(includeInactive);
       setAuctions(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -46,7 +46,7 @@ export default function AuctionsPage() {
   };
 
   useEffect(() => {
-    fetchAuctions();
+    loadAuctions();
   }, [includeInactive]);
 
   const toggleSelection = (code: string) => {
@@ -133,8 +133,67 @@ export default function AuctionsPage() {
     }
 
     setSyncing(false);
-    // Refresh auction list
-    fetchAuctions();
+    loadAuctions();
+  };
+
+  const startEditing = (auction: Auction) => {
+    setEditingAuction(auction);
+    setEditForm({
+      title: auction.title || undefined,
+      url: auction.url || undefined,
+      starts_at: auction.starts_at || undefined,
+      ends_at_planned: auction.ends_at_planned || undefined,
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingAuction(null);
+    setEditForm({});
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingAuction) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await updateAuction(editingAuction.auction_code, editForm);
+      await loadAuctions();
+      setEditingAuction(null);
+      setEditForm({});
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kon veiling niet bijwerken');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startDeleting = (auction: Auction) => {
+    setDeletingAuction(auction);
+    setDeleteWithLots(false);
+  };
+
+  const cancelDeleting = () => {
+    setDeletingAuction(null);
+    setDeleteWithLots(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingAuction) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const result = await deleteAuction(deletingAuction.auction_code, deleteWithLots);
+      await loadAuctions();
+      setDeletingAuction(null);
+      setDeleteWithLots(false);
+      if (result.lots_deleted > 0) {
+        alert(`Veiling verwijderd. ${result.lots_deleted} lots ook verwijderd.`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kon veiling niet verwijderen');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -156,28 +215,19 @@ export default function AuctionsPage() {
     if (!result) return null;
     switch (result.status) {
       case 'pending':
-        return <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700">Wachtend</span>;
+        return <span className="status-badge pending">Wachtend</span>;
       case 'running':
-        return <span className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700 animate-pulse">Bezig...</span>;
+        return <span className="status-badge running">Bezig...</span>;
       case 'success':
-        return (
-          <span className="px-2 py-1 text-xs rounded bg-green-100 text-green-700">
-            ✓ {result.lots_updated} lots
-          </span>
-        );
+        return <span className="status-badge success">✓ {result.lots_updated} lots</span>;
       case 'failed':
-        return (
-          <span className="px-2 py-1 text-xs rounded bg-red-100 text-red-700" title={result.error}>
-            ✗ Fout
-          </span>
-        );
+        return <span className="status-badge failed" title={result.error}>✗ Fout</span>;
     }
   };
 
   return (
-    <Layout>
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
+    <Layout title="Veilingen">
+      <div className="page-container">
           <h1 className="text-2xl font-bold">Veilingen</h1>
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2 text-sm">

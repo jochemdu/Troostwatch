@@ -116,9 +116,9 @@ class LotRepository:
                 opening_bid_eur, current_bid_eur, current_bidder_label,
                 buyer_fee_percent, buyer_fee_vat_percent, vat_percent,
                 awarding_state, total_example_price_eur, location_city,
-                location_country, seller_allocation_note,
+                location_country, seller_allocation_note, brand,
                 listing_hash, detail_hash, last_seen_at, detail_last_seen_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(auction_id, lot_code) DO UPDATE SET
                 title = excluded.title,
                 url = excluded.url,
@@ -139,6 +139,7 @@ class LotRepository:
                 location_city = excluded.location_city,
                 location_country = excluded.location_country,
                 seller_allocation_note = excluded.seller_allocation_note,
+                brand = excluded.brand,
                 listing_hash = excluded.listing_hash,
                 detail_hash = excluded.detail_hash,
                 last_seen_at = excluded.last_seen_at,
@@ -166,12 +167,49 @@ class LotRepository:
                 location_city,
                 location_country,
                 detail.seller_allocation_note,
+                detail.brand,
                 listing_hash,
                 detail_hash,
                 last_seen_at,
                 detail_last_seen_at,
             ),
         )
+
+        # Upsert bid history if available
+        if detail.bid_history:
+            self._upsert_bid_history(card.lot_code, auction_id, detail.bid_history)
+
+    def _upsert_bid_history(
+        self,
+        lot_code: str,
+        auction_id: int,
+        bid_history: list,
+    ) -> None:
+        """Insert or update bid history entries for a lot."""
+        from troostwatch.infrastructure.web.parsers.lot_detail import BidHistoryEntry
+
+        # Get lot_id
+        cur = self.conn.execute(
+            "SELECT id FROM lots WHERE lot_code = ? AND auction_id = ?",
+            (lot_code, auction_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            return
+        lot_id = row[0]
+
+        # Clear existing bid history for this lot and insert fresh
+        self.conn.execute("DELETE FROM bid_history WHERE lot_id = ?", (lot_id,))
+
+        for entry in bid_history:
+            if isinstance(entry, BidHistoryEntry):
+                self.conn.execute(
+                    """
+                    INSERT INTO bid_history (lot_id, bidder_label, amount_eur, bid_time)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (lot_id, entry.bidder_label, entry.amount_eur, entry.timestamp),
+                )
 
 
 def _choose_value(*values: Optional[str | float | int | bool]):

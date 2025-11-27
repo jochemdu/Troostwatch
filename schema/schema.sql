@@ -1,4 +1,4 @@
--- Troostwatch schema version: 1
+-- Troostwatch schema version: 2
 -- SQLite schema for Troostwatch
 --
 -- This file is the canonical source of truth for new databases. The schema
@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS lots (
     location_city TEXT,
     location_country TEXT,
     seller_allocation_note TEXT,
+    brand TEXT,
     listing_hash TEXT,
     detail_hash TEXT,
     last_seen_at TEXT,
@@ -123,6 +124,17 @@ CREATE TABLE IF NOT EXISTS my_bids (
 );
 
 CREATE INDEX IF NOT EXISTS idx_my_bids_lot_id ON my_bids (lot_id);
+
+CREATE TABLE IF NOT EXISTS bid_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id INTEGER NOT NULL,
+    bidder_label TEXT NOT NULL,
+    amount_eur REAL NOT NULL,
+    bid_time TEXT,
+    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_bid_history_lot_id ON bid_history (lot_id);
 
 CREATE TABLE IF NOT EXISTS lot_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

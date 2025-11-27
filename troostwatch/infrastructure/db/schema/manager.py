@@ -23,6 +23,7 @@ def ensure_schema(conn) -> None:
     _ensure_auction_columns(conn, migrator)
     _ensure_lots_columns(conn, migrator)
     _ensure_hash_columns(conn)
+    _ensure_bid_history_table(conn)
     conn.executescript(SCHEMA_BUYERS_SQL)
     conn.executescript(SCHEMA_POSITIONS_SQL)
     conn.executescript(SCHEMA_MY_BIDS_SQL)
@@ -56,6 +57,7 @@ def _ensure_lots_columns(conn, migrator: SchemaMigrator) -> None:
         "location_city": "TEXT",
         "location_country": "TEXT",
         "seller_allocation_note": "TEXT",
+        "brand": "TEXT",
     }
 
     added_cols: list[str] = []
@@ -102,3 +104,18 @@ def _ensure_hash_columns(conn) -> None:
     for column, sql_type in required_columns.items():
         if column not in existing:
             conn.execute(f"ALTER TABLE lots ADD COLUMN {column} {sql_type}")
+
+
+def _ensure_bid_history_table(conn) -> None:
+    """Create bid_history table if it does not exist."""
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS bid_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lot_id INTEGER NOT NULL,
+            bidder_label TEXT NOT NULL,
+            amount_eur REAL NOT NULL,
+            bid_time TEXT,
+            FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_bid_history_lot_id ON bid_history (lot_id);
+    """)

@@ -89,11 +89,11 @@ class LotViewService:
     def list_lots(
         self,
         *,
-        auction_code: Optional[str] = None,
-        state: Optional[str] = None,
-        brand: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[LotView]:
+        auction_code: str | None = None,
+        state: str | None = None,
+        brand: str | None = None,
+        limit: int | None = None,
+    ) -> list[LotView]:
         """List lots as LotView DTOs for presentation."""
         self._logger.debug(
             "Listing lots: auction=%s state=%s brand=%s limit=%s",
@@ -113,10 +113,10 @@ class LotViewService:
     def list_domain_lots(
         self,
         *,
-        auction_code: Optional[str] = None,
-        state: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[Lot]:
+        auction_code: str | None = None,
+        state: str | None = None,
+        limit: int | None = None,
+    ) -> list[Lot]:
         """List lots as domain models for business logic."""
         effective_limit = None if limit is not None and limit <= 0 else limit
         rows = self._lot_repository.list_lots(
@@ -129,14 +129,14 @@ class LotViewService:
     def get_active_lots(
         self,
         *,
-        auction_code: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[Lot]:
+        auction_code: str | None = None,
+        limit: int | None = None,
+    ) -> list[Lot]:
         """Get only active (running or scheduled) lots as domain models."""
         lots = self.list_domain_lots(auction_code=auction_code, limit=limit)
         return [lot for lot in lots if lot.is_active]
 
-    def _to_dtos(self, rows: Iterable[Mapping[str, object]]) -> List[LotView]:
+    def _to_dtos(self, rows: Iterable[Mapping[str, object]]) -> list[LotView]:
         return [LotView.from_record(row) for row in rows]
 
 

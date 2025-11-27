@@ -1,7 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import { triggerSync } from '../lib/api';
+import { createLotSocket, LotEvent } from '../lib/ws';
 import type { SyncSummaryResponse } from '../lib/generated';
+
+interface LogEntry {
+  timestamp: string;
+  type: 'info' | 'event' | 'error' | 'success';
+  message: string;
+}
 
 export default function SyncPage() {
   const [auctionCode, setAuctionCode] = useState<string>('');
@@ -11,24 +18,72 @@ export default function SyncPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<SyncSummaryResponse | null>(null);
   const [error, setError] = useState<string>('');
+  
+  // Debug console state
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [wsStatus, setWsStatus] = useState<string>('disconnected');
+  const logContainerRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+
+  const addLog = (type: LogEntry['type'], message: string) => {
+    const timestamp = new Date().toLocaleTimeString('nl-NL', { hour12: false });
+    setLogs(prev => [...prev.slice(-99), { timestamp, type, message }]);
+  };
+
+  // Connect to WebSocket on mount
+  useEffect(() => {
+    const socket = createLotSocket(
+      (event: LotEvent) => {
+        if (event.type === 'lot_update') {
+          addLog('event', `Lot bijgewerkt: ${event.lot_code} - €${event.data?.current_bid_eur || 0}`);
+        } else if (event.type === 'lot_created') {
+          addLog('info', `Nieuw lot: ${event.lot_code}`);
+        } else if (event.type === 'lot_closed') {
+          addLog('success', `Lot gesloten: ${event.lot_code}`);
+        } else {
+          addLog('event', `Event: ${event.type}`);
+        }
+      },
+      (status) => {
+        setWsStatus(status);
+        if (status === 'open') {
+          addLog('info', 'WebSocket verbonden');
+        } else if (status === 'closed') {
+          addLog('info', 'WebSocket verbinding gesloten');
+        } else if (status === 'error') {
+          addLog('error', 'WebSocket fout');
+        }
+      }
+    );
+    socketRef.current = socket;
+
+    return () => {
+      socket.close();
+    };
+  }, []);
+
+  // Auto-scroll logs
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logs]);
 
   // Try to extract auction code from URL
   const handleUrlChange = (url: string) => {
     setAuctionUrl(url);
     // Extract auction code from Troostwijk URL pattern
-    // The code is the last segment after the final hyphen, e.g.:
+    // The code is the last segment, e.g.:
     // /a/goederen-opgekocht-uit-faillissement-max-ict-(2-2)-A1-39500 → A1-39500
     // /nl/c/ABC123 → ABC123
-    const pathMatch = url.match(/\/[ac]\/([A-Za-z0-9-]+)/);
+    const pathMatch = url.match(/\/[ac]\/([A-Za-z0-9()_-]+)/);
     if (pathMatch) {
       const fullPath = pathMatch[1];
-      // The auction code is typically at the end: look for pattern like A1-39500, ABC123
-      // Match the last segment that looks like an auction code (letter(s) + optional digit + hyphen + digits)
-      const codeMatch = fullPath.match(/([A-Z]\d*-\d+)$/i);
+      // The auction code is typically at the end: look for pattern like A1-39500, ABC-123
+      // Match the last segment that looks like an auction code (letters + hyphen + digits)
+      const codeMatch = fullPath.match(/([A-Z]+\d*-\d+)$/i);
       const extractedCode = codeMatch ? codeMatch[1] : fullPath;
-      if (!auctionCode) {
-        setAuctionCode(extractedCode);
-      }
+      setAuctionCode(extractedCode);
     }
   };
 
@@ -41,6 +96,7 @@ export default function SyncPage() {
     setLoading(true);
     setError('');
     setResult(null);
+    addLog('info', `Start sync voor ${auctionCode}...`);
 
     try {
       const response = await triggerSync({
@@ -50,8 +106,15 @@ export default function SyncPage() {
         dry_run: dryRun,
       });
       setResult(response);
+      if (response.status === 'success' && response.result) {
+        addLog('success', `Sync voltooid: ${response.result.lots_updated} lots bijgewerkt, ${response.result.pages_scanned} pagina's gescand`);
+      } else if (response.error) {
+        addLog('error', `Sync fout: ${response.error}`);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sync mislukt');
+      const errorMsg = err instanceof Error ? err.message : 'Sync mislukt';
+      setError(errorMsg);
+      addLog('error', errorMsg);
     } finally {
       setLoading(false);
     }
@@ -183,6 +246,68 @@ export default function SyncPage() {
           )}
         </div>
       )}
+
+      {/* Debug Console */}
+      <div className="panel" style={{ marginTop: '18px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h2 style={{ margin: 0 }}>Debug Console</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              fontSize: '12px',
+              color: wsStatus === 'open' ? '#080' : wsStatus === 'error' ? '#c00' : '#666'
+            }}>
+              <span style={{ 
+                width: '8px', 
+                height: '8px', 
+                borderRadius: '50%', 
+                background: wsStatus === 'open' ? '#0c0' : wsStatus === 'error' ? '#c00' : '#999'
+              }} />
+              {wsStatus === 'open' ? 'Verbonden' : wsStatus === 'connecting' ? 'Verbinden...' : 'Niet verbonden'}
+            </span>
+            <button 
+              className="button" 
+              onClick={() => setLogs([])}
+              style={{ padding: '4px 8px', fontSize: '12px' }}
+            >
+              Wissen
+            </button>
+          </div>
+        </div>
+        
+        <div 
+          ref={logContainerRef}
+          style={{ 
+            background: '#1a1a2e', 
+            color: '#eee', 
+            padding: '12px', 
+            borderRadius: '4px',
+            fontFamily: 'monospace',
+            fontSize: '13px',
+            height: '200px',
+            overflowY: 'auto',
+          }}
+        >
+          {logs.length === 0 ? (
+            <div style={{ color: '#666' }}>Wachten op events...</div>
+          ) : (
+            logs.map((log, i) => (
+              <div key={i} style={{ marginBottom: '4px' }}>
+                <span style={{ color: '#666' }}>[{log.timestamp}]</span>{' '}
+                <span style={{ 
+                  color: log.type === 'error' ? '#f66' : 
+                         log.type === 'success' ? '#6f6' : 
+                         log.type === 'event' ? '#6cf' : '#aaa'
+                }}>
+                  {log.message}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </Layout>
   );
 }

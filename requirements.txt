@@ -6,4 +6,5 @@ beautifulsoup4>=4.12
 rich>=13.4
 fastapi>=0.110
 uvicorn>=0.20
+websockets>=10.0
 pytest>=7.0

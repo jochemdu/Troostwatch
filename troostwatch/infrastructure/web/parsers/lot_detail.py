@@ -55,6 +55,24 @@ def _strip_html_tags(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text)
 
 
+def _extract_lot_number_from_url(url: str) -> str | None:
+    """Extract the lot number from a Troostwijk lot URL.
+    
+    URL format: /l/description-AUCTION_CODE-LOT_NUMBER
+    Example: /l/samsung-wm75a-flip-interactive-display-75-A1-39500-1801
+    Returns: 1801
+    """
+    # Match the last numeric segment after the auction code pattern
+    match = re.search(r"-([A-Z]+\d*-\d+)-(\d+)(?:\?|$)", url, re.IGNORECASE)
+    if match:
+        return match.group(2)
+    # Fallback: just get the last segment after the last hyphen
+    match = re.search(r"-(\d+)(?:\?|$)", url)
+    if match:
+        return match.group(1)
+    return None
+
+
 def _parse_amount_field(value: dict | None) -> Optional[float]:
     if not value:
         return None
@@ -129,8 +147,16 @@ def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> L
         brand = _parse_brand(lot)
         bid_history = _parse_bid_history(lot)
 
+        # Determine the lot code - prefer displayId, but extract lot number from URL as fallback
+        resolved_lot_code = lot.get("displayId") or lot_code
+        # If the lot_code looks like a combined ID (e.g., "A1-39500-1801"), extract just the lot number
+        if resolved_lot_code and url:
+            lot_number_from_url = _extract_lot_number_from_url(url)
+            if lot_number_from_url:
+                resolved_lot_code = lot_number_from_url
+
         return LotDetailData(
-            lot_code=lot.get("displayId") or lot_code,
+            lot_code=resolved_lot_code,
             title=title or "",
             url=url or "",
             state=state,

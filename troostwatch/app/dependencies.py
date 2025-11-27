@@ -28,9 +28,13 @@ __all__ = [
 
 
 def get_db_connection() -> Iterator[sqlite3.Connection]:
-    """Provide a SQLite connection with the required schema ensured."""
+    """Provide a SQLite connection with the required schema ensured.
+    
+    Uses check_same_thread=False to allow FastAPI to use the connection
+    across different threads (required for async request handling).
+    """
 
-    with get_connection() as conn:
+    with get_connection(check_same_thread=False) as conn:
         ensure_schema(conn)
         yield conn
 

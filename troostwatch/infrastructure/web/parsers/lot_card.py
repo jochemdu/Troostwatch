@@ -16,6 +16,24 @@ from . import utils
 logger = get_logger(__name__)
 
 
+def _extract_lot_number_from_url(url: str) -> str | None:
+    """Extract the lot number from a Troostwijk lot URL.
+    
+    URL format: /l/description-AUCTION_CODE-LOT_NUMBER
+    Example: /l/samsung-wm75a-flip-interactive-display-75-A1-39500-1801
+    Returns: 1801
+    """
+    # Match the last numeric segment after the auction code pattern
+    match = re.search(r"-([A-Z]+\d*-\d+)-(\d+)(?:\?|$)", url, re.IGNORECASE)
+    if match:
+        return match.group(2)
+    # Fallback: just get the last segment after the last hyphen
+    match = re.search(r"-(\d+)(?:\?|$)", url)
+    if match:
+        return match.group(1)
+    return None
+
+
 @dataclass
 class LotCardData:
     """Data extracted from a lot card on an auction page."""
@@ -46,12 +64,15 @@ def parse_lot_card(html: str, auction_code: str, base_url: str | None = None) ->
         def _text(selector: str) -> str:
             return utils.extract_by_data_cy(card, selector)
 
-        lot_code = _text("display-id-text")
+        display_id = _text("display-id-text")
         title_link = card.find(attrs={"data-cy": "title-link"})
         title = utils.extract_text(title_link)
         url = title_link.get("href", "") if title_link else ""
         if base_url and url.startswith("/"):
             url = base_url.rstrip("/") + url
+
+        # Extract lot number from URL, fallback to display_id
+        lot_code = _extract_lot_number_from_url(url) or display_id
 
         state_text = (_text("state-chip") or (card.get("data-state") or "")).strip().lower()
         state: Optional[str]
@@ -124,6 +145,9 @@ def parse_auction_page(html: str, base_url: str | None = None) -> Iterable[LotCa
         if base_url and url_slug:
             url = f"{base_url.rstrip('/')}/l/{url_slug}"
 
+        # Extract lot number from URL (e.g., "1801" from "...-A1-39500-1801")
+        lot_code = _extract_lot_number_from_url(url) or display_id
+
         bids = lot.get("bidsCount")
         current_bid_amount = utils.amount_from_cents_dict(lot.get("currentBidAmount"))
         is_price_opening_bid = None
@@ -147,7 +171,7 @@ def parse_auction_page(html: str, base_url: str | None = None) -> Iterable[LotCa
 
         yield LotCardData(
             auction_code=lot_auction_code,
-            lot_code=display_id,
+            lot_code=lot_code,
             title=lot.get("title", ""),
             url=url,
             state=state,

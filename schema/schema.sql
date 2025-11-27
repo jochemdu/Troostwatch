@@ -1,4 +1,4 @@
--- Troostwatch schema version: 2
+-- Troostwatch schema version: 3
 -- SQLite schema for Troostwatch
 --
 -- This file is the canonical source of truth for new databases. The schema
@@ -80,6 +80,11 @@ CREATE TABLE IF NOT EXISTS lots (
     location_country TEXT,
     seller_allocation_note TEXT,
     brand TEXT,
+    reference_price_new_eur REAL,
+    reference_price_used_eur REAL,
+    reference_source TEXT,
+    reference_url TEXT,
+    notes TEXT,
     listing_hash TEXT,
     detail_hash TEXT,
     last_seen_at TEXT,

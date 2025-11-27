@@ -25,6 +25,55 @@ import type {
 export type { LotView, BuyerResponse, BuyerCreateRequest, BuyerCreateResponse };
 
 // =============================================================================
+// Lot Detail Types (pending OpenAPI regeneration)
+// =============================================================================
+
+/**
+ * Specification for a lot item.
+ */
+export interface LotSpec {
+  id: number;
+  key: string;
+  value: string | null;
+}
+
+/**
+ * Detailed lot information including specs and reference prices.
+ */
+export interface LotDetailResponse {
+  auction_code: string;
+  lot_code: string;
+  title?: string | null;
+  url?: string | null;
+  state?: string | null;
+  current_bid_eur?: number | null;
+  bid_count?: number | null;
+  opening_bid_eur?: number | null;
+  closing_time_current?: string | null;
+  closing_time_original?: string | null;
+  brand?: string | null;
+  location_city?: string | null;
+  location_country?: string | null;
+  reference_price_new_eur?: number | null;
+  reference_price_used_eur?: number | null;
+  reference_source?: string | null;
+  reference_url?: string | null;
+  notes?: string | null;
+  specs: LotSpec[];
+}
+
+/**
+ * Request to update lot reference prices and notes.
+ */
+export interface LotUpdateRequest {
+  reference_price_new_eur?: number | null;
+  reference_price_used_eur?: number | null;
+  reference_source?: string | null;
+  reference_url?: string | null;
+  notes?: string | null;
+}
+
+// =============================================================================
 // UI-specific Types (not in OpenAPI, used for local state/props)
 // =============================================================================
 
@@ -54,7 +103,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 // =============================================================================
-// Lot Endpoints (GET /lots)
+// Lot Endpoints (GET /lots, GET/PATCH /lots/{lot_code})
 // =============================================================================
 
 /**
@@ -79,6 +128,36 @@ export async function fetchLots(params?: LotQueryParams): Promise<LotView[]> {
 
   const response = await fetch(url.toString());
   return handleResponse<LotView[]>(response);
+}
+
+/**
+ * Fetch detailed lot information including specs and reference prices.
+ * @see GET /lots/{lot_code} in troostwatch/app/api.py
+ */
+export async function fetchLotDetail(lotCode: string, auctionCode?: string): Promise<LotDetailResponse> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}`);
+  if (auctionCode) {
+    url.searchParams.append('auction_code', auctionCode);
+  }
+  const response = await fetch(url.toString());
+  return handleResponse<LotDetailResponse>(response);
+}
+
+/**
+ * Update lot reference prices and notes.
+ * @see PATCH /lots/{lot_code} in troostwatch/app/api.py
+ */
+export async function updateLot(lotCode: string, updates: LotUpdateRequest, auctionCode?: string): Promise<LotDetailResponse> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}`);
+  if (auctionCode) {
+    url.searchParams.append('auction_code', auctionCode);
+  }
+  const response = await fetch(url.toString(), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  return handleResponse<LotDetailResponse>(response);
 }
 
 // =============================================================================

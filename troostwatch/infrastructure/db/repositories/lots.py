@@ -90,6 +90,133 @@ class LotRepository:
         columns = [c[0] for c in cur.description]
         return [dict(zip(columns, row)) for row in cur.fetchall()]
 
+    def get_lot_detail(self, lot_code: str, auction_code: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Get detailed lot information including reference prices."""
+        query = """
+            SELECT a.auction_code, l.lot_code, l.title, l.url, l.state,
+                   l.current_bid_eur, l.bid_count, l.opening_bid_eur,
+                   l.closing_time_current, l.closing_time_original, l.brand,
+                   l.location_city, l.location_country,
+                   l.reference_price_new_eur, l.reference_price_used_eur,
+                   l.reference_source, l.reference_url, l.notes
+            FROM lots l
+            JOIN auctions a ON l.auction_id = a.id
+            WHERE l.lot_code = ?
+        """
+        params: List = [lot_code]
+        if auction_code:
+            query += " AND a.auction_code = ?"
+            params.append(auction_code)
+        
+        cur = self.conn.execute(query, tuple(params))
+        row = cur.fetchone()
+        if not row:
+            return None
+        
+        columns = [c[0] for c in cur.description]
+        return dict(zip(columns, row))
+
+    def get_lot_specs(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get specifications (product_layers) for a lot."""
+        # First get lot_id
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            return []
+        
+        cur = self.conn.execute(
+            "SELECT id, title AS key, value FROM product_layers WHERE lot_id = ? ORDER BY layer",
+            (lot_id,)
+        )
+        columns = [c[0] for c in cur.description]
+        return [dict(zip(columns, row)) for row in cur.fetchall()]
+
+    def update_lot(
+        self,
+        lot_code: str,
+        auction_code: Optional[str] = None,
+        *,
+        reference_price_new_eur: Optional[float] = None,
+        reference_price_used_eur: Optional[float] = None,
+        reference_source: Optional[str] = None,
+        reference_url: Optional[str] = None,
+        notes: Optional[str] = None,
+    ) -> bool:
+        """Update user-editable lot fields. Returns True if a row was updated."""
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            return False
+        
+        updates = []
+        params: List = []
+        
+        if reference_price_new_eur is not None:
+            updates.append("reference_price_new_eur = ?")
+            params.append(reference_price_new_eur)
+        if reference_price_used_eur is not None:
+            updates.append("reference_price_used_eur = ?")
+            params.append(reference_price_used_eur)
+        if reference_source is not None:
+            updates.append("reference_source = ?")
+            params.append(reference_source)
+        if reference_url is not None:
+            updates.append("reference_url = ?")
+            params.append(reference_url)
+        if notes is not None:
+            updates.append("notes = ?")
+            params.append(notes)
+        
+        if not updates:
+            return True  # Nothing to update
+        
+        params.append(lot_id)
+        self.conn.execute(
+            f"UPDATE lots SET {', '.join(updates)} WHERE id = ?",
+            tuple(params),
+        )
+        self.conn.commit()
+        return True
+
+    def upsert_lot_spec(self, lot_code: str, key: str, value: str, auction_code: Optional[str] = None) -> int:
+        """Add or update a specification for a lot. Returns the spec id."""
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            raise ValueError(f"Lot '{lot_code}' not found")
+        
+        # Check if spec exists
+        cur = self.conn.execute(
+            "SELECT id FROM product_layers WHERE lot_id = ? AND title = ?",
+            (lot_id, key)
+        )
+        existing = cur.fetchone()
+        
+        if existing:
+            self.conn.execute(
+                "UPDATE product_layers SET value = ? WHERE id = ?",
+                (value, existing[0])
+            )
+            self.conn.commit()
+            return existing[0]
+        else:
+            # Get max layer number
+            cur = self.conn.execute(
+                "SELECT COALESCE(MAX(layer), -1) + 1 FROM product_layers WHERE lot_id = ?",
+                (lot_id,)
+            )
+            next_layer = cur.fetchone()[0]
+            
+            cur = self.conn.execute(
+                "INSERT INTO product_layers (lot_id, layer, title, value) VALUES (?, ?, ?, ?)",
+                (lot_id, next_layer, key, value)
+            )
+            self.conn.commit()
+            return cur.lastrowid or 0
+
+    def delete_lot_spec(self, spec_id: int) -> bool:
+        """Delete a specification by id. Returns True if deleted."""
+        cur = self.conn.execute("DELETE FROM product_layers WHERE id = ?", (spec_id,))
+        self.conn.commit()
+        return cur.rowcount > 0
+
     def upsert_from_parsed(
         self,
         auction_id: int,

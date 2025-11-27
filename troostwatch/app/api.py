@@ -306,6 +306,48 @@ class LotCreateRequest(BaseModel):
     auction_url: Optional[str] = None
 
 
+class LotUpdateRequest(BaseModel):
+    """Request to update lot fields (user-editable fields only)."""
+
+    reference_price_new_eur: Optional[float] = Field(None, ge=0)
+    reference_price_used_eur: Optional[float] = Field(None, ge=0)
+    reference_source: Optional[str] = None
+    reference_url: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class LotSpecResponse(BaseModel):
+    """A specification key-value pair for a lot."""
+
+    id: int
+    key: str
+    value: Optional[str] = None
+
+
+class LotDetailResponse(BaseModel):
+    """Detailed lot information including specs and reference prices."""
+
+    auction_code: str
+    lot_code: str
+    title: Optional[str] = None
+    url: Optional[str] = None
+    state: Optional[str] = None
+    current_bid_eur: Optional[float] = None
+    bid_count: Optional[int] = None
+    opening_bid_eur: Optional[float] = None
+    closing_time_current: Optional[str] = None
+    closing_time_original: Optional[str] = None
+    brand: Optional[str] = None
+    location_city: Optional[str] = None
+    location_country: Optional[str] = None
+    reference_price_new_eur: Optional[float] = None
+    reference_price_used_eur: Optional[float] = None
+    reference_source: Optional[str] = None
+    reference_url: Optional[str] = None
+    notes: Optional[str] = None
+    specs: List[LotSpecResponse] = Field(default_factory=list)
+
+
 class LotCreateResponse(BaseModel):
     """Response after creating/updating a lot."""
 
@@ -325,6 +367,101 @@ async def list_lots(
     return lot_view_service.list_lots(
         auction_code=auction_code, state=state, brand=brand, limit=limit
     )
+
+
+@app.get("/lots/{lot_code}", response_model=LotDetailResponse)
+async def get_lot_detail(
+    lot_code: str,
+    auction_code: Optional[str] = Query(None),
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> LotDetailResponse:
+    """Get detailed lot information including specs and reference prices."""
+    lot = lot_repository.get_lot_detail(lot_code, auction_code)
+    if not lot:
+        raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' not found")
+    
+    specs = lot_repository.get_lot_specs(lot_code, auction_code)
+    
+    return LotDetailResponse(
+        auction_code=str(lot.get("auction_code", "")),
+        lot_code=str(lot.get("lot_code", "")),
+        title=lot.get("title"),
+        url=lot.get("url"),
+        state=lot.get("state"),
+        current_bid_eur=lot.get("current_bid_eur"),
+        bid_count=lot.get("bid_count"),
+        opening_bid_eur=lot.get("opening_bid_eur"),
+        closing_time_current=lot.get("closing_time_current"),
+        closing_time_original=lot.get("closing_time_original"),
+        brand=lot.get("brand"),
+        location_city=lot.get("location_city"),
+        location_country=lot.get("location_country"),
+        reference_price_new_eur=lot.get("reference_price_new_eur"),
+        reference_price_used_eur=lot.get("reference_price_used_eur"),
+        reference_source=lot.get("reference_source"),
+        reference_url=lot.get("reference_url"),
+        notes=lot.get("notes"),
+        specs=[
+            LotSpecResponse(id=int(s.get("id", 0)), key=str(s.get("key", "")), value=s.get("value"))
+            for s in specs
+        ],
+    )
+
+
+@app.patch("/lots/{lot_code}", response_model=LotDetailResponse)
+async def update_lot(
+    lot_code: str,
+    payload: LotUpdateRequest,
+    auction_code: Optional[str] = Query(None),
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> LotDetailResponse:
+    """Update user-editable lot fields (reference prices, notes)."""
+    success = lot_repository.update_lot(
+        lot_code,
+        auction_code,
+        reference_price_new_eur=payload.reference_price_new_eur,
+        reference_price_used_eur=payload.reference_price_used_eur,
+        reference_source=payload.reference_source,
+        reference_url=payload.reference_url,
+        notes=payload.notes,
+    )
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' not found")
+    
+    # Return updated lot
+    return await get_lot_detail(lot_code, auction_code, lot_repository)
+
+
+class LotSpecCreateRequest(BaseModel):
+    """Request to add or update a lot specification."""
+    key: str
+    value: str
+
+
+@app.post("/lots/{lot_code}/specs", status_code=status.HTTP_201_CREATED, response_model=LotSpecResponse)
+async def create_lot_spec(
+    lot_code: str,
+    payload: LotSpecCreateRequest,
+    auction_code: Optional[str] = Query(None),
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> LotSpecResponse:
+    """Add or update a specification for a lot."""
+    try:
+        spec_id = lot_repository.upsert_lot_spec(lot_code, payload.key, payload.value, auction_code)
+        return LotSpecResponse(id=spec_id, key=payload.key, value=payload.value)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.delete("/lots/{lot_code}/specs/{spec_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_lot_spec(
+    lot_code: str,
+    spec_id: int,
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> None:
+    """Delete a lot specification."""
+    if not lot_repository.delete_lot_spec(spec_id):
+        raise HTTPException(status_code=404, detail=f"Spec {spec_id} not found")
 
 
 @app.post("/positions/batch", response_model=PositionBatchResponse)

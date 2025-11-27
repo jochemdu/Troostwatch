@@ -130,7 +130,7 @@ export default function LotsPage() {
       {loading ? (
         <div className="panel">Laden…</div>
       ) : (
-        <LotTable lots={lots} selectedLots={selectedLots} onToggleLot={toggleLot} />
+        <LotTable lots={lots} selectedLots={selectedLots} onToggleLot={toggleLot} onLotUpdated={refreshLots} />
       )}
     </Layout>
   );

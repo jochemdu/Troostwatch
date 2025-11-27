@@ -50,7 +50,7 @@ class BidRepository:
                 mb.id,
                 b.label AS buyer_label,
                 l.lot_code,
-                l.auction_code,
+                a.auction_code,
                 l.title AS lot_title,
                 mb.amount_eur,
                 mb.placed_at,
@@ -58,6 +58,7 @@ class BidRepository:
             FROM my_bids mb
             JOIN buyers b ON mb.buyer_id = b.id
             JOIN lots l ON mb.lot_id = l.id
+            JOIN auctions a ON l.auction_id = a.id
             WHERE 1=1
         """
         params: List[object] = []

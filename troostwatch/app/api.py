@@ -451,8 +451,10 @@ async def delete_buyer(
 
 def get_bid_repository() -> BidRepository:
     """Dependency that provides a BidRepository."""
-    from troostwatch.app.config import get_db_path
-    conn = get_connection(get_db_path(), check_same_thread=False)
+    import sqlite3
+    from troostwatch.infrastructure.db import ensure_schema
+    conn = sqlite3.connect("troostwatch.db", check_same_thread=False)
+    ensure_schema(conn)
     return BidRepository(conn)
 
 
@@ -522,8 +524,7 @@ async def create_bid(payload: BidCreateRequest) -> BidResponse:
 
 def get_reporting_service() -> ReportingService:
     """Dependency that provides a ReportingService."""
-    from troostwatch.app.config import get_db_path
-    return ReportingService.from_sqlite_path(get_db_path())
+    return ReportingService.from_sqlite_path("troostwatch.db")
 
 
 @app.get("/reports/buyer/{buyer_label}", response_model=BuyerSummaryResponse)
@@ -557,9 +558,11 @@ async def get_buyer_report(
 
 def get_auction_repository():
     """Dependency that provides an AuctionRepository."""
-    from troostwatch.app.config import get_db_path
+    import sqlite3
+    from troostwatch.infrastructure.db import ensure_schema
     from troostwatch.infrastructure.db.repositories import AuctionRepository
-    conn = get_connection(get_db_path(), check_same_thread=False)
+    conn = sqlite3.connect("troostwatch.db", check_same_thread=False)
+    ensure_schema(conn)
     return AuctionRepository(conn)
 
 
@@ -591,9 +594,11 @@ async def list_auctions(
 
 def get_lot_management_service() -> LotManagementService:
     """Dependency that provides a LotManagementService."""
-    from troostwatch.app.config import get_db_path
+    import sqlite3
+    from troostwatch.infrastructure.db import ensure_schema
     from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
-    conn = get_connection(get_db_path(), check_same_thread=False)
+    conn = sqlite3.connect("troostwatch.db", check_same_thread=False)
+    ensure_schema(conn)
     return LotManagementService(
         lot_repository=LotRepository(conn),
         auction_repository=AuctionRepository(conn),

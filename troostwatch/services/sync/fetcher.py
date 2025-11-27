@@ -92,8 +92,11 @@ class HttpFetcher:
         backoff_base_seconds: float = 0.5,
         concurrency_mode: str = "asyncio",
         timeout_seconds: float = 30.0,
-        user_agent: str = "troostwatch-sync/0.1",
+        user_agent: str = "",  # Empty string triggers dynamic version lookup
     ) -> None:
+        from troostwatch import __version__
+        if not user_agent:
+            user_agent = f"troostwatch-sync/{__version__}"
         self.max_concurrent_requests = max(1, max_concurrent_requests)
         self.rate_limiter = RateLimiter(throttle_per_host)
         self.retry_attempts = max(1, retry_attempts)

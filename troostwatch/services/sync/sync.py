@@ -87,7 +87,8 @@ def _fetch_url(
             response_text = http_client.fetch_text(url)
             return response_text, None
 
-        req = Request(url, headers={"User-Agent": "troostwatch-sync/0.1"})
+        from troostwatch import __version__
+        req = Request(url, headers={"User-Agent": f"troostwatch-sync/{__version__}"})
         with urlopen(req) as response:
             data = response.read()
             try:

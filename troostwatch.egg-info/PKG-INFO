@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: troostwatch
-Version: 0.6.1
+Version: 0.6.2
 Summary: Scrape Troostwijk auctions, track bids, analyse exposure and view results via a CLI.
 Author-email: Jochem <jochem@example.com>
 License: MIT

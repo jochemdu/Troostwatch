@@ -64,9 +64,11 @@ class LotEventBus:
             await self.unsubscribe(subscriber)
 
 
+from troostwatch import __version__
+
 event_bus = LotEventBus()
 sync_service = SyncService(event_publisher=event_bus.publish)
-app = FastAPI(title="Troostwatch API", version="0.1.0")
+app = FastAPI(title="Troostwatch API", version=__version__)
 
 
 def get_buyer_service(

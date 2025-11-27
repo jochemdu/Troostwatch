@@ -1,5 +1,5 @@
 {
-  "project_version": "0.3.7",
+  "config_format_version": "1.0",
   "paths": {
     "db_path": "troostwatch.db",
     "snapshots_root": "snapshots",

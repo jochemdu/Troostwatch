@@ -165,7 +165,8 @@ class TroostwatchHttpClient:
 
     # -------------------- request helpers --------------------
     def _prepare_headers(self, extra: Optional[Dict[str, str]]) -> Dict[str, str]:
-        headers = {"User-Agent": "troostwatch-client/1.0"}
+        from troostwatch import __version__
+        headers = {"User-Agent": f"troostwatch-client/{__version__}"}
         if extra:
             headers.update(extra)
         if self.csrf_token:

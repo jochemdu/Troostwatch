@@ -17,7 +17,7 @@ def main() -> None:
     # Create default config if it doesn't exist
     if not config_path.exists():
         config = {
-            "project_version": "0.3.7",
+            "config_format_version": "1.0",
             "paths": {
                 "db_path": str(db_path),
                 "snapshots_root": "snapshots",

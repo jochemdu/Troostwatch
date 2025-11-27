@@ -130,8 +130,6 @@ SyncServiceDep = Annotated[SyncService, Depends(get_sync_service)]
 
 class BuyerCreateRequest(BaseModel):
     label: str
-    name: str | None = None
-    notes: str | None = None
 
 
 class BuyerResponse(BaseModel):
@@ -149,7 +147,6 @@ class BuyerCreateResponse(BaseModel):
 class PositionUpdate(BaseModel):
     buyer_label: str
     lot_code: str
-    auction_code: str | None = None
     max_budget_total_eur: float | None = Field(None, ge=0)
     preferred_bid_eur: float | None = Field(None, ge=0)
     watch: bool | None = None
@@ -162,11 +159,6 @@ class PositionResponse(BaseModel):
     lot_code: str
     auction_code: str | None = None
     track_active: bool = True
-    max_budget_total_eur: float | None = None
-    my_highest_bid_eur: float | None = None
-    lot_title: str | None = None
-    lot_state: str | None = None
-    current_bid_eur: float | None = None
     max_budget_total_eur: float | None = None
     my_highest_bid_eur: float | None = None
     lot_title: str | None = None
@@ -212,18 +204,12 @@ class SyncSummaryResponse(BaseModel):
     auction_code: str | None = None
     result: SyncRunResultResponse | None = None
     error: str | None = None
-    auction_code: str | None = None
-    result: SyncRunResultResponse | None = None
-    error: str | None = None
 
 
 class LiveSyncStatusResponse(BaseModel):
     """Status of the live sync worker."""
 
     state: str  # 'idle', 'running', 'paused', 'stopping'
-    last_sync: str | None = None
-    next_sync: str | None = None
-    current_auction: str | None = None
     last_sync: str | None = None
     next_sync: str | None = None
     current_auction: str | None = None
@@ -258,7 +244,6 @@ class BidResponse(BaseModel):
     lot_title: str | None = None
     amount_eur: float
     placed_at: str
-    note: str | None = None
 
 
 class BidCreateRequest(BaseModel):
@@ -279,8 +264,6 @@ class TrackedLotSummaryResponse(BaseModel):
     state: str
     current_bid_eur: float | None = None
     max_budget_total_eur: float | None = None
-    current_bid_eur: float | None = None
-    max_budget_total_eur: float | None = None
     track_active: bool = True
 
 
@@ -295,18 +278,12 @@ class BuyerSummaryResponse(BaseModel):
     open_exposure_max_eur: float = 0.0
     open_tracked_lots: list[TrackedLotSummaryResponse] = Field(default_factory=list)
     won_lots: list[TrackedLotSummaryResponse] = Field(default_factory=list)
-    open_tracked_lots: list[TrackedLotSummaryResponse] = Field(default_factory=list)
-    won_lots: list[TrackedLotSummaryResponse] = Field(default_factory=list)
 
 
 class AuctionResponse(BaseModel):
     """Auction summary."""
 
     auction_code: str
-    title: str | None = None
-    url: str | None = None
-    starts_at: str | None = None
-    ends_at_planned: str | None = None
     title: str | None = None
     url: str | None = None
     starts_at: str | None = None
@@ -332,24 +309,11 @@ class LotCreateRequest(BaseModel):
     location_country: str | None = None
     auction_title: str | None = None
     auction_url: str | None = None
-    url: str | None = None
-    state: str | None = None
-    opens_at: str | None = None
-    closing_time: str | None = None
-    bid_count: int | None = None
-    opening_bid_eur: float | None = None
-    current_bid_eur: float | None = None
-    location_city: str | None = None
-    location_country: str | None = None
-    auction_title: str | None = None
-    auction_url: str | None = None
 
 
 class LotUpdateRequest(BaseModel):
     """Request to update lot fields (notes, ean)."""
 
-    notes: str | None = None
-    ean: str | None = None
     notes: str | None = None
     ean: str | None = None
 
@@ -360,14 +324,7 @@ class LotSpecResponse(BaseModel):
     id: int
     parent_id: int | None = None
     template_id: int | None = None
-    parent_id: int | None = None
-    template_id: int | None = None
     key: str
-    value: str | None = None
-    ean: str | None = None
-    price_eur: float | None = None
-    release_date: str | None = None
-    category: str | None = None
     value: str | None = None
     ean: str | None = None
     price_eur: float | None = None
@@ -381,13 +338,6 @@ class ReferencePriceResponse(BaseModel):
     id: int
     condition: str  # 'new', 'used', 'refurbished'
     price_eur: float
-    source: str | None = None
-    url: str | None = None
-    notes: str | None = None
-    created_at: str | None = None
-    source: str | None = None
-    url: str | None = None
-    notes: str | None = None
     created_at: str | None = None
 
 
@@ -396,12 +346,6 @@ class ReferencePriceCreateRequest(BaseModel):
 
     condition: str = Field(default="used", pattern="^(new|used|refurbished)$")
     price_eur: float = Field(ge=0)
-    source: str | None = None
-    url: str | None = None
-    notes: str | None = None
-    source: str | None = None
-    url: str | None = None
-    notes: str | None = None
 
 
 class ReferencePriceUpdateRequest(BaseModel):
@@ -410,12 +354,6 @@ class ReferencePriceUpdateRequest(BaseModel):
     condition: str | None = Field(None, pattern="^(new|used|refurbished)$")
     price_eur: float | None = Field(None, ge=0)
     source: str | None = None
-    url: str | None = None
-    notes: str | None = None
-    condition: str | None = Field(None, pattern="^(new|used|refurbished)$")
-    price_eur: float | None = Field(None, ge=0)
-    source: str | None = None
-    url: str | None = None
     notes: str | None = None
 
 
@@ -424,21 +362,6 @@ class LotDetailResponse(BaseModel):
 
     auction_code: str
     lot_code: str
-    title: str | None = None
-    url: str | None = None
-    state: str | None = None
-    current_bid_eur: float | None = None
-    bid_count: int | None = None
-    opening_bid_eur: float | None = None
-    closing_time_current: str | None = None
-    closing_time_original: str | None = None
-    brand: str | None = None
-    ean: str | None = None
-    location_city: str | None = None
-    location_country: str | None = None
-    notes: str | None = None
-    specs: list[LotSpecResponse] = Field(default_factory=list)
-    reference_prices: list[ReferencePriceResponse] = Field(default_factory=list)
     title: str | None = None
     url: str | None = None
     state: str | None = None
@@ -499,10 +422,6 @@ class SearchResultResponse(BaseModel):
 
     auction_code: str
     lot_code: str
-    title: str | None = None
-    state: str | None = None
-    current_bid_eur: float | None = None
-    brand: str | None = None
     title: str | None = None
     state: str | None = None
     current_bid_eur: float | None = None
@@ -831,12 +750,6 @@ class LotSpecCreateRequest(BaseModel):
     template_id: int | None = None
     release_date: str | None = None
     category: str | None = None
-    parent_id: int | None = None
-    ean: str | None = None
-    price_eur: float | None = None
-    template_id: int | None = None
-    release_date: str | None = None
-    category: str | None = None
 
 
 @app.post(
@@ -907,30 +820,13 @@ class SpecTemplateResponse(BaseModel):
     release_date: str | None = None
     category: str | None = None
     created_at: str | None = None
-    value: str | None = None
-    ean: str | None = None
-    price_eur: float | None = None
-    release_date: str | None = None
-    category: str | None = None
-    created_at: str | None = None
 
 
 class SpecTemplateCreateRequest(BaseModel):
     """Request to create a spec template."""
 
     title: str
-    value: str | None = None
-    ean: str | None = None
-    price_eur: float | None = None
     parent_id: int | None = None
-    release_date: str | None = None
-    category: str | None = None
-    value: str | None = None
-    ean: str | None = None
-    price_eur: float | None = None
-    parent_id: int | None = None
-    release_date: str | None = None
-    category: str | None = None
 
 
 class SpecTemplateUpdateRequest(BaseModel):
@@ -1375,10 +1271,6 @@ class AuctionDetailResponse(BaseModel):
     """Detailed auction information."""
 
     auction_code: str
-    title: str | None = None
-    url: str | None = None
-    starts_at: str | None = None
-    ends_at_planned: str | None = None
     lot_count: int = 0
 
 

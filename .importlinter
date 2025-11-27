@@ -3,6 +3,7 @@
 #
 # These contracts enforce the layered architecture described in docs/architecture.md.
 # Run with: lint-imports (or python -m importlinter)
+# Note: This is an INI configuration file, not Python code.
 
 [importlinter]
 root_package = troostwatch

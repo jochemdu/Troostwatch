@@ -186,11 +186,12 @@ class LiveSyncStartRequest(BaseModel):
 async def list_lots(
     auction_code: Optional[str] = None,
     state: Optional[str] = None,
+    brand: Optional[str] = None,
     limit: Optional[int] = Query(default=None, ge=1),
     lot_view_service: LotViewService = Depends(get_lot_view_service),
 ) -> List[LotView]:
     return lot_view_service.list_lots(
-        auction_code=auction_code, state=state, limit=limit
+        auction_code=auction_code, state=state, brand=brand, limit=limit
     )
 
 

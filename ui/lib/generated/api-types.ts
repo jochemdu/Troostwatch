@@ -267,6 +267,11 @@ export interface components {
              */
             closing_time_original?: string | null;
             /**
+             * Brand
+             * @description Brand/manufacturer of the lot item.
+             */
+            brand?: string | null;
+            /**
              * Is Active
              * @default false
              */
@@ -391,6 +396,7 @@ export interface operations {
             query?: {
                 auction_code?: string | null;
                 state?: string | null;
+                brand?: string | null;
                 limit?: number | null;
             };
             header?: never;

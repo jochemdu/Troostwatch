@@ -34,6 +34,7 @@ export type { LotView, BuyerResponse, BuyerCreateRequest, BuyerCreateResponse };
 export interface LotQueryParams {
   auction_code?: string;
   state?: string;
+  brand?: string;
   limit?: number;
 }
 
@@ -68,6 +69,9 @@ export async function fetchLots(params?: LotQueryParams): Promise<LotView[]> {
   }
   if (params?.state) {
     url.searchParams.append('state', params.state);
+  }
+  if (params?.brand) {
+    url.searchParams.append('brand', params.brand);
   }
   if (params?.limit) {
     url.searchParams.append('limit', params.limit.toString());

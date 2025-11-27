@@ -10,10 +10,14 @@ const STATE_OPTIONS = ['scheduled', 'running', 'closed'] as const;
 export default function LotsPage() {
   const [stateFilter, setStateFilter] = useState<string | undefined>(undefined);
   const [auctionFilter, setAuctionFilter] = useState<string>('');
+  const [brandFilter, setBrandFilter] = useState<string>('');
   const [lots, setLots] = useState<LotView[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedLots, setSelectedLots] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<string>('');
+
+  // Extract unique brands from lots for filter dropdown
+  const availableBrands = [...new Set(lots.map((lot) => lot.brand).filter((b): b is string => !!b))].sort();
 
   useEffect(() => {
     const run = async () => {
@@ -22,6 +26,7 @@ export default function LotsPage() {
         const data = await fetchLots({
           state: stateFilter,
           auction_code: auctionFilter || undefined,
+          brand: brandFilter || undefined,
         });
         setLots(data);
       } catch (error) {
@@ -33,7 +38,7 @@ export default function LotsPage() {
     };
 
     run();
-  }, [stateFilter, auctionFilter]);
+  }, [stateFilter, auctionFilter, brandFilter]);
 
   const toggleLot = (lotCode: string) => {
     setSelectedLots((current) => {
@@ -53,6 +58,7 @@ export default function LotsPage() {
       const data = await fetchLots({
         state: stateFilter,
         auction_code: auctionFilter || undefined,
+        brand: brandFilter || undefined,
       });
       setLots(data);
       setFeedback(`${data.length} lots geladen.`);
@@ -96,6 +102,20 @@ export default function LotsPage() {
               onChange={(event) => setAuctionFilter(event.target.value)}
               placeholder="bijv. ABC123"
             />
+          </div>
+          <div>
+            <label>Merk</label>
+            <input
+              value={brandFilter}
+              onChange={(event) => setBrandFilter(event.target.value)}
+              placeholder="bijv. Caterpillar"
+              list="brand-options"
+            />
+            <datalist id="brand-options">
+              {availableBrands.map((brand) => (
+                <option key={brand} value={brand} />
+              ))}
+            </datalist>
           </div>
           <div>
             <label>&nbsp;</label>

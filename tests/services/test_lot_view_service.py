@@ -6,11 +6,12 @@ class _StubLotRepository:
         self._rows = rows
         self.list_calls = []
 
-    def list_lots(self, *, auction_code=None, state=None, limit=None):
+    def list_lots(self, *, auction_code=None, state=None, brand=None, limit=None):
         self.list_calls.append(
             {
                 "auction_code": auction_code,
                 "state": state,
+                "brand": brand,
                 "limit": limit,
             }
         )
@@ -29,6 +30,7 @@ def test_list_lots_returns_dtos_and_forwards_filters():
             "current_bidder_label": "BID123",
             "closing_time_current": "2024-01-01T00:00:00Z",
             "closing_time_original": "2023-12-31T23:00:00Z",
+            "brand": None,
         }
     ]
     repository = _StubLotRepository(rows)
@@ -37,7 +39,7 @@ def test_list_lots_returns_dtos_and_forwards_filters():
     result = service.list_lots(auction_code="A1", state="running", limit=5)
 
     assert repository.list_calls == [
-        {"auction_code": "A1", "state": "running", "limit": 5}
+        {"auction_code": "A1", "state": "running", "brand": None, "limit": 5}
     ]
     assert result == [
         LotView(
@@ -50,6 +52,7 @@ def test_list_lots_returns_dtos_and_forwards_filters():
             current_bidder_label="BID123",
             closing_time_current="2024-01-01T00:00:00Z",
             closing_time_original="2023-12-31T23:00:00Z",
+            brand=None,
             is_active=True,  # Domain logic: running lots are active
             effective_price=100.0,  # Domain logic: current_bid is effective price
         )
@@ -64,8 +67,8 @@ def test_list_lots_converts_non_positive_limit_to_none():
     service.list_lots(limit=-3)
 
     assert repository.list_calls == [
-        {"auction_code": None, "state": None, "limit": None},
-        {"auction_code": None, "state": None, "limit": None},
+        {"auction_code": None, "state": None, "brand": None, "limit": None},
+        {"auction_code": None, "state": None, "brand": None, "limit": None},
     ]
 
 

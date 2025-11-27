@@ -43,6 +43,22 @@
             }
           },
           {
+            "name": "brand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Brand"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -663,6 +679,18 @@
             ],
             "title": "Closing Time Original",
             "description": "Original closing timestamp, if set."
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand",
+            "description": "Brand/manufacturer of the lot item."
           },
           "is_active": {
             "type": "boolean",

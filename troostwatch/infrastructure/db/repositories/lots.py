@@ -49,6 +49,7 @@ class LotRepository:
         *,
         auction_code: Optional[str] = None,
         state: Optional[str] = None,
+        brand: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> List[Dict[str, Optional[str]]]:
         query = """
@@ -60,7 +61,8 @@ class LotRepository:
                    l.bid_count AS bid_count,
                    l.current_bidder_label AS current_bidder_label,
                    l.closing_time_current AS closing_time_current,
-                   l.closing_time_original AS closing_time_original
+                   l.closing_time_original AS closing_time_original,
+                   l.brand AS brand
             FROM lots l
             JOIN auctions a ON l.auction_id = a.id
         """
@@ -73,6 +75,9 @@ class LotRepository:
         if state:
             conditions.append("l.state = ?")
             params.append(state)
+        if brand:
+            conditions.append("l.brand = ?")
+            params.append(brand)
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
 

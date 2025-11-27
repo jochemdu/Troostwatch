@@ -21,6 +21,7 @@ export default function LotTable({ lots, selectedLots, onToggleLot }: Props) {
             <th>Veiling</th>
             <th>Status</th>
             <th>Huidig bod</th>
+            <th>Biedingen</th>
             <th>Sluit</th>
           </tr>
         </thead>
@@ -41,12 +42,13 @@ export default function LotTable({ lots, selectedLots, onToggleLot }: Props) {
                 <span className={`badge ${lot.state === 'closed' ? 'error' : ''}`}>{lot.state ?? 'onbekend'}</span>
               </td>
               <td>{lot.current_bid_eur ? `€${lot.current_bid_eur.toLocaleString('nl-NL')}` : '—'}</td>
-              <td className="muted">{lot.closing_time_current ? new Date(lot.closing_time_current).toLocaleString() : '—'}</td>
+              <td>{lot.bid_count ?? 0}</td>
+              <td className="muted">{lot.closing_time_current ? new Date(lot.closing_time_current).toLocaleString('nl-NL') : '—'}</td>
             </tr>
           ))}
           {lots.length === 0 && (
             <tr>
-              <td colSpan={6} className="muted">
+              <td colSpan={7} className="muted">
                 Geen resultaten
               </td>
             </tr>

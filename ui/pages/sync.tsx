@@ -72,11 +72,18 @@ export default function SyncPage() {
   // Try to extract auction code from URL
   const handleUrlChange = (url: string) => {
     setAuctionUrl(url);
+    // Decode URL-encoded characters first (e.g., %282-2%29 -> (2-2))
+    let decodedUrl = url;
+    try {
+      decodedUrl = decodeURIComponent(url);
+    } catch {
+      // If decoding fails, use original URL
+    }
     // Extract auction code from Troostwijk URL pattern
     // The code is the last segment, e.g.:
     // /a/goederen-opgekocht-uit-faillissement-max-ict-(2-2)-A1-39500 → A1-39500
     // /nl/c/ABC123 → ABC123
-    const pathMatch = url.match(/\/[ac]\/([A-Za-z0-9()_-]+)/);
+    const pathMatch = decodedUrl.match(/\/[ac]\/([A-Za-z0-9()_-]+)/);
     if (pathMatch) {
       const fullPath = pathMatch[1];
       // The auction code is typically at the end: look for pattern like A1-39500, ABC-123

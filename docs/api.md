@@ -22,6 +22,64 @@ Currently no authentication is required. All endpoints are public.
 
 ---
 
+## API Stability Policy
+
+### Endpoint Stability Levels
+
+| Level | Meaning | Breaking Change Policy |
+|-------|---------|------------------------|
+| **Stable** | Production-ready, widely used | Requires major version bump + migration period |
+| **Beta** | Feature complete, may evolve | 2-week deprecation notice before breaking changes |
+| **Experimental** | Under development | May change without notice |
+
+### Current Endpoint Status
+
+| Endpoint | Stability | Notes |
+|----------|-----------|-------|
+| `GET /lots` | **Stable** | Core functionality |
+| `GET /buyers` | **Stable** | Core functionality |
+| `POST /buyers` | **Stable** | Core functionality |
+| `DELETE /buyers/{label}` | **Stable** | Core functionality |
+| `POST /positions/batch` | Beta | API may evolve |
+| `POST /sync` | **Stable** | Core functionality |
+| `POST /live-sync/*` | Beta | Control interface may change |
+| `GET /live-sync/status` | Beta | Response fields may be added |
+| `WS /ws/lots` | Experimental | Message format under development |
+
+### Backwards Compatibility Rules
+
+**Allowed (non-breaking):**
+- ✅ Adding new optional fields to response bodies
+- ✅ Adding new optional query parameters
+- ✅ Adding new endpoints
+- ✅ Adding new event types to WebSocket
+
+**Requires coordination (breaking):**
+- ⚠️ Removing fields from response bodies
+- ⚠️ Changing field types or semantics
+- ⚠️ Renaming endpoints or parameters
+- ⚠️ Changing required/optional status of fields
+- ⚠️ Changing error response formats
+
+### Breaking Change Process
+
+1. **Announce** – Document the planned change in a GitHub issue
+2. **Deprecate** – Add `@deprecated` to the old field/endpoint (if applicable)
+3. **Dual support** – Support both old and new formats during transition
+4. **Coordinate** – Ensure UI changes are merged together with API changes
+5. **Remove** – Remove deprecated code after migration period
+
+### Versioning
+
+Currently the API is unversioned (v1 implied). When breaking changes are
+unavoidable:
+
+1. Consider URL versioning: `/v2/lots` alongside `/lots`
+2. Or use feature flags in request headers
+3. Document migration path in release notes
+
+---
+
 ## Endpoints
 
 ### Lots

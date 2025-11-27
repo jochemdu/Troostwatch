@@ -109,7 +109,7 @@ class AuctionRepository(BaseRepository):
         """Update an auction. Returns True if updated."""
         updates = []
         params: List[Any] = []
-        
+
         if title is not None:
             updates.append("title = ?")
             params.append(title)
@@ -122,10 +122,10 @@ class AuctionRepository(BaseRepository):
         if ends_at_planned is not None:
             updates.append("ends_at_planned = ?")
             params.append(ends_at_planned)
-        
+
         if not updates:
             return True
-        
+
         params.append(auction_code)
         cur = self._execute(
             f"UPDATE auctions SET {', '.join(updates)} WHERE auction_code = ?",
@@ -136,7 +136,7 @@ class AuctionRepository(BaseRepository):
 
     def delete(self, auction_code: str, delete_lots: bool = False) -> Dict[str, int]:
         """
-        Delete an auction. 
+        Delete an auction.
         If delete_lots is True, also delete all associated lots.
         Returns dict with counts of deleted items.
         """
@@ -146,16 +146,16 @@ class AuctionRepository(BaseRepository):
         )
         if not auction_id:
             return {"auction": 0, "lots": 0}
-        
+
         lots_deleted = 0
-        
+
         if delete_lots:
             # Delete associated data first (bid_history, reference_prices, product_layers)
             lot_ids_rows = self._execute(
                 "SELECT id FROM lots WHERE auction_id = ?", (auction_id,)
             ).fetchall()
             lot_ids = [r[0] for r in lot_ids_rows]
-            
+
             if lot_ids:
                 placeholders = ",".join("?" * len(lot_ids))
                 self._execute(
@@ -170,18 +170,18 @@ class AuctionRepository(BaseRepository):
                     f"DELETE FROM product_layers WHERE lot_id IN ({placeholders})",
                     tuple(lot_ids),
                 )
-            
+
             # Delete lots
             cur = self._execute(
                 "DELETE FROM lots WHERE auction_id = ?", (auction_id,)
             )
             lots_deleted = cur.rowcount
-        
-        # Delete the auction
+
+            # Delete the auction
             cur = self._execute(
-            "DELETE FROM auctions WHERE id = ?", (auction_id,)
-        )
-        auction_deleted = cur.rowcount
-        
+                "DELETE FROM auctions WHERE id = ?", (auction_id,)
+            )
+            auction_deleted = cur.rowcount
+
         self.conn.commit()
         return {"auction": auction_deleted, "lots": lots_deleted}

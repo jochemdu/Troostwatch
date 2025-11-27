@@ -64,15 +64,15 @@ class BidRepository(BaseRepository):
             WHERE 1=1
         """
         params: List[object] = []
-        
+
         if buyer_label:
             query += " AND b.label = ?"
             params.append(buyer_label)
         if lot_code:
             query += " AND l.lot_code = ?"
             params.append(lot_code)
-        
+
         query += " ORDER BY mb.placed_at DESC LIMIT ?"
         params.append(limit)
-        
+
         return self._fetch_all_as_dicts(query, tuple(params))

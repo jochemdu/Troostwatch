@@ -155,4 +155,3 @@ def log_exception(
     """
     with log_context(**context):
         logger.exception(f"{message}: {exc}")
-

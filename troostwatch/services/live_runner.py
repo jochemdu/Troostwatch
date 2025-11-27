@@ -235,4 +235,3 @@ class LiveSyncRunner:
         )
         if log_message:
             await self._emit_log(log_message)
-

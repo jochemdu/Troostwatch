@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 class BaseRepository:
     """Base class for all repository implementations.
-    
+
     Provides shared helper methods for executing queries and converting
     results to dictionaries, eliminating ~80 LOC of duplicate code across
     the repository layer.
@@ -20,7 +20,7 @@ class BaseRepository:
 
     def __init__(self, conn: sqlite3.Connection) -> None:
         """Initialize repository with a database connection.
-        
+
         Args:
             conn: SQLite database connection
         """
@@ -30,14 +30,14 @@ class BaseRepository:
         self, query: str, params: Optional[Tuple[Any, ...]] = None
     ) -> List[Dict[str, Any]]:
         """Execute query and return all rows as dictionaries.
-        
+
         Args:
             query: SQL query string
             params: Query parameters (optional)
-            
+
         Returns:
             List of dictionaries with column names as keys
-            
+
         Example:
             >>> rows = self._fetch_all_as_dicts(
             ...     "SELECT id, name FROM users WHERE age > ?",
@@ -54,14 +54,14 @@ class BaseRepository:
         self, query: str, params: Optional[Tuple[Any, ...]] = None
     ) -> Optional[Dict[str, Any]]:
         """Execute query and return first row as dictionary.
-        
+
         Args:
             query: SQL query string
             params: Query parameters (optional)
-            
+
         Returns:
             Dictionary with column names as keys, or None if no rows
-            
+
         Example:
             >>> user = self._fetch_one_as_dict(
             ...     "SELECT id, name FROM users WHERE id = ?",
@@ -81,14 +81,14 @@ class BaseRepository:
         self, query: str, params: Optional[Tuple[Any, ...]] = None
     ) -> Any:
         """Execute query and return first column of first row.
-        
+
         Args:
             query: SQL query string
             params: Query parameters (optional)
-            
+
         Returns:
             Value of first column, or None if no rows
-            
+
         Example:
             >>> count = self._fetch_scalar("SELECT COUNT(*) FROM users")
             >>> count
@@ -102,14 +102,14 @@ class BaseRepository:
         self, query: str, params: Optional[Tuple[Any, ...]] = None
     ) -> int:
         """Execute INSERT query and return last row ID.
-        
+
         Args:
             query: SQL INSERT query string
             params: Query parameters (optional)
-            
+
         Returns:
             ID of the inserted row (lastrowid)
-            
+
         Example:
             >>> user_id = self._execute_insert(
             ...     "INSERT INTO users (name, age) VALUES (?, ?)",
@@ -125,18 +125,18 @@ class BaseRepository:
         self, query: str, params: Optional[Tuple[Any, ...]] = None
     ) -> sqlite3.Cursor:
         """Execute query and return cursor for custom processing.
-        
+
         Use this when you need direct access to the cursor for
         custom result processing or when other helper methods
         don't fit your use case.
-        
+
         Args:
             query: SQL query string
             params: Query parameters (optional)
-            
+
         Returns:
             Database cursor
-            
+
         Example:
             >>> cur = self._execute("UPDATE users SET active = ? WHERE id = ?", (True, 42))
             >>> cur.rowcount

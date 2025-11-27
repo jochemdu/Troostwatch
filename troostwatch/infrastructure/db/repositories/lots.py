@@ -104,7 +104,7 @@ class LotRepository(BaseRepository):
         if auction_code:
             query += " AND a.auction_code = ?"
             params.append(auction_code)
-        
+
         return self._fetch_one_as_dict(query, tuple(params))
 
     def get_lot_specs(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -113,16 +113,16 @@ class LotRepository(BaseRepository):
         if not lot_id:
             return []
         return self._fetch_all_as_dicts(
-                "SELECT id, parent_id, template_id, title AS key, value, ean, price_eur, release_date, category FROM product_layers WHERE lot_id = ? ORDER BY parent_id NULLS FIRST, layer",
-                (lot_id,)
-            )
+            "SELECT id, parent_id, template_id, title AS key, value, ean, price_eur, release_date, category FROM product_layers WHERE lot_id = ? ORDER BY parent_id NULLS FIRST, layer",
+            (lot_id,)
+        )
 
     def get_reference_prices(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get all reference prices for a lot."""
         lot_id = self.get_id(lot_code, auction_code)
         if not lot_id:
             return []
-        
+
         return self._fetch_all_as_dicts(
             """SELECT id, condition, price_eur, source, url, notes, created_at
                FROM reference_prices WHERE lot_id = ? ORDER BY created_at DESC""",
@@ -134,7 +134,7 @@ class LotRepository(BaseRepository):
         lot_id = self.get_id(lot_code, auction_code)
         if not lot_id:
             return []
-        
+
         return self._fetch_all_as_dicts(
             """SELECT id, bidder_label, amount_eur, timestamp, created_at
                FROM bid_history WHERE lot_id = ? ORDER BY timestamp DESC, id DESC""",
@@ -155,7 +155,7 @@ class LotRepository(BaseRepository):
         lot_id = self.get_id(lot_code, auction_code)
         if not lot_id:
             raise ValueError(f"Lot '{lot_code}' not found")
-        
+
         ref_id = self._execute_insert(
             """INSERT INTO reference_prices (lot_id, condition, price_eur, source, url, notes)
                VALUES (?, ?, ?, ?, ?, ?)""",
@@ -176,7 +176,7 @@ class LotRepository(BaseRepository):
         """Update a reference price. Returns True if updated."""
         updates = []
         params: List = []
-        
+
         if price_eur is not None:
             updates.append("price_eur = ?")
             params.append(price_eur)
@@ -192,13 +192,13 @@ class LotRepository(BaseRepository):
         if notes is not None:
             updates.append("notes = ?")
             params.append(notes)
-        
+
         if not updates:
             return True
-        
+
         updates.append("updated_at = datetime('now')")
         params.append(ref_id)
-        
+
         cur = self.conn.execute(
             f"UPDATE reference_prices SET {', '.join(updates)} WHERE id = ?",
             tuple(params),
@@ -224,7 +224,7 @@ class LotRepository(BaseRepository):
         lot_id = self.get_id(lot_code, auction_code)
         if not lot_id:
             return False
-        
+
         updates = []
         params: List = []
         if notes is not None:
@@ -233,7 +233,7 @@ class LotRepository(BaseRepository):
         if ean is not None:
             updates.append("ean = ?")
             params.append(ean)
-        
+
         if updates:
             params.append(lot_id)
             self.conn.execute(
@@ -260,11 +260,11 @@ class LotRepository(BaseRepository):
         lot_id = self.get_id(lot_code, auction_code)
         if not lot_id:
             raise ValueError(f"Lot '{lot_code}' not found")
-        
+
         # Check if spec exists (matching parent_id)
-            existing_id: Optional[int]
+        existing_id: Optional[int]
         if parent_id is not None:
-                existing_id = self._fetch_scalar(
+            existing_id = self._fetch_scalar(
                 "SELECT id FROM product_layers WHERE lot_id = ? AND title = ? AND parent_id = ?",
                 (lot_id, key, parent_id)
             )
@@ -378,13 +378,13 @@ class LotRepository(BaseRepository):
         if category is not None:
             updates.append("category = ?")
             params.append(category)
-        
+
         if not updates:
             return True
-        
+
         updates.append("updated_at = datetime('now')")
         params.append(template_id)
-        
+
         cur = self._execute(
             f"UPDATE spec_templates SET {', '.join(updates)} WHERE id = ?",
             tuple(params),
@@ -409,7 +409,7 @@ class LotRepository(BaseRepository):
         template = self.get_spec_template(template_id)
         if not template:
             raise ValueError(f"Template {template_id} not found")
-        
+
         return self.upsert_lot_spec(
             lot_code=lot_code,
             key=template["title"],
@@ -549,7 +549,7 @@ class LotRepository(BaseRepository):
 
     def delete_lot(self, lot_code: str, auction_code: str) -> bool:
         """Delete a lot and all related data (specs, bids, reference prices, positions).
-        
+
         Returns True if the lot was deleted, False if not found.
         """
         # Get auction_id and lot_id
@@ -571,7 +571,7 @@ class LotRepository(BaseRepository):
         self._execute("DELETE FROM reference_prices WHERE lot_id = ?", (lot_id,))
         self._execute("DELETE FROM product_layers WHERE lot_id = ?", (lot_id,))
         self._execute("DELETE FROM my_lot_positions WHERE lot_id = ?", (lot_id,))
-        
+
         # Delete the lot itself
         self._execute("DELETE FROM lots WHERE id = ?", (lot_id,))
         self.conn.commit()

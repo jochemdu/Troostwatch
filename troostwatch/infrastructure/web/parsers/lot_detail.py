@@ -57,7 +57,7 @@ def _strip_html_tags(text: str) -> str:
 
 def _extract_lot_number_from_url(url: str) -> str | None:
     """Extract the lot number from a Troostwijk lot URL.
-    
+
     URL format: /l/description-AUCTION_CODE-LOT_NUMBER
     Example: /l/samsung-wm75a-flip-interactive-display-75-A1-39500-1801
     Returns: 1801

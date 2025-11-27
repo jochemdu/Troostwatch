@@ -10,7 +10,7 @@ from typing import List, Optional
 @dataclass
 class Auction:
     """Domain model representing an auction.
-    
+
     This model encapsulates the business logic related to auctions,
     such as determining if an auction is active and managing pagination.
     """
@@ -34,7 +34,7 @@ class Auction:
 
     def get_all_page_urls(self) -> List[str]:
         """Return all page URLs including the main URL.
-        
+
         Returns:
             List of URLs starting with the main URL, followed by pagination pages.
         """
@@ -52,7 +52,7 @@ class Auction:
                 pagination = json.loads(pagination)
             except (json.JSONDecodeError, TypeError):
                 pagination = []
-        
+
         def parse_datetime(value) -> Optional[datetime]:
             if value is None:
                 return None
@@ -76,4 +76,3 @@ class Auction:
 
 
 __all__ = ["Auction"]
-

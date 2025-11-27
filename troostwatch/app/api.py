@@ -444,9 +444,9 @@ async def search_lots(
     """Search lots by title, brand, lot code, or EAN."""
     conn = lot_repository.conn
     query_param = f"%{q}%"
-    
+
     sql = """
-        SELECT 
+        SELECT
             a.auction_code,
             l.lot_code,
             l.title,
@@ -454,7 +454,7 @@ async def search_lots(
             l.current_bid_eur,
             l.brand,
             l.ean,
-            CASE 
+            CASE
                 WHEN l.lot_code LIKE ? THEN 'lot_code'
                 WHEN l.ean LIKE ? THEN 'ean'
                 WHEN l.brand LIKE ? THEN 'brand'
@@ -463,21 +463,21 @@ async def search_lots(
         FROM lots l
         JOIN auctions a ON l.auction_id = a.id
         WHERE (
-            l.title LIKE ? OR 
-            l.brand LIKE ? OR 
-            l.lot_code LIKE ? OR 
+            l.title LIKE ? OR
+            l.brand LIKE ? OR
+            l.lot_code LIKE ? OR
             l.ean LIKE ?
         )
     """
     params: list = [query_param, query_param, query_param, query_param, query_param, query_param, query_param]
-    
+
     if state:
         sql += " AND l.state = ?"
         params.append(state)
-    
+
     sql += " ORDER BY l.state = 'running' DESC, l.closing_time_current ASC LIMIT ?"
     params.append(limit)
-    
+
     cur = conn.execute(sql, params)
     results = []
     for row in cur.fetchall():
@@ -503,10 +503,10 @@ async def get_lot_detail(
     lot = lot_repository.get_lot_detail(lot_code, auction_code)
     if not lot:
         raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' not found")
-    
+
     specs = lot_repository.get_lot_specs(lot_code, auction_code)
     ref_prices = lot_repository.get_reference_prices(lot_code, auction_code)
-    
+
     return LotDetailResponse(
         auction_code=str(lot.get("auction_code", "")),
         lot_code=str(lot.get("lot_code", "")),
@@ -567,7 +567,7 @@ async def update_lot(
     )
     if not success:
         raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' not found")
-    
+
     return await get_lot_detail(lot_code, auction_code, lot_repository)
 
 
@@ -658,7 +658,7 @@ async def update_reference_price(
     )
     if not success:
         raise HTTPException(status_code=404, detail=f"Reference price {ref_id} not found")
-    
+
     # Get updated price
     prices = lot_repository.get_reference_prices(lot_code)
     for p in prices:
@@ -877,7 +877,7 @@ async def update_spec_template(
         category=payload.category,
     ):
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
-    
+
     template = lot_repository.get_spec_template(template_id)
     if not template:
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
@@ -906,7 +906,7 @@ async def apply_template_to_lot(
         template = lot_repository.get_spec_template(payload.template_id)
         if not template:
             raise HTTPException(status_code=404, detail=f"Template {payload.template_id} not found")
-        
+
         spec_id = lot_repository.apply_template_to_lot(
             lot_code=lot_code,
             template_id=payload.template_id,
@@ -1088,12 +1088,12 @@ async def create_bid(payload: BidCreateRequest) -> BidResponse:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
         ) from exc
-    
+
     # Fetch the created bid to return it
     bids = repo.list(buyer_label=payload.buyer_label, lot_code=payload.lot_code, limit=1)
     if not bids:
         raise HTTPException(status_code=500, detail="Bid created but not found")
-    
+
     return _bid_row_to_response(bids[0])
 
 
@@ -1165,26 +1165,26 @@ async def get_dashboard_stats(
 ) -> DashboardStatsResponse:
     """Get dashboard statistics overview."""
     conn = lot_repository.conn
-    
+
     # Auction counts
     auction_total = conn.execute("SELECT COUNT(*) FROM auctions").fetchone()[0]
     auction_active = conn.execute(
-        """SELECT COUNT(DISTINCT a.id) FROM auctions a 
-           JOIN lots l ON l.auction_id = a.id 
+        """SELECT COUNT(DISTINCT a.id) FROM auctions a
+           JOIN lots l ON l.auction_id = a.id
            WHERE l.state IN ('running', 'scheduled')"""
     ).fetchone()[0]
-    
+
     # Lot counts by state
     lot_total = conn.execute("SELECT COUNT(*) FROM lots").fetchone()[0]
     lot_running = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'running'").fetchone()[0]
     lot_scheduled = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'scheduled'").fetchone()[0]
     lot_closed = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'closed'").fetchone()[0]
-    
+
     # Other counts
     bid_total = conn.execute("SELECT COUNT(*) FROM my_bids").fetchone()[0]
     position_total = conn.execute("SELECT COUNT(*) FROM positions").fetchone()[0]
     buyer_total = conn.execute("SELECT COUNT(*) FROM buyers").fetchone()[0]
-    
+
     return DashboardStatsResponse(
         total_auctions=auction_total,
         active_auctions=auction_active,
@@ -1276,11 +1276,11 @@ async def update_auction(
         ends_at_planned=payload.ends_at_planned,
     ):
         raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
-    
+
     updated = repo.get_by_code(auction_code)
     if not updated:
         raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found after update")
-    
+
     return AuctionDetailResponse(
         auction_code=updated["auction_code"],
         title=updated.get("title"),
@@ -1332,7 +1332,7 @@ async def create_lot(
     """Manually add or update a lot in the database."""
     from datetime import datetime, timezone
     seen_at = datetime.now(timezone.utc).isoformat()
-    
+
     lot_input = LotInput(
         auction_code=payload.auction_code,
         lot_code=payload.lot_code,
@@ -1349,7 +1349,7 @@ async def create_lot(
         auction_title=payload.auction_title,
         auction_url=payload.auction_url,
     )
-    
+
     lot_code = service.add_lot(lot_input, seen_at)
     return LotCreateResponse(
         status="created",

@@ -10,7 +10,7 @@ from typing import Callable, Dict, List, Optional
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import PositionRepository
 from troostwatch.infrastructure.observability import get_logger, log_context
-from troostwatch.services.dto import EventPublisher, PositionDTO, PositionUpdateDTO
+from troostwatch.services.dto import EventPublisher, PositionDTO
 
 _logger = get_logger(__name__)
 

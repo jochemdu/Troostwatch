@@ -29,11 +29,11 @@ class BuyerRepository(BaseRepository):
             raise DuplicateBuyerError(f"Buyer label '{label}' already exists")
 
     def list(self) -> List[Dict[str, int | str | None]]:
-       return self._fetch_all_as_dicts("SELECT id, label, name, notes FROM buyers ORDER BY id")
+        return self._fetch_all_as_dicts("SELECT id, label, name, notes FROM buyers ORDER BY id")
 
     def delete(self, label: str) -> None:
         self._execute("DELETE FROM buyers WHERE label = ?", (label,))
         self.conn.commit()
 
     def get_id(self, label: str) -> Optional[int]:
-       return self._fetch_scalar("SELECT id FROM buyers WHERE label = ?", (label,))
+        return self._fetch_scalar("SELECT id FROM buyers WHERE label = ?", (label,))

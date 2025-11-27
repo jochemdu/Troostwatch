@@ -76,4 +76,3 @@ def add_lot(
         service.add_lot(lot_input, seen_at)
 
     console.print(f"[green]Stored lot {lot_code} for auction {auction_code} in {db_path}[/green]")
-

@@ -3,7 +3,7 @@ Centralized DTOs and input/output models for Troostwatch services.
 """
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Awaitable, Callable, Optional, List, Dict, Any
+from typing import Awaitable, Callable, Optional, Dict, Any
 
 
 # --- Event Publishing Types ---
@@ -32,6 +32,7 @@ class LotViewDTO:
     is_active: bool = False
     effective_price: Optional[float] = None
 
+
 @dataclass
 class LotInputDTO:
     auction_code: str
@@ -49,6 +50,7 @@ class LotInputDTO:
     auction_title: Optional[str] = None
     auction_url: Optional[str] = None
 
+
 # --- Buyer DTOs ---
 @dataclass
 class BuyerDTO:
@@ -57,11 +59,13 @@ class BuyerDTO:
     name: Optional[str] = None
     notes: Optional[str] = None
 
+
 @dataclass
 class BuyerCreateDTO:
     label: str
     name: Optional[str] = None
     notes: Optional[str] = None
+
 
 # --- Position DTOs ---
 @dataclass
@@ -76,6 +80,7 @@ class PositionDTO:
     lot_state: Optional[str] = None
     current_bid_eur: Optional[float] = None
 
+
 @dataclass
 class PositionUpdateDTO:
     buyer_label: str
@@ -84,6 +89,7 @@ class PositionUpdateDTO:
     max_budget_total_eur: Optional[float] = None
     preferred_bid_eur: Optional[float] = None
     watch: Optional[bool] = None
+
 
 # --- Bid DTOs ---
 @dataclass
@@ -96,6 +102,7 @@ class BidDTO:
     placed_at: str
     lot_title: Optional[str] = None
     note: Optional[str] = None
+
 
 @dataclass
 class BidCreateDTO:

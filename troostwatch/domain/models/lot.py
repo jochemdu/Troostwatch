@@ -34,7 +34,7 @@ class LotState(str, Enum):
 @dataclass
 class Lot:
     """Domain model representing a lot in an auction.
-    
+
     This model encapsulates the business logic related to lots,
     such as determining if a lot is active, calculating effective prices,
     and checking bidding eligibility.
@@ -99,24 +99,24 @@ class Lot:
 
     def can_bid(self, amount: float) -> tuple[bool, Optional[str]]:
         """Check if a bid of the given amount would be valid.
-        
+
         Returns:
             A tuple of (is_valid, error_message).
         """
         if not self.is_running:
             return False, f"Lot is not running (state: {self.state.value})"
-        
+
         min_bid = self.effective_price
         if min_bid is not None and amount <= min_bid:
             return False, f"Bid must be higher than current price (€{min_bid:.2f})"
-        
+
         return True, None
 
     @classmethod
     def from_dict(cls, data: dict) -> "Lot":
         """Create a Lot from a dictionary (e.g., from database row)."""
         state_str = data.get("state") or data.get("lot_state")
-        
+
         def parse_datetime(value) -> Optional[datetime]:
             if value is None:
                 return None
@@ -148,4 +148,3 @@ class Lot:
 
 
 __all__ = ["Lot", "LotState"]
-

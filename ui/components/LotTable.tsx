@@ -2,14 +2,20 @@ import { useState } from 'react';
 import type { LotView } from '../lib/api';
 import LotEditModal from './LotEditModal';
 
+export type SortField = 'lot_code' | 'closing_time_current' | 'current_bid_eur' | 'bid_count' | 'state';
+export type SortDirection = 'asc' | 'desc';
+
 interface Props {
   lots: LotView[];
   selectedLots: Set<string>;
   onToggleLot: (lotCode: string) => void;
   onLotUpdated?: () => void;
+  sortField?: SortField;
+  sortDirection?: SortDirection;
+  onSort?: (field: SortField) => void;
 }
 
-export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated }: Props) {
+export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated, sortField, sortDirection, onSort }: Props) {
   const [editingLot, setEditingLot] = useState<{ lotCode: string; auctionCode: string } | null>(null);
 
   const handleEditClick = (lot: LotView) => {
@@ -25,6 +31,22 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
     onLotUpdated?.();
   };
 
+  const getSortIndicator = (field: SortField) => {
+    if (sortField !== field) return ' ↕';
+    return sortDirection === 'asc' ? ' ↑' : ' ↓';
+  };
+
+  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
+    <th 
+      className="sortable-header" 
+      onClick={() => onSort?.(field)}
+      title={`Sorteer op ${children}`}
+    >
+      {children}
+      <span className="sort-indicator">{getSortIndicator(field)}</span>
+    </th>
+  );
+
   return (
     <>
       <div className="panel">
@@ -36,12 +58,12 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
           <thead>
             <tr>
               <th></th>
-              <th>Lot</th>
+              <SortableHeader field="lot_code">Lot</SortableHeader>
               <th>Veiling</th>
-              <th>Status</th>
-              <th>Huidig bod</th>
-              <th>Biedingen</th>
-              <th>Sluit</th>
+              <SortableHeader field="state">Status</SortableHeader>
+              <SortableHeader field="current_bid_eur">Huidig bod</SortableHeader>
+              <SortableHeader field="bid_count">Biedingen</SortableHeader>
+              <SortableHeader field="closing_time_current">Sluit</SortableHeader>
               <th></th>
             </tr>
           </thead>
@@ -110,6 +132,26 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
 
         .btn-edit:hover {
           opacity: 1;
+        }
+
+        .sortable-header {
+          cursor: pointer;
+          user-select: none;
+          white-space: nowrap;
+        }
+
+        .sortable-header:hover {
+          background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .sort-indicator {
+          opacity: 0.5;
+          font-size: 0.8em;
+          margin-left: 4px;
+        }
+
+        .sortable-header:hover .sort-indicator {
+          opacity: 0.8;
         }
       `}</style>
     </>

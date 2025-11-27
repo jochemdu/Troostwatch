@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import type { LotDetailResponse, ReferencePrice, ReferencePriceCreateRequest } from '../lib/api';
-import { fetchLotDetail, updateLot, addReferencePrice, deleteReferencePrice } from '../lib/api';
+import type { LotDetailResponse, ReferencePrice, ReferencePriceCreateRequest, LotSpec, LotSpecCreateRequest, SpecTemplate } from '../lib/api';
+import { fetchLotDetail, updateLot, addReferencePrice, deleteReferencePrice, addLotSpec, deleteLotSpec, fetchSpecTemplates, createSpecTemplate, applyTemplateToLot } from '../lib/api';
 
 interface Props {
   lotCode: string;
@@ -32,15 +32,67 @@ const emptyPriceForm: NewPriceForm = {
   notes: '',
 };
 
+interface NewSpecForm {
+  key: string;
+  value: string;
+  parentId: number | null;
+  ean: string;
+  price: string;
+  saveAsTemplate: boolean;
+}
+
+const emptySpecForm: NewSpecForm = {
+  key: '',
+  value: '',
+  parentId: null,
+  ean: '',
+  price: '',
+  saveAsTemplate: false,
+};
+
+// Helper to build a tree structure from flat specs
+interface SpecNode extends LotSpec {
+  children: SpecNode[];
+}
+
+function buildSpecTree(specs: LotSpec[]): SpecNode[] {
+  const map = new Map<number, SpecNode>();
+  const roots: SpecNode[] = [];
+
+  // First pass: create nodes
+  for (const spec of specs) {
+    map.set(spec.id, { ...spec, children: [] });
+  }
+
+  // Second pass: build tree
+  for (const spec of specs) {
+    const node = map.get(spec.id)!;
+    if (spec.parent_id && map.has(spec.parent_id)) {
+      map.get(spec.parent_id)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
+}
+
 export default function LotEditModal({ lotCode, auctionCode, isOpen, onClose, onSaved }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lot, setLot] = useState<LotDetailResponse | null>(null);
   const [notes, setNotes] = useState<string>('');
+  const [ean, setEan] = useState<string>('');
   const [referencePrices, setReferencePrices] = useState<ReferencePrice[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPrice, setNewPrice] = useState<NewPriceForm>(emptyPriceForm);
+  const [specs, setSpecs] = useState<LotSpec[]>([]);
+  const [showAddSpecForm, setShowAddSpecForm] = useState(false);
+  const [newSpec, setNewSpec] = useState<NewSpecForm>(emptySpecForm);
+  const [addingSubspecTo, setAddingSubspecTo] = useState<number | null>(null);
+  const [specTemplates, setSpecTemplates] = useState<SpecTemplate[]>([]);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -48,10 +100,16 @@ export default function LotEditModal({ lotCode, auctionCode, isOpen, onClose, on
       setLoading(true);
       setError(null);
       try {
-        const detail = await fetchLotDetail(lotCode, auctionCode);
+        const [detail, templates] = await Promise.all([
+          fetchLotDetail(lotCode, auctionCode),
+          fetchSpecTemplates(),
+        ]);
         setLot(detail);
         setNotes(detail.notes ?? '');
+        setEan(detail.ean ?? '');
         setReferencePrices(detail.reference_prices ?? []);
+        setSpecs(detail.specs ?? []);
+        setSpecTemplates(templates);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Kon lot niet laden');
       } finally {
@@ -61,11 +119,11 @@ export default function LotEditModal({ lotCode, auctionCode, isOpen, onClose, on
     loadLot();
   }, [isOpen, lotCode, auctionCode]);
 
-  const handleSaveNotes = async () => {
+  const handleSaveLotInfo = async () => {
     setSaving(true);
     setError(null);
     try {
-      await updateLot(lotCode, { notes: notes || null }, auctionCode);
+      await updateLot(lotCode, { notes: notes || null, ean: ean || null }, auctionCode);
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Kon notities niet opslaan');
@@ -114,11 +172,169 @@ export default function LotEditModal({ lotCode, auctionCode, isOpen, onClose, on
     }
   };
 
+  const handleAddSpec = async (parentId: number | null = null) => {
+    const specForm = newSpec;
+    if (!specForm.key.trim()) {
+      setError('Vul een specificatie naam in');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const data: LotSpecCreateRequest = {
+        key: specForm.key.trim(),
+        value: specForm.value.trim(),
+        parent_id: parentId,
+        ean: specForm.ean.trim() || undefined,
+        price_eur: specForm.price ? parseFloat(specForm.price) : undefined,
+      };
+      const created = await addLotSpec(lotCode, data, auctionCode);
+      setSpecs((prev) => [...prev, created]);
+      
+      // Save as template if checkbox is checked
+      if (specForm.saveAsTemplate) {
+        const template = await createSpecTemplate({
+          title: specForm.key.trim(),
+          value: specForm.value.trim() || null,
+          ean: specForm.ean.trim() || null,
+          price_eur: specForm.price ? parseFloat(specForm.price) : null,
+          parent_id: null,
+        });
+        setSpecTemplates(prev => [...prev, template]);
+      }
+      
+      setNewSpec(emptySpecForm);
+      setShowAddSpecForm(false);
+      setAddingSubspecTo(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kon specificatie niet toevoegen');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteSpec = async (specId: number) => {
+    // Check if this spec has children
+    const hasChildren = specs.some(s => s.parent_id === specId);
+    const confirmMsg = hasChildren 
+      ? 'Deze specificatie heeft subspecificaties. Weet je zeker dat je alles wilt verwijderen?'
+      : 'Weet je zeker dat je deze specificatie wilt verwijderen?';
+    if (!confirm(confirmMsg)) return;
+    
+    setSaving(true);
+    setError(null);
+    try {
+      await deleteLotSpec(lotCode, specId);
+      // Remove this spec and all its children
+      setSpecs((prev) => prev.filter((s) => s.id !== specId && s.parent_id !== specId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kon specificatie niet verwijderen');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleClose = () => {
     setShowAddForm(false);
     setNewPrice(emptyPriceForm);
+    setShowAddSpecForm(false);
+    setNewSpec(emptySpecForm);
+    setAddingSubspecTo(null);
     onClose();
   };
+
+  // Get root-level specs for the parent dropdown
+  const rootSpecs = specs.filter(s => s.parent_id === null);
+  const specTree = buildSpecTree(specs);
+
+  const renderSpecRow = (spec: SpecNode, depth: number = 0) => (
+    <div key={spec.id}>
+      <div className={`spec-row depth-${depth}`}>
+        <span className="spec-key">{spec.key}</span>
+        <span className="spec-value">{spec.value ?? '—'}</span>
+        {spec.ean && <span className="spec-ean" title="EAN">📦 {spec.ean}</span>}
+        {spec.price_eur != null && <span className="spec-price">€{spec.price_eur.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>}
+        {spec.template_id && <span className="spec-template" title="Gebaseerd op template">📋</span>}
+        <div className="spec-actions">
+          <button 
+            className="btn-add-sub" 
+            onClick={() => {
+              setAddingSubspecTo(spec.id);
+              setNewSpec({ ...emptySpecForm, parentId: spec.id });
+            }}
+            disabled={saving || addingSubspecTo !== null}
+            title="Subspecificatie toevoegen"
+          >
+            +
+          </button>
+          <button 
+            className="btn-delete" 
+            onClick={() => handleDeleteSpec(spec.id)} 
+            disabled={saving} 
+            title="Verwijderen"
+          >
+            🗑️
+          </button>
+        </div>
+      </div>
+      
+      {addingSubspecTo === spec.id && (
+        <div className="add-subspec-form">
+          <div className="form-grid">
+            <div className="form-row">
+              <label>Naam *</label>
+              <input 
+                type="text" 
+                value={newSpec.key} 
+                onChange={(e) => setNewSpec({ ...newSpec, key: e.target.value })} 
+                placeholder="bijv. Videokaart" 
+                required 
+              />
+            </div>
+            <div className="form-row">
+              <label>Waarde</label>
+              <input 
+                type="text" 
+                value={newSpec.value} 
+                onChange={(e) => setNewSpec({ ...newSpec, value: e.target.value })} 
+                placeholder="bijv. RTX 4090" 
+              />
+            </div>
+            <div className="form-row">
+              <label>EAN</label>
+              <input 
+                type="text" 
+                value={newSpec.ean} 
+                onChange={(e) => setNewSpec({ ...newSpec, ean: e.target.value })} 
+                placeholder="bijv. 5012345678900" 
+              />
+            </div>
+            <div className="form-row">
+              <label>Prijs (€)</label>
+              <input 
+                type="number" 
+                step="0.01"
+                min="0"
+                value={newSpec.price} 
+                onChange={(e) => setNewSpec({ ...newSpec, price: e.target.value })} 
+                placeholder="0.00" 
+              />
+            </div>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setAddingSubspecTo(null); setNewSpec(emptySpecForm); }}>Annuleren</button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => handleAddSpec(spec.id)} disabled={saving}>{saving ? '...' : 'Toevoegen'}</button>
+          </div>
+        </div>
+      )}
+      
+      {spec.children.length > 0 && (
+        <div className="spec-children">
+          {spec.children.map(child => renderSpecRow(child, depth + 1))}
+        </div>
+      )}
+    </div>
+  );
 
   if (!isOpen) return null;
 
@@ -203,23 +419,116 @@ export default function LotEditModal({ lotCode, auctionCode, isOpen, onClose, on
               </fieldset>
 
               <fieldset className="form-fieldset">
-                <legend>Notities</legend>
+                <legend>Lot informatie</legend>
+                <div className="form-grid">
+                  <div className="form-row">
+                    <label>EAN / Barcode</label>
+                    <input type="text" value={ean} onChange={(e) => setEan(e.target.value)} placeholder="bijv. 5012345678900" />
+                  </div>
+                </div>
                 <div className="form-row">
+                  <label>Notities</label>
                   <textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Persoonlijke notities over dit lot..." />
                 </div>
                 <div className="form-actions">
-                  <button type="button" className="btn btn-primary" onClick={handleSaveNotes} disabled={saving}>{saving ? 'Opslaan...' : 'Notities opslaan'}</button>
+                  <button type="button" className="btn btn-primary" onClick={handleSaveLotInfo} disabled={saving}>{saving ? 'Opslaan...' : 'Opslaan'}</button>
                 </div>
               </fieldset>
 
-              {lot.specs && lot.specs.length > 0 && (
-                <fieldset className="form-fieldset">
-                  <legend>Specificaties</legend>
-                  <table className="table specs-table">
-                    <tbody>{lot.specs.map((spec) => (<tr key={spec.id}><td className="spec-key">{spec.key}</td><td className="spec-value">{spec.value ?? '—'}</td></tr>))}</tbody>
-                  </table>
-                </fieldset>
-              )}
+              <fieldset className="form-fieldset">
+                <legend>
+                  Specificaties
+                  <button type="button" className="btn-add-small" onClick={() => setShowTemplateSelector(true)} disabled={showAddSpecForm || addingSubspecTo !== null} style={{ marginLeft: 8 }}>📋 Template</button>
+                  <button type="button" className="btn-add-small" onClick={() => setShowAddSpecForm(true)} disabled={showAddSpecForm || addingSubspecTo !== null}>+ Nieuw</button>
+                </legend>
+
+                {showTemplateSelector && specTemplates.length > 0 && (
+                  <div className="template-selector">
+                    <p className="muted" style={{ marginBottom: 8 }}>Kies een template om toe te passen:</p>
+                    <div className="template-list">
+                      {specTemplates.filter(t => !t.parent_id).map(template => (
+                        <button 
+                          key={template.id} 
+                          className="template-btn"
+                          onClick={async () => {
+                            try {
+                              const created = await applyTemplateToLot(lotCode, template.id, null, auctionCode);
+                              setSpecs(prev => [...prev, created]);
+                              setShowTemplateSelector(false);
+                            } catch (err) {
+                              setError(err instanceof Error ? err.message : 'Kon template niet toepassen');
+                            }
+                          }}
+                        >
+                          {template.title}
+                          {template.ean && <span className="template-ean">EAN: {template.ean}</span>}
+                          {template.price_eur && <span className="template-price">€{template.price_eur}</span>}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowTemplateSelector(false)} style={{ marginTop: 8 }}>Annuleren</button>
+                  </div>
+                )}
+
+                {showTemplateSelector && specTemplates.length === 0 && (
+                  <p className="muted">Geen templates beschikbaar. Maak eerst een specificatie en sla deze op als template.</p>
+                )}
+
+                {showAddSpecForm && (
+                  <div className="add-price-form">
+                    <div className="form-grid">
+                      <div className="form-row">
+                        <label>Naam *</label>
+                        <input type="text" value={newSpec.key} onChange={(e) => setNewSpec({ ...newSpec, key: e.target.value })} placeholder="bijv. Computer" required />
+                      </div>
+                      <div className="form-row">
+                        <label>Waarde</label>
+                        <input type="text" value={newSpec.value} onChange={(e) => setNewSpec({ ...newSpec, value: e.target.value })} placeholder="bijv. Dell Optiplex" />
+                      </div>
+                      <div className="form-row">
+                        <label>EAN / Barcode</label>
+                        <input type="text" value={newSpec.ean} onChange={(e) => setNewSpec({ ...newSpec, ean: e.target.value })} placeholder="bijv. 5012345678900" />
+                      </div>
+                      <div className="form-row">
+                        <label>Prijs (€)</label>
+                        <input type="number" step="0.01" min="0" value={newSpec.price} onChange={(e) => setNewSpec({ ...newSpec, price: e.target.value })} placeholder="0.00" />
+                      </div>
+                    </div>
+                    {rootSpecs.length > 0 && (
+                      <div className="form-row">
+                        <label>Onder (optioneel)</label>
+                        <select value={newSpec.parentId ?? ''} onChange={(e) => setNewSpec({ ...newSpec, parentId: e.target.value ? parseInt(e.target.value) : null })}>
+                          <option value="">— Hoofdspecificatie —</option>
+                          {rootSpecs.map((s) => (
+                            <option key={s.id} value={s.id}>{s.key}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div className="form-row">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={newSpec.saveAsTemplate} 
+                          onChange={(e) => setNewSpec({ ...newSpec, saveAsTemplate: e.target.checked })} 
+                        />
+                        Opslaan als herbruikbaar template
+                      </label>
+                      <small className="muted">Template kan later bij andere lots worden toegepast</small>
+                    </div>
+                    <div className="form-actions">
+                      <button type="button" className="btn btn-secondary" onClick={() => { setShowAddSpecForm(false); setNewSpec(emptySpecForm); }}>Annuleren</button>
+                      <button type="button" className="btn btn-primary" onClick={() => handleAddSpec(newSpec.parentId)} disabled={saving}>{saving ? 'Toevoegen...' : 'Toevoegen'}</button>
+                    </div>
+                  </div>
+                )}
+
+                {specTree.length > 0 ? (
+                  <div className="specs-tree">
+                    {specTree.map(spec => renderSpecRow(spec))}
+                  </div>
+                ) : !showAddSpecForm && (<p className="muted">Geen specificaties. Klik op &quot;+ Toevoegen&quot; om er een toe te voegen.</p>)}
+              </fieldset>
             </div>
             <div className="modal-footer"><button className="btn btn-secondary" onClick={handleClose}>Sluiten</button></div>
           </>
@@ -227,53 +536,82 @@ export default function LotEditModal({ lotCode, auctionCode, isOpen, onClose, on
       </div>
 
       <style jsx>{`
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .modal { background: var(--card-bg, #1a1a2e); border-radius: 8px; min-width: 520px; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border-color, #333); }
-        .modal-header h2 { margin: 0; font-size: 1.25rem; }
-        .btn-close { background: none; border: none; font-size: 1.5rem; color: var(--text-muted, #888); cursor: pointer; padding: 0; line-height: 1; }
-        .btn-close:hover { color: var(--text-color, #fff); }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal { background: #1a1a2e; border-radius: 8px; min-width: 520px; max-width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); color: #e0e0e0; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #333; }
+        .modal-header h2 { margin: 0; font-size: 1.25rem; color: #fff; }
+        .btn-close { background: none; border: none; font-size: 1.5rem; color: #888; cursor: pointer; padding: 0; line-height: 1; }
+        .btn-close:hover { color: #fff; }
         .modal-body { padding: 20px; }
-        .lot-info-header { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color, #333); }
-        .lot-info-header h3 { margin: 0 0 4px 0; }
-        .form-fieldset { border: 1px solid var(--border-color, #333); border-radius: 6px; padding: 16px; margin-bottom: 16px; }
-        .form-fieldset legend { padding: 0 8px; font-weight: 600; color: var(--text-muted, #888); display: flex; align-items: center; gap: 12px; }
-        .btn-add-small { font-size: 0.75rem; padding: 2px 8px; background: var(--primary-color, #6366f1); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        .lot-info-header { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #333; }
+        .lot-info-header h3 { margin: 0 0 4px 0; color: #fff; }
+        .form-fieldset { border: 1px solid #333; border-radius: 6px; padding: 16px; margin-bottom: 16px; background: transparent; }
+        .form-fieldset legend { padding: 0 8px; font-weight: 600; color: #888; display: flex; align-items: center; gap: 12px; }
+        .btn-add-small { font-size: 0.75rem; padding: 2px 8px; background: #6366f1; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
         .btn-add-small:hover:not(:disabled) { background: #5558e3; }
         .btn-add-small:disabled { opacity: 0.5; cursor: not-allowed; }
-        .add-price-form { background: var(--input-bg, #0f0f1a); border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+        .add-price-form, .add-subspec-form { background: #252540; border: 1px solid #444; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .form-row { margin-bottom: 12px; }
         .form-row:last-child { margin-bottom: 0; }
-        .form-row label { display: block; margin-bottom: 4px; font-size: 0.8rem; color: var(--text-muted, #888); }
-        .form-row input, .form-row textarea, .form-row select { width: 100%; padding: 8px 12px; border: 1px solid var(--border-color, #333); border-radius: 4px; background: var(--input-bg, #0f0f1a); color: var(--text-color, #fff); font-size: 0.9rem; }
-        .form-row input:focus, .form-row textarea:focus, .form-row select:focus { outline: none; border-color: var(--primary-color, #6366f1); }
+        .form-row label { display: block; margin-bottom: 4px; font-size: 0.8rem; color: #888; }
+        .form-row input, .form-row textarea, .form-row select { 
+          width: 100%; 
+          padding: 8px 12px; 
+          border: 1px solid #444; 
+          border-radius: 4px; 
+          background: #1a1a2e; 
+          color: #e0e0e0; 
+          font-size: 0.9rem; 
+        }
+        .form-row input::placeholder, .form-row textarea::placeholder { color: #666; }
+        .form-row input:focus, .form-row textarea:focus, .form-row select:focus { outline: none; border-color: #6366f1; }
+        .form-row select option { background: #1a1a2e; color: #e0e0e0; }
         .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-        .prices-table { width: 100%; font-size: 0.875rem; }
-        .prices-table th { text-align: left; padding: 6px 8px; font-weight: 500; color: var(--text-muted, #888); border-bottom: 1px solid var(--border-color, #333); }
-        .prices-table td { padding: 8px; border-bottom: 1px solid var(--border-color, #222); }
-        .price-cell { font-weight: 600; font-family: monospace; }
+        .prices-table { width: 100%; font-size: 0.875rem; border-collapse: collapse; }
+        .prices-table th { text-align: left; padding: 6px 8px; font-weight: 500; color: #888; border-bottom: 1px solid #333; }
+        .prices-table td { padding: 8px; border-bottom: 1px solid #2a2a40; }
+        .price-cell { font-weight: 600; font-family: monospace; color: #4ade80; }
         .price-notes { margin-left: 6px; cursor: help; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 500; }
         .condition-new { background: #22c55e; color: #fff; }
         .condition-used { background: #f59e0b; color: #000; }
         .condition-refurbished { background: #3b82f6; color: #fff; }
-        .btn-delete { background: none; border: none; cursor: pointer; padding: 4px; opacity: 0.6; }
+        .btn-delete { background: none; border: none; cursor: pointer; padding: 4px; opacity: 0.6; font-size: 0.9rem; }
         .btn-delete:hover:not(:disabled) { opacity: 1; }
         .btn-delete:disabled { opacity: 0.3; cursor: not-allowed; }
-        .specs-table { width: 100%; font-size: 0.875rem; }
-        .specs-table td { padding: 6px 8px; }
-        .spec-key { font-weight: 500; width: 40%; color: var(--text-muted, #888); }
-        .modal-footer { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px; border-top: 1px solid var(--border-color, #333); }
+        .specs-tree { }
+        .spec-row { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #2a2a40; gap: 12px; }
+        .spec-row.depth-0 { background: #252540; border-radius: 4px; margin-bottom: 4px; }
+        .spec-row.depth-1 { margin-left: 24px; background: #1e1e35; font-size: 0.9em; }
+        .spec-row.depth-2 { margin-left: 48px; background: #1a1a30; font-size: 0.85em; }
+        .spec-key { font-weight: 500; color: #a0a0c0; min-width: 120px; }
+        .spec-value { flex: 1; color: #e0e0e0; }
+        .spec-ean { font-size: 0.75rem; color: #888; background: #333; padding: 2px 6px; border-radius: 3px; }
+        .spec-price { font-size: 0.8rem; color: #4ade80; font-weight: 600; font-family: monospace; }
+        .spec-template { font-size: 0.75rem; opacity: 0.6; }
+        .spec-actions { display: flex; gap: 4px; margin-left: auto; }
+        .spec-children { }
+        .btn-add-sub { background: #333; border: 1px solid #555; border-radius: 4px; color: #888; cursor: pointer; padding: 2px 8px; font-size: 0.8rem; }
+        .btn-add-sub:hover:not(:disabled) { background: #444; color: #fff; border-color: #666; }
+        .btn-add-sub:disabled { opacity: 0.3; cursor: not-allowed; }
+        .template-selector { background: #252540; border: 1px solid #444; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+        .template-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .template-btn { background: #1a1a2e; border: 1px solid #444; border-radius: 4px; padding: 8px 12px; color: #e0e0e0; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+        .template-btn:hover { background: #2a2a4e; border-color: #6366f1; }
+        .template-ean { font-size: 0.7rem; color: #888; }
+        .template-price { font-size: 0.75rem; color: #4ade80; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px; border-top: 1px solid #333; }
         .btn { padding: 8px 16px; border-radius: 4px; font-size: 0.9rem; cursor: pointer; border: none; }
-        .btn-secondary { background: var(--border-color, #333); color: var(--text-color, #fff); }
+        .btn-sm { padding: 4px 12px; font-size: 0.8rem; }
+        .btn-secondary { background: #333; color: #e0e0e0; }
         .btn-secondary:hover:not(:disabled) { background: #444; }
-        .btn-primary { background: var(--primary-color, #6366f1); color: #fff; }
+        .btn-primary { background: #6366f1; color: #fff; }
         .btn-primary:hover:not(:disabled) { background: #5558e3; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .muted { color: var(--text-muted, #888); }
-        .error { color: var(--error-color, #ef4444); }
-        a { color: var(--primary-color, #6366f1); text-decoration: none; }
+        .muted { color: #888; }
+        .error { color: #ef4444; }
+        a { color: #6366f1; text-decoration: none; }
         a:hover { text-decoration: underline; }
       `}</style>
     </div>

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Layout from '../components/Layout';
-import LotTable from '../components/LotTable';
+import LotTable, { SortField, SortDirection } from '../components/LotTable';
 import type { LotView } from '../lib/api';
 import { fetchLots } from '../lib/api';
 
@@ -15,9 +15,68 @@ export default function LotsPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedLots, setSelectedLots] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<string>('');
+  const [sortField, setSortField] = useState<SortField>('closing_time_current');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   // Extract unique brands from lots for filter dropdown
   const availableBrands = Array.from(new Set(lots.map((lot) => lot.brand).filter((b): b is string => !!b))).sort();
+
+  // Sort lots client-side
+  const sortedLots = useMemo(() => {
+    return [...lots].sort((a, b) => {
+      let aVal: string | number | null = null;
+      let bVal: string | number | null = null;
+
+      switch (sortField) {
+        case 'lot_code':
+          aVal = a.title ?? a.lot_code;
+          bVal = b.title ?? b.lot_code;
+          break;
+        case 'closing_time_current':
+          aVal = a.closing_time_current ?? '';
+          bVal = b.closing_time_current ?? '';
+          break;
+        case 'current_bid_eur':
+          aVal = a.current_bid_eur ?? 0;
+          bVal = b.current_bid_eur ?? 0;
+          break;
+        case 'bid_count':
+          aVal = a.bid_count ?? 0;
+          bVal = b.bid_count ?? 0;
+          break;
+        case 'state':
+          aVal = a.state ?? '';
+          bVal = b.state ?? '';
+          break;
+      }
+
+      // Handle null/undefined
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
+      if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
+
+      // Compare
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      const strA = String(aVal).toLowerCase();
+      const strB = String(bVal).toLowerCase();
+      const cmp = strA.localeCompare(strB);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+  }, [lots, sortField, sortDirection]);
+
+  const handleSort = (field: SortField) => {
+    if (field === sortField) {
+      // Toggle direction
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
 
   useEffect(() => {
     const run = async () => {
@@ -130,7 +189,15 @@ export default function LotsPage() {
       {loading ? (
         <div className="panel">Laden…</div>
       ) : (
-        <LotTable lots={lots} selectedLots={selectedLots} onToggleLot={toggleLot} onLotUpdated={refreshLots} />
+        <LotTable 
+          lots={sortedLots} 
+          selectedLots={selectedLots} 
+          onToggleLot={toggleLot} 
+          onLotUpdated={refreshLots}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+        />
       )}
     </Layout>
   );

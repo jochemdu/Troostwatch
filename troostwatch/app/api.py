@@ -307,17 +307,22 @@ class LotCreateRequest(BaseModel):
 
 
 class LotUpdateRequest(BaseModel):
-    """Request to update lot fields (notes only, reference prices have own endpoints)."""
+    """Request to update lot fields (notes, ean)."""
 
     notes: Optional[str] = None
+    ean: Optional[str] = None
 
 
 class LotSpecResponse(BaseModel):
     """A specification key-value pair for a lot."""
 
     id: int
+    parent_id: Optional[int] = None
+    template_id: Optional[int] = None
     key: str
     value: Optional[str] = None
+    ean: Optional[str] = None
+    price_eur: Optional[float] = None
 
 
 class ReferencePriceResponse(BaseModel):
@@ -366,6 +371,7 @@ class LotDetailResponse(BaseModel):
     closing_time_current: Optional[str] = None
     closing_time_original: Optional[str] = None
     brand: Optional[str] = None
+    ean: Optional[str] = None
     location_city: Optional[str] = None
     location_country: Optional[str] = None
     notes: Optional[str] = None
@@ -449,11 +455,12 @@ async def update_lot(
     auction_code: Optional[str] = Query(None),
     lot_repository: LotRepository = Depends(get_lot_repository),
 ) -> LotDetailResponse:
-    """Update lot notes."""
+    """Update lot notes and EAN."""
     success = lot_repository.update_lot(
         lot_code,
         auction_code,
         notes=payload.notes,
+        ean=payload.ean,
     )
     if not success:
         raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' not found")
@@ -567,7 +574,11 @@ async def delete_reference_price(
 class LotSpecCreateRequest(BaseModel):
     """Request to add or update a lot specification."""
     key: str
-    value: str
+    value: str = ""
+    parent_id: Optional[int] = None
+    ean: Optional[str] = None
+    price_eur: Optional[float] = None
+    template_id: Optional[int] = None
 
 
 @app.post("/lots/{lot_code}/specs", status_code=status.HTTP_201_CREATED, response_model=LotSpecResponse)
@@ -579,8 +590,25 @@ async def create_lot_spec(
 ) -> LotSpecResponse:
     """Add or update a specification for a lot."""
     try:
-        spec_id = lot_repository.upsert_lot_spec(lot_code, payload.key, payload.value, auction_code)
-        return LotSpecResponse(id=spec_id, key=payload.key, value=payload.value)
+        spec_id = lot_repository.upsert_lot_spec(
+            lot_code,
+            payload.key,
+            payload.value,
+            auction_code,
+            payload.parent_id,
+            payload.ean,
+            payload.price_eur,
+            payload.template_id,
+        )
+        return LotSpecResponse(
+            id=spec_id,
+            parent_id=payload.parent_id,
+            template_id=payload.template_id,
+            key=payload.key,
+            value=payload.value,
+            ean=payload.ean,
+            price_eur=payload.price_eur,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -594,6 +622,111 @@ async def delete_lot_spec(
     """Delete a lot specification."""
     if not lot_repository.delete_lot_spec(spec_id):
         raise HTTPException(status_code=404, detail=f"Spec {spec_id} not found")
+
+
+# =============================================================================
+# Spec Templates Endpoints - Reusable specifications across lots
+# =============================================================================
+
+class SpecTemplateResponse(BaseModel):
+    """A reusable specification template."""
+    id: int
+    parent_id: Optional[int] = None
+    title: str
+    value: Optional[str] = None
+    ean: Optional[str] = None
+    price_eur: Optional[float] = None
+    created_at: Optional[str] = None
+
+
+class SpecTemplateCreateRequest(BaseModel):
+    """Request to create a spec template."""
+    title: str
+    value: Optional[str] = None
+    ean: Optional[str] = None
+    price_eur: Optional[float] = None
+    parent_id: Optional[int] = None
+
+
+class ApplyTemplateRequest(BaseModel):
+    """Request to apply a template to a lot."""
+    template_id: int
+    parent_id: Optional[int] = None
+
+
+@app.get("/spec-templates", response_model=List[SpecTemplateResponse])
+async def list_spec_templates(
+    parent_id: Optional[int] = Query(None),
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> List[SpecTemplateResponse]:
+    """List all spec templates, optionally filtered by parent."""
+    templates = lot_repository.list_spec_templates(parent_id)
+    return [SpecTemplateResponse(**t) for t in templates]
+
+
+@app.post("/spec-templates", status_code=status.HTTP_201_CREATED, response_model=SpecTemplateResponse)
+async def create_spec_template(
+    payload: SpecTemplateCreateRequest,
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> SpecTemplateResponse:
+    """Create a new spec template."""
+    template_id = lot_repository.create_spec_template(
+        title=payload.title,
+        value=payload.value,
+        ean=payload.ean,
+        price_eur=payload.price_eur,
+        parent_id=payload.parent_id,
+    )
+    return SpecTemplateResponse(
+        id=template_id,
+        parent_id=payload.parent_id,
+        title=payload.title,
+        value=payload.value,
+        ean=payload.ean,
+        price_eur=payload.price_eur,
+    )
+
+
+@app.delete("/spec-templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_spec_template(
+    template_id: int,
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> None:
+    """Delete a spec template."""
+    if not lot_repository.delete_spec_template(template_id):
+        raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
+
+
+@app.post("/lots/{lot_code}/apply-template", status_code=status.HTTP_201_CREATED, response_model=LotSpecResponse)
+async def apply_template_to_lot(
+    lot_code: str,
+    payload: ApplyTemplateRequest,
+    auction_code: Optional[str] = Query(None),
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> LotSpecResponse:
+    """Apply a spec template to a lot."""
+    try:
+        template = lot_repository.get_spec_template(payload.template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail=f"Template {payload.template_id} not found")
+        
+        spec_id = lot_repository.apply_template_to_lot(
+            lot_code=lot_code,
+            template_id=payload.template_id,
+            auction_code=auction_code,
+            parent_id=payload.parent_id,
+        )
+        return LotSpecResponse(
+            id=spec_id,
+            parent_id=payload.parent_id,
+            template_id=payload.template_id,
+            key=template["title"],
+            value=template.get("value"),
+            ean=template.get("ean"),
+            price_eur=template.get("price_eur"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @app.post("/positions/batch", response_model=PositionBatchResponse)

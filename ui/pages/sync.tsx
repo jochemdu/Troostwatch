@@ -158,7 +158,7 @@ export default function SyncPage() {
             <small className="muted">Wordt automatisch uit URL gehaald</small>
           </div>
           <div>
-            <label>Max pagina's (optioneel)</label>
+            <label>Max pagina&apos;s (optioneel)</label>
             <input
               type="number"
               value={maxPages}
@@ -166,7 +166,7 @@ export default function SyncPage() {
               placeholder="Alle"
               min="1"
             />
-            <small className="muted">Laat leeg voor alle pagina's</small>
+            <small className="muted">Laat leeg voor alle pagina&apos;s</small>
           </div>
         </div>
 
@@ -217,7 +217,7 @@ export default function SyncPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <tbody>
                 <tr>
-                  <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>Pagina's gescand</td>
+                  <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>Pagina&apos;s gescand</td>
                   <td style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'right' }}>
                     <strong>{result.result.pages_scanned}</strong>
                   </td>

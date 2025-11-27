@@ -33,8 +33,12 @@ export type { LotView, BuyerResponse, BuyerCreateRequest, BuyerCreateResponse };
  */
 export interface LotSpec {
   id: number;
+  parent_id: number | null;
+  template_id: number | null;
   key: string;
   value: string | null;
+  ean: string | null;
+  price_eur: number | null;
 }
 
 /**
@@ -47,6 +51,19 @@ export interface ReferencePrice {
   source?: string | null;
   url?: string | null;
   notes?: string | null;
+  created_at?: string | null;
+}
+
+/**
+ * Reusable spec template that can be applied to multiple lots.
+ */
+export interface SpecTemplate {
+  id: number;
+  parent_id: number | null;
+  title: string;
+  value: string | null;
+  ean: string | null;
+  price_eur: number | null;
   created_at?: string | null;
 }
 
@@ -65,6 +82,7 @@ export interface LotDetailResponse {
   closing_time_current?: string | null;
   closing_time_original?: string | null;
   brand?: string | null;
+  ean?: string | null;
   location_city?: string | null;
   location_country?: string | null;
   notes?: string | null;
@@ -73,10 +91,11 @@ export interface LotDetailResponse {
 }
 
 /**
- * Request to update lot notes.
+ * Request to update lot notes and EAN.
  */
 export interface LotUpdateRequest {
   notes?: string | null;
+  ean?: string | null;
 }
 
 /**
@@ -238,6 +257,131 @@ export async function deleteReferencePrice(lotCode: string, refId: number): Prom
     const detail = await response.text();
     throw new Error(detail || 'Delete failed');
   }
+}
+
+// =============================================================================
+// Lot Spec Endpoints (POST/DELETE /lots/{lot_code}/specs)
+// =============================================================================
+
+/**
+ * Request to add a specification.
+ */
+export interface LotSpecCreateRequest {
+  key: string;
+  value?: string;
+  parent_id?: number | null;
+  ean?: string | null;
+  price_eur?: number | null;
+  template_id?: number | null;
+}
+
+/**
+ * Request to create a spec template.
+ */
+export interface SpecTemplateCreateRequest {
+  title: string;
+  value?: string | null;
+  ean?: string | null;
+  price_eur?: number | null;
+  parent_id?: number | null;
+}
+
+/**
+ * Add a specification for a lot.
+ * @see POST /lots/{lot_code}/specs in troostwatch/app/api.py
+ */
+export async function addLotSpec(
+  lotCode: string,
+  data: LotSpecCreateRequest,
+  auctionCode?: string
+): Promise<LotSpec> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}/specs`);
+  if (auctionCode) {
+    url.searchParams.append('auction_code', auctionCode);
+  }
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<LotSpec>(response);
+}
+
+/**
+ * Delete a specification for a lot.
+ * @see DELETE /lots/{lot_code}/specs/{spec_id} in troostwatch/app/api.py
+ */
+export async function deleteLotSpec(lotCode: string, specId: number): Promise<void> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}/specs/${specId}`);
+  const response = await fetch(url.toString(), { method: 'DELETE' });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || 'Delete failed');
+  }
+}
+
+// =============================================================================
+// Spec Templates Endpoints (reusable specifications)
+// =============================================================================
+
+/**
+ * Fetch all spec templates.
+ * @see GET /spec-templates in troostwatch/app/api.py
+ */
+export async function fetchSpecTemplates(parentId?: number): Promise<SpecTemplate[]> {
+  const url = new URL(`${API_BASE}/spec-templates`);
+  if (parentId !== undefined) {
+    url.searchParams.append('parent_id', parentId.toString());
+  }
+  const response = await fetch(url.toString());
+  return handleResponse<SpecTemplate[]>(response);
+}
+
+/**
+ * Create a new spec template.
+ * @see POST /spec-templates in troostwatch/app/api.py
+ */
+export async function createSpecTemplate(data: SpecTemplateCreateRequest): Promise<SpecTemplate> {
+  const response = await fetch(`${API_BASE}/spec-templates`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<SpecTemplate>(response);
+}
+
+/**
+ * Delete a spec template.
+ * @see DELETE /spec-templates/{template_id} in troostwatch/app/api.py
+ */
+export async function deleteSpecTemplate(templateId: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/spec-templates/${templateId}`, { method: 'DELETE' });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || 'Delete failed');
+  }
+}
+
+/**
+ * Apply a spec template to a lot.
+ * @see POST /lots/{lot_code}/apply-template in troostwatch/app/api.py
+ */
+export async function applyTemplateToLot(
+  lotCode: string,
+  templateId: number,
+  parentId?: number | null,
+  auctionCode?: string
+): Promise<LotSpec> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}/apply-template`);
+  if (auctionCode) {
+    url.searchParams.append('auction_code', auctionCode);
+  }
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ template_id: templateId, parent_id: parentId }),
+  });
+  return handleResponse<LotSpec>(response);
 }
 
 // =============================================================================

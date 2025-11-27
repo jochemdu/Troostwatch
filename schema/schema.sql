@@ -1,4 +1,4 @@
--- Troostwatch schema version: 4
+-- Troostwatch schema version: 6
 -- SQLite schema for Troostwatch
 --
 -- This file is the canonical source of truth for new databases. The schema
@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS lots (
     location_country TEXT,
     seller_allocation_note TEXT,
     brand TEXT,
+    ean TEXT,
     reference_price_new_eur REAL,
     reference_price_used_eur REAL,
     reference_source TEXT,
@@ -172,15 +173,38 @@ CREATE TABLE IF NOT EXISTS market_offers (
 CREATE INDEX IF NOT EXISTS idx_market_offers_lot_id ON market_offers (lot_id);
 CREATE INDEX IF NOT EXISTS idx_market_offers_buyer_id ON market_offers (buyer_id);
 
+-- Reusable spec templates that can be linked to multiple lots
+CREATE TABLE IF NOT EXISTS spec_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    parent_id INTEGER,
+    title TEXT NOT NULL,
+    value TEXT,
+    ean TEXT,
+    price_eur REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT,
+    FOREIGN KEY (parent_id) REFERENCES spec_templates (id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_spec_templates_parent_id ON spec_templates (parent_id);
+CREATE INDEX IF NOT EXISTS idx_spec_templates_ean ON spec_templates (ean);
+
 CREATE TABLE IF NOT EXISTS product_layers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lot_id INTEGER NOT NULL,
+    parent_id INTEGER,
+    template_id INTEGER,
     layer INTEGER NOT NULL DEFAULT 0,
     title TEXT,
     value TEXT,
-    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
+    ean TEXT,
+    price_eur REAL,
+    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES product_layers (id) ON DELETE CASCADE,
+    FOREIGN KEY (template_id) REFERENCES spec_templates (id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_product_layers_lot_id ON product_layers (lot_id);
+CREATE INDEX IF NOT EXISTS idx_product_layers_parent_id ON product_layers (parent_id);
+CREATE INDEX IF NOT EXISTS idx_product_layers_template_id ON product_layers (template_id);
 
 -- Table for storing multiple reference prices per lot from different sources
 CREATE TABLE IF NOT EXISTS reference_prices (

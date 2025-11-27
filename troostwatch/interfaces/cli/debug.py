@@ -20,7 +20,11 @@ import click
 from rich.console import Console
 
 from troostwatch.interfaces.cli.context import build_cli_context
-from troostwatch.infrastructure.diagnostics.debug_tools import db_integrity, db_stats, db_view
+from troostwatch.infrastructure.diagnostics.debug_tools import (
+    db_integrity,
+    db_stats,
+    db_view,
+)
 
 console = Console()
 
@@ -98,4 +102,6 @@ def view_cmd(ctx: click.Context, table: str, limit: int) -> None:
         headers = list(rows[0].keys())
         console.print("\t".join(headers))
         for row in rows:
-            console.print("\t".join(str(row[h]) if row[h] is not None else "" for h in headers))
+            console.print(
+                "\t".join(str(row[h]) if row[h] is not None else "" for h in headers)
+            )

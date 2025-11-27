@@ -10,6 +10,7 @@ import time
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Iterable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
@@ -43,14 +44,17 @@ class PageResult:
 @dataclass
 class SyncRunResult:
     run_id: int | None
+    run_id: int | None
     status: str
     pages_scanned: int
     lots_scanned: int
     lots_updated: int
     error_count: int
     errors: list[str]
+    errors: list[str]
 
 
+def _log(message: str, verbose: bool, log_path: str | None = None) -> None:
 def _log(message: str, verbose: bool, log_path: str | None = None) -> None:
     """Log a message to file and optionally to the console via logging.
 
@@ -81,6 +85,8 @@ def _log(message: str, verbose: bool, log_path: str | None = None) -> None:
 def _fetch_url(
     url: str, http_client: TroostwatchHttpClient | None = None
 ) -> tuple[str | None, str | None]:
+    url: str, http_client: TroostwatchHttpClient | None = None
+) -> tuple[str | None, str | None]:
     """Fetch the contents of a URL and return HTML plus any error message."""
     try:
         if http_client is not None:
@@ -88,6 +94,7 @@ def _fetch_url(
             return response_text, None
 
         from troostwatch import __version__
+
         req = Request(url, headers={"User-Agent": f"troostwatch-sync/{__version__}"})
         with urlopen(req) as response:
             data = response.read()
@@ -101,6 +108,8 @@ def _fetch_url(
         return None, str(exc)
 
 
+def _extract_page_urls(html_text: str, base_url: str) -> list[str]:
+    urls: list[str] = []
 def _extract_page_urls(html_text: str, base_url: str) -> list[str]:
     urls: list[str] = []
     for match in re.finditer(
@@ -145,7 +154,10 @@ def _wait_and_fetch(
     url: str,
     *,
     last_fetch: float | None,
+    last_fetch: float | None,
     delay_seconds: float,
+    http_client: TroostwatchHttpClient | None,
+) -> tuple[str | None, str | None, float]:
     http_client: TroostwatchHttpClient | None,
 ) -> tuple[str | None, str | None, float]:
     if last_fetch is not None and delay_seconds > 0:
@@ -160,6 +172,7 @@ def _collect_pages(
     auction_url: str,
     *,
     max_pages: int | None,
+    max_pages: int | None,
     fetcher: HttpFetcher,
     verbose: bool,
     delay_seconds: float,
@@ -170,10 +183,15 @@ def _collect_pages(
     errors: list[str] = []
     discovered_page_urls: list[str] = []
     last_fetch: float | None = None
+    http_client: TroostwatchHttpClient | None,
+    log_path: str | None = None,
+) -> tuple[list[PageResult], list[str], list[str], float | None]:
+    pages: list[PageResult] = []
+    errors: list[str] = []
+    discovered_page_urls: list[str] = []
+    last_fetch: float | None = None
 
-    def _fetch_html(
-        url: str, *, apply_delay: bool
-    ) -> tuple[str | None, str | None]:
+    def _fetch_html(url: str, *, apply_delay: bool) -> tuple[str | None, str | None]:
         if http_client is not None:
             return _wait_and_fetch(
                 url,
@@ -228,6 +246,7 @@ def _collect_pages(
 
 
 def _extract_auction_title(page_html: str) -> str | None:
+def _extract_auction_title(page_html: str) -> str | None:
     match_title = re.search(
         r"<title>(.*?)</title>", page_html, re.IGNORECASE | re.DOTALL
     )
@@ -252,7 +271,10 @@ def _upsert_auction(
     auction_url: str,
     auction_title: str | None,
     pagination_pages: list[str] | None = None,
+    auction_title: str | None,
+    pagination_pages: list[str] | None = None,
     *,
+    repository: AuctionRepository | None = None,
     repository: AuctionRepository | None = None,
 ) -> int:
     repo = repository or AuctionRepository(conn)
@@ -324,6 +346,7 @@ def _upsert_lot(
     last_seen_at: str,
     detail_last_seen_at: str,
     repository: LotRepository | None = None,
+    repository: LotRepository | None = None,
 ) -> None:
     repo = repository or LotRepository(conn)
     repo.upsert_from_parsed(
@@ -344,7 +367,11 @@ def sync_auction_to_db(
     max_pages: int | None = None,
     dry_run: bool | None = None,
     delay_seconds: float | None = None,
+    max_pages: int | None = None,
+    dry_run: bool | None = None,
+    delay_seconds: float | None = None,
     max_concurrent_requests: int = 5,
+    throttle_per_host: float | None = None,
     throttle_per_host: float | None = None,
     max_retries: int = 3,
     retry_backoff_base: float = 0.5,
@@ -353,12 +380,18 @@ def sync_auction_to_db(
     verbose: bool | None = None,
     log_path: str | None = None,
     http_client: TroostwatchHttpClient | None = None,
+    verbose: bool | None = None,
+    log_path: str | None = None,
+    http_client: TroostwatchHttpClient | None = None,
 ) -> SyncRunResult:
     pages_scanned = 0
     lots_scanned = 0
     lots_updated = 0
     errors: list[str] = []
+    errors: list[str] = []
     status = "success"
+    run_id: int | None = None
+    discovered_page_urls: list[str] = []
     run_id: int | None = None
     discovered_page_urls: list[str] = []
 
@@ -370,13 +403,15 @@ def sync_auction_to_db(
 
         def _notes_text() -> str | None:
             parts: list[str] = []
+        def _notes_text() -> str | None:
+            parts: list[str] = []
             if errors:
                 parts.append("; ".join(errors))
             if discovered_page_urls:
                 parts.append("pages: " + ", ".join(discovered_page_urls))
             return " | ".join(parts) if parts else None
 
-        sync_cfg: dict[str, float | bool] = {}
+        sync_cfg: dict = {}
         if delay_seconds is None:
             delay_seconds = float(sync_cfg.get("delay_seconds", 0.5))
         if dry_run is None:
@@ -430,14 +465,26 @@ def sync_auction_to_db(
                     error_count = ?, notes = ?
                 WHERE id = ?
                 """,
-                (status, finished_at, pages_scanned, lots_scanned, lots_updated,
-                 len(errors), _notes_text(), run_id),
+                (
+                    status,
+                    finished_at,
+                    pages_scanned,
+                    lots_scanned,
+                    lots_updated,
+                    len(errors),
+                    _notes_text(),
+                    run_id,
+                ),
             )
             conn.commit()
             return SyncRunResult(
-                run_id=run_id, status=status, pages_scanned=pages_scanned,
-                lots_scanned=lots_scanned, lots_updated=lots_updated,
-                error_count=len(errors), errors=errors,
+                run_id=run_id,
+                status=status,
+                pages_scanned=pages_scanned,
+                lots_scanned=lots_scanned,
+                lots_updated=lots_updated,
+                error_count=len(errors),
+                errors=errors,
             )
 
         auction_title = _extract_auction_title(pages[0].html)
@@ -447,10 +494,16 @@ def sync_auction_to_db(
                 conn.execute("BEGIN")
             auction_id: int | None = None
             existing_lots: dict[str, dict[str, str | None]] = {}
+            auction_id: int | None = None
+            existing_lots: dict[str, dict[str, str | None]] = {}
             if not dry_run:
                 auction_id = _upsert_auction(
-                    conn, auction_code, auction_url, auction_title,
-                    pagination_pages=discovered_page_urls, repository=auction_repo,
+                    conn,
+                    auction_code,
+                    auction_url,
+                    auction_title,
+                    pagination_pages=discovered_page_urls,
+                    repository=auction_repo,
                 )
                 cur = conn.execute(
                     "SELECT lot_code, listing_hash, detail_hash FROM lots WHERE auction_id = ?",
@@ -458,9 +511,11 @@ def sync_auction_to_db(
                 )
                 for lot_code, listing_hash, detail_hash in cur.fetchall():
                     existing_lots[str(lot_code)] = {
-                        "listing_hash": listing_hash, "detail_hash": detail_hash,
+                        "listing_hash": listing_hash,
+                        "detail_hash": detail_hash,
                     }
 
+            cards_needing_detail: list[tuple[LotCardData, str, str | None]] = []
             cards_needing_detail: list[tuple[LotCardData, str, str | None]] = []
             now_seen = iso_utcnow()
             url_parts = urlsplit(auction_url)
@@ -471,7 +526,11 @@ def sync_auction_to_db(
             )
 
             for page_idx, page in enumerate(pages, start=1):
-                _log(f"Processing page {page_idx}/{pages_scanned}: {page.url}", verbose, log_path)
+                _log(
+                    f"Processing page {page_idx}/{pages_scanned}: {page.url}",
+                    verbose,
+                    log_path,
+                )
                 parsed_cards = list(parse_auction_page(page.html, base_url=base_url))
                 if not parsed_cards:
                     parsed_cards = [
@@ -500,23 +559,34 @@ def sync_auction_to_db(
                         continue
 
                     if not card.url:
-                        errors.append(f"Failed to fetch detail for {card.lot_code}: missing URL")
+                        errors.append(
+                            f"Failed to fetch detail for {card.lot_code}: missing URL"
+                        )
                         continue
 
                     detail_html, err, last_fetch = _wait_and_fetch(
-                        card.url, last_fetch=last_fetch, delay_seconds=delay_seconds or 0,
+                        card.url,
+                        last_fetch=last_fetch,
+                        delay_seconds=delay_seconds or 0,
                         http_client=http_client,
                     )
                     if not detail_html:
-                        errors.append(f"Failed to fetch detail for {card.lot_code}: {err}")
+                        errors.append(
+                            f"Failed to fetch detail for {card.lot_code}: {err}"
+                        )
                         if not dry_run and auction_id is not None:
                             fallback_detail = _listing_detail_from_card(card)
                             fallback_hash = compute_detail_hash(fallback_detail)
                             last_seen = iso_utcnow()
                             _upsert_lot(
-                                conn, auction_id, card, fallback_detail,
-                                listing_hash=listing_hash, detail_hash=fallback_hash,
-                                last_seen_at=last_seen, detail_last_seen_at=last_seen,
+                                conn,
+                                auction_id,
+                                card,
+                                fallback_detail,
+                                listing_hash=listing_hash,
+                                detail_hash=fallback_hash,
+                                last_seen_at=last_seen,
+                                detail_last_seen_at=last_seen,
                                 repository=lot_repo,
                             )
                             lots_updated += 1
@@ -527,9 +597,12 @@ def sync_auction_to_db(
             for card, listing_hash, detail_text in cards_needing_detail:
                 parsed_detail: LotDetailData
                 parsed_hash: str | None = None
+                parsed_hash: str | None = None
                 try:
                     if detail_text:
-                        parsed_detail = parse_lot_detail(detail_text, card.lot_code, base_url=auction_url)
+                        parsed_detail = parse_lot_detail(
+                            detail_text, card.lot_code, base_url=auction_url
+                        )
                         parsed_hash = compute_detail_hash(parsed_detail)
                     else:
                         parsed_detail = _listing_detail_from_card(card)
@@ -544,9 +617,14 @@ def sync_auction_to_db(
                     detail_seen_at = iso_utcnow() if detail_text else None
                     last_seen = detail_seen_at or iso_utcnow()
                     _upsert_lot(
-                        conn, auction_id, card, parsed_detail,
-                        listing_hash=listing_hash, detail_hash=parsed_hash,
-                        last_seen_at=last_seen, detail_last_seen_at=detail_seen_at or last_seen,
+                        conn,
+                        auction_id,
+                        card,
+                        parsed_detail,
+                        listing_hash=listing_hash,
+                        detail_hash=parsed_hash,
+                        last_seen_at=last_seen,
+                        detail_last_seen_at=detail_seen_at or last_seen,
                         repository=lot_repo,
                     )
                     lots_updated += 1
@@ -568,15 +646,27 @@ def sync_auction_to_db(
                     error_count = ?, notes = ?
                 WHERE id = ?
                 """,
-                (status, finished_at, pages_scanned, lots_scanned, lots_updated,
-                 len(errors), _notes_text(), run_id),
+                (
+                    status,
+                    finished_at,
+                    pages_scanned,
+                    lots_scanned,
+                    lots_updated,
+                    len(errors),
+                    _notes_text(),
+                    run_id,
+                ),
             )
             conn.commit()
 
         return SyncRunResult(
-            run_id=run_id, status=status, pages_scanned=pages_scanned,
-            lots_scanned=lots_scanned, lots_updated=lots_updated,
-            error_count=len(errors), errors=errors,
+            run_id=run_id,
+            status=status,
+            pages_scanned=pages_scanned,
+            lots_scanned=lots_scanned,
+            lots_updated=lots_updated,
+            error_count=len(errors),
+            errors=errors,
         )
 
 

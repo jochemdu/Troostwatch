@@ -15,8 +15,17 @@ from pathlib import Path
 from typing import TypeVar
 
 from troostwatch.infrastructure.http import TroostwatchHttpClient
-from troostwatch.infrastructure.db import ensure_schema, get_connection, get_path_config, iso_utcnow
-from troostwatch.infrastructure.db.repositories import AuctionRepository, BuyerRepository, LotRepository
+from troostwatch.infrastructure.db import (
+    ensure_schema,
+    get_connection,
+    get_path_config,
+    iso_utcnow,
+)
+from troostwatch.infrastructure.db.repositories import (
+    AuctionRepository,
+    BuyerRepository,
+    LotRepository,
+)
 from troostwatch.infrastructure.db.repositories.base import BaseRepository
 from troostwatch.services.buyers import BuyerService
 from troostwatch.services.lots import LotManagementService, LotViewService
@@ -94,12 +103,16 @@ def build_cli_context(db_path: str | Path | None = None) -> CLIContext:
     """Build the CLI context with resolved configuration paths and connection factory."""
 
     paths = get_path_config()
-    resolved_db_path = Path(db_path).expanduser() if db_path is not None else paths["db_path"]
+    resolved_db_path = (
+        Path(db_path).expanduser() if db_path is not None else paths["db_path"]
+    )
 
     def connection_factory() -> ContextManager[sqlite3.Connection]:
         return get_connection(resolved_db_path)
 
-    return CLIContext(db_path=resolved_db_path, paths=paths, connection_factory=connection_factory)
+    return CLIContext(
+        db_path=resolved_db_path, paths=paths, connection_factory=connection_factory
+    )
 
 
 @dataclass(frozen=True)

@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 import json
 import re
+from typing import Iterable
 from urllib.parse import urlsplit, urlencode, urlunsplit
 
 from bs4 import BeautifulSoup
@@ -72,7 +73,9 @@ class LotCardData:
     is_price_opening_bid: bool | None = None
 
 
-def parse_lot_card(html: str, auction_code: str, base_url: str | None = None) -> LotCardData:
+def parse_lot_card(
+    html: str, auction_code: str, base_url: str | None = None
+) -> LotCardData:
     """Parse a lot card from HTML matching Troostwijk's card markup."""
 
     soup = BeautifulSoup(html, "html.parser")
@@ -81,6 +84,7 @@ def parse_lot_card(html: str, auction_code: str, base_url: str | None = None) ->
     utils.log_structure_signature(logger, "lot_card.card", card_html)
 
     try:
+
         def _text(selector: str) -> str:
             return utils.extract_by_data_cy(card, selector)
 
@@ -96,7 +100,11 @@ def parse_lot_card(html: str, auction_code: str, base_url: str | None = None) ->
         lot_code = _extract_lot_number_from_url(url) or display_id
 
         state_attr = card.get("data-state") if hasattr(card, "get") else None
-        state_text = (_text("state-chip") or (str(state_attr) if state_attr else "")).strip().lower()
+        state_text = (
+            (_text("state-chip") or (str(state_attr) if state_attr else ""))
+            .strip()
+            .lower()
+        )
         state: str | None
         if state_text.startswith("run"):
             state = "running"
@@ -121,12 +129,16 @@ def parse_lot_card(html: str, auction_code: str, base_url: str | None = None) ->
             match_price = re.search(r"€[^0-9]*([\d\.,]+)", amount_text)
             if match_price:
                 price_eur = utils.parse_eur_to_float(match_price.group(0))
-            label = " ".join(part.lower() for part in bid_text.stripped_strings if "€" not in part)
+            label = " ".join(
+                part.lower() for part in bid_text.stripped_strings if "€" not in part
+            )
             if label:
                 is_price_opening_bid = "open" in label
 
         opens_at = utils.parse_datetime_from_text(_text("opening-date-text"))
-        closing_time_current = utils.parse_datetime_from_text(_text("closing-date-text"))
+        closing_time_current = utils.parse_datetime_from_text(
+            _text("closing-date-text")
+        )
 
         city, country = utils.split_location(_text("location-text"))
 
@@ -153,7 +165,9 @@ def parse_auction_page(html: str, base_url: str | None = None) -> Iterable[LotCa
     """Parse all lot cards from a full auction page via ``__NEXT_DATA__``."""
 
     data = utils.extract_next_data(html)
-    utils.log_structure_signature(logger, "auction.next_data", json.dumps(data, sort_keys=True))
+    utils.log_structure_signature(
+        logger, "auction.next_data", json.dumps(data, sort_keys=True)
+    )
     page_props = data.get("props", {}).get("pageProps", {})
     auction = page_props.get("auction", {})
     auction_code = auction.get("displayId")
@@ -189,9 +203,7 @@ def parse_auction_page(html: str, base_url: str | None = None) -> Iterable[LotCa
 
         location = lot.get("location") or {}
         loc_data = {**{"city": "", "countryCode": ""}, **location}
-        city, country = utils.split_location(
-            "{city}, {countryCode}".format(**loc_data)
-        )
+        city, country = utils.split_location("{city}, {countryCode}".format(**loc_data))
         country_code = (location.get("countryCode") or "").lower()
         country = utils.COUNTRY_CODES.get(country_code, country)
 
@@ -217,7 +229,9 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
     page_urls: list[str] = []
 
     parsed_base = urlsplit(auction_url)
-    auction_base = urlunsplit((parsed_base.scheme, parsed_base.netloc, parsed_base.path, "", ""))
+    auction_base = urlunsplit(
+        (parsed_base.scheme, parsed_base.netloc, parsed_base.path, "", "")
+    )
 
     try:
         data = utils.extract_next_data(html)
@@ -227,7 +241,7 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
     if isinstance(data, dict):
         page_props = data.get("props", {}).get("pageProps", {})
         lots_meta = page_props.get("lots", {}) if isinstance(page_props, dict) else {}
-        pagination = (lots_meta.get("pagination") or page_props.get("pagination") or {})
+        pagination = lots_meta.get("pagination") or page_props.get("pagination") or {}
 
         total_pages = (
             pagination.get("totalPages")
@@ -240,7 +254,9 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
             page_size = lots_meta.get("pageSize")
             try:
                 if total_size is not None and page_size:
-                    total_pages = int((int(total_size) + int(page_size) - 1) // int(page_size))
+                    total_pages = int(
+                        (int(total_size) + int(page_size) - 1) // int(page_size)
+                    )
             except Exception:
                 total_pages = None
 
@@ -252,10 +268,17 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
         base_query: dict[str, str] = {}
         if parsed_base.query:
             from urllib.parse import parse_qsl
+
             base_query = {key: value for key, value in parse_qsl(parsed_base.query)}
 
         normalized_base = urlunsplit(
-            (parsed_base.scheme, parsed_base.netloc, parsed_base.path, parsed_base.query, parsed_base.fragment)
+            (
+                parsed_base.scheme,
+                parsed_base.netloc,
+                parsed_base.path,
+                parsed_base.query,
+                parsed_base.fragment,
+            )
         )
         page_urls.append(normalized_base)
 
@@ -285,7 +308,11 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
             if auction_base.endswith("/"):
                 full_url = auction_base + href
             else:
-                full_url = auction_base + ("/" if href and not href.startswith("?") else "") + href
+                full_url = (
+                    auction_base
+                    + ("/" if href and not href.startswith("?") else "")
+                    + href
+                )
 
         parsed_full = urlsplit(full_url)
         if parsed_full.path != parsed_base.path:

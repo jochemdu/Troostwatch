@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from typing import Any
+from typing import Any
 
 from ..schema import ensure_schema
 from .base import BaseRepository
@@ -34,11 +35,14 @@ class AuctionRepository(BaseRepository):
             """,
             (auction_code, auction_title, auction_url, pages_json),
         )
-        auction_id = self._fetch_scalar("SELECT id FROM auctions WHERE auction_code = ?", (auction_code,))
+        auction_id = self._fetch_scalar(
+            "SELECT id FROM auctions WHERE auction_code = ?", (auction_code,)
+        )
         if not auction_id:
             raise RuntimeError("Failed to retrieve auction id after upsert")
         return int(auction_id)
 
+    def list(self, only_active: bool = True) -> list[dict[str, str | None]]:
     def list(self, only_active: bool = True) -> list[dict[str, str | None]]:
         query = """
             SELECT a.auction_code,
@@ -74,7 +78,7 @@ class AuctionRepository(BaseRepository):
             return auctions
         return [a for a in auctions if a["active_lots"] > 0]
 
-    def get_by_code(self, auction_code: str) -> dict[str, Any] | None:
+    def get_by_code(self, auction_code: str) -> dict[str, Any | None]:
         """Get a single auction by code."""
         cur = self.conn.execute(
             """
@@ -109,9 +113,14 @@ class AuctionRepository(BaseRepository):
         url: str | None = None,
         starts_at: str | None = None,
         ends_at_planned: str | None = None,
+        title: str | None = None,
+        url: str | None = None,
+        starts_at: str | None = None,
+        ends_at_planned: str | None = None,
     ) -> bool:
         """Update an auction. Returns True if updated."""
         updates = []
+        params: list[Any] = []
         params: list[Any] = []
 
         if title is not None:
@@ -138,6 +147,7 @@ class AuctionRepository(BaseRepository):
         self.conn.commit()
         return cur.rowcount > 0
 
+    def delete(self, auction_code: str, delete_lots: bool = False) -> dict[str, int]:
     def delete(self, auction_code: str, delete_lots: bool = False) -> dict[str, int]:
         """
         Delete an auction.
@@ -176,15 +186,11 @@ class AuctionRepository(BaseRepository):
                 )
 
             # Delete lots
-            cur = self._execute(
-                "DELETE FROM lots WHERE auction_id = ?", (auction_id,)
-            )
+            cur = self._execute("DELETE FROM lots WHERE auction_id = ?", (auction_id,))
             lots_deleted = cur.rowcount
 
             # Delete the auction
-            cur = self._execute(
-                "DELETE FROM auctions WHERE id = ?", (auction_id,)
-            )
+            cur = self._execute("DELETE FROM auctions WHERE id = ?", (auction_id,))
             auction_deleted = cur.rowcount
 
         self.conn.commit()

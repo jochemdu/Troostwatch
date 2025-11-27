@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Annotated, Any, cast
+from typing import Annotated, Any, cast
 
 from fastapi import (
     Depends,
@@ -31,7 +32,12 @@ from troostwatch.app.dependencies import (
 )
 from troostwatch.services import positions as position_service
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
-from troostwatch.services.lots import LotInput, LotManagementService, LotView, LotViewService
+from troostwatch.services.lots import (
+    LotInput,
+    LotManagementService,
+    LotView,
+    LotViewService,
+)
 from troostwatch.services.reporting import ReportingService
 from troostwatch.services.sync_service import SyncService
 from troostwatch.services.dto import BuyerCreateDTO
@@ -55,6 +61,7 @@ class LotEventBus:
             self._subscribers.discard(websocket)
 
     async def publish(self, payload: dict[str, Any]) -> None:
+    async def publish(self, payload: dict) -> None:
         stale: list[WebSocket] = []
         async with self._lock:
             subscribers = list(self._subscribers)
@@ -127,11 +134,15 @@ class BuyerCreateRequest(BaseModel):
     label: str
     name: str | None = None
     notes: str | None = None
+    name: str | None = None
+    notes: str | None = None
 
 
 class BuyerResponse(BaseModel):
     id: int
     label: str
+    name: str | None = None
+    notes: str | None = None
     name: str | None = None
     notes: str | None = None
 
@@ -148,6 +159,10 @@ class PositionUpdate(BaseModel):
     max_budget_total_eur: float | None = Field(None, ge=0)
     preferred_bid_eur: float | None = Field(None, ge=0)
     watch: bool | None = None
+    auction_code: str | None = None
+    max_budget_total_eur: float | None = Field(None, ge=0)
+    preferred_bid_eur: float | None = Field(None, ge=0)
+    watch: bool | None = None
 
 
 class PositionResponse(BaseModel):
@@ -156,7 +171,13 @@ class PositionResponse(BaseModel):
     buyer_label: str
     lot_code: str
     auction_code: str | None = None
+    auction_code: str | None = None
     track_active: bool = True
+    max_budget_total_eur: float | None = None
+    my_highest_bid_eur: float | None = None
+    lot_title: str | None = None
+    lot_state: str | None = None
+    current_bid_eur: float | None = None
     max_budget_total_eur: float | None = None
     my_highest_bid_eur: float | None = None
     lot_title: str | None = None
@@ -166,6 +187,7 @@ class PositionResponse(BaseModel):
 
 class PositionBatchRequest(BaseModel):
     updates: list[PositionUpdate]
+    updates: list[PositionUpdate]
 
 
 class PositionBatchResponse(BaseModel):
@@ -174,11 +196,13 @@ class PositionBatchResponse(BaseModel):
     updated: int
     created: int = 0
     errors: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
 
 
 class SyncRequest(BaseModel):
     auction_code: str
     auction_url: str
+    max_pages: int | None = Field(None, ge=1)
     max_pages: int | None = Field(None, ge=1)
     dry_run: bool = False
 
@@ -187,11 +211,13 @@ class SyncRunResultResponse(BaseModel):
     """Result of a single sync run."""
 
     run_id: int | None = None
+    run_id: int | None = None
     status: str  # 'success', 'failed', 'running'
     pages_scanned: int = 0
     lots_scanned: int = 0
     lots_updated: int = 0
     error_count: int = 0
+    errors: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
 
 
@@ -199,6 +225,9 @@ class SyncSummaryResponse(BaseModel):
     """Summary response for a sync operation."""
 
     status: str  # 'success', 'failed', 'error'
+    auction_code: str | None = None
+    result: SyncRunResultResponse | None = None
+    error: str | None = None
     auction_code: str | None = None
     result: SyncRunResultResponse | None = None
     error: str | None = None
@@ -211,6 +240,9 @@ class LiveSyncStatusResponse(BaseModel):
     last_sync: str | None = None
     next_sync: str | None = None
     current_auction: str | None = None
+    last_sync: str | None = None
+    next_sync: str | None = None
+    current_auction: str | None = None
 
 
 class LiveSyncControlResponse(BaseModel):
@@ -218,13 +250,16 @@ class LiveSyncControlResponse(BaseModel):
 
     state: str
     detail: str | None = None
+    detail: str | None = None
 
 
 class LiveSyncStartRequest(BaseModel):
     auction_code: str
     auction_url: str
     max_pages: int | None = Field(None, ge=1)
+    max_pages: int | None = Field(None, ge=1)
     dry_run: bool = False
+    interval_seconds: float | None = Field(
     interval_seconds: float | None = Field(
         None,
         ge=0,
@@ -240,8 +275,10 @@ class BidResponse(BaseModel):
     lot_code: str
     auction_code: str
     lot_title: str | None = None
+    lot_title: str | None = None
     amount_eur: float
     placed_at: str
+    note: str | None = None
     note: str | None = None
 
 
@@ -253,6 +290,7 @@ class BidCreateRequest(BaseModel):
     lot_code: str
     amount_eur: float = Field(gt=0)
     note: str | None = None
+    note: str | None = None
 
 
 class TrackedLotSummaryResponse(BaseModel):
@@ -261,6 +299,8 @@ class TrackedLotSummaryResponse(BaseModel):
     lot_code: str
     title: str
     state: str
+    current_bid_eur: float | None = None
+    max_budget_total_eur: float | None = None
     current_bid_eur: float | None = None
     max_budget_total_eur: float | None = None
     track_active: bool = True
@@ -277,12 +317,18 @@ class BuyerSummaryResponse(BaseModel):
     open_exposure_max_eur: float = 0.0
     open_tracked_lots: list[TrackedLotSummaryResponse] = Field(default_factory=list)
     won_lots: list[TrackedLotSummaryResponse] = Field(default_factory=list)
+    open_tracked_lots: list[TrackedLotSummaryResponse] = Field(default_factory=list)
+    won_lots: list[TrackedLotSummaryResponse] = Field(default_factory=list)
 
 
 class AuctionResponse(BaseModel):
     """Auction summary."""
 
     auction_code: str
+    title: str | None = None
+    url: str | None = None
+    starts_at: str | None = None
+    ends_at_planned: str | None = None
     title: str | None = None
     url: str | None = None
     starts_at: str | None = None
@@ -308,11 +354,24 @@ class LotCreateRequest(BaseModel):
     location_country: str | None = None
     auction_title: str | None = None
     auction_url: str | None = None
+    url: str | None = None
+    state: str | None = None
+    opens_at: str | None = None
+    closing_time: str | None = None
+    bid_count: int | None = None
+    opening_bid_eur: float | None = None
+    current_bid_eur: float | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    auction_title: str | None = None
+    auction_url: str | None = None
 
 
 class LotUpdateRequest(BaseModel):
     """Request to update lot fields (notes, ean)."""
 
+    notes: str | None = None
+    ean: str | None = None
     notes: str | None = None
     ean: str | None = None
 
@@ -323,7 +382,14 @@ class LotSpecResponse(BaseModel):
     id: int
     parent_id: int | None = None
     template_id: int | None = None
+    parent_id: int | None = None
+    template_id: int | None = None
     key: str
+    value: str | None = None
+    ean: str | None = None
+    price_eur: float | None = None
+    release_date: str | None = None
+    category: str | None = None
     value: str | None = None
     ean: str | None = None
     price_eur: float | None = None
@@ -341,6 +407,10 @@ class ReferencePriceResponse(BaseModel):
     url: str | None = None
     notes: str | None = None
     created_at: str | None = None
+    source: str | None = None
+    url: str | None = None
+    notes: str | None = None
+    created_at: str | None = None
 
 
 class ReferencePriceCreateRequest(BaseModel):
@@ -351,11 +421,19 @@ class ReferencePriceCreateRequest(BaseModel):
     source: str | None = None
     url: str | None = None
     notes: str | None = None
+    source: str | None = None
+    url: str | None = None
+    notes: str | None = None
 
 
 class ReferencePriceUpdateRequest(BaseModel):
     """Request to update a reference price."""
 
+    condition: str | None = Field(None, pattern="^(new|used|refurbished)$")
+    price_eur: float | None = Field(None, ge=0)
+    source: str | None = None
+    url: str | None = None
+    notes: str | None = None
     condition: str | None = Field(None, pattern="^(new|used|refurbished)$")
     price_eur: float | None = Field(None, ge=0)
     source: str | None = None
@@ -383,6 +461,21 @@ class LotDetailResponse(BaseModel):
     notes: str | None = None
     specs: list[LotSpecResponse] = Field(default_factory=list)
     reference_prices: list[ReferencePriceResponse] = Field(default_factory=list)
+    title: str | None = None
+    url: str | None = None
+    state: str | None = None
+    current_bid_eur: float | None = None
+    bid_count: int | None = None
+    opening_bid_eur: float | None = None
+    closing_time_current: str | None = None
+    closing_time_original: str | None = None
+    brand: str | None = None
+    ean: str | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    notes: str | None = None
+    specs: list[LotSpecResponse] = Field(default_factory=list)
+    reference_prices: list[ReferencePriceResponse] = Field(default_factory=list)
 
 
 class LotCreateResponse(BaseModel):
@@ -394,8 +487,14 @@ class LotCreateResponse(BaseModel):
 
 
 @app.get("/lots", response_model=list[LotView])
+@app.get("/lots", response_model=list[LotView])
 async def list_lots(
     lot_view_service: LotViewServiceDep,
+    auction_code: str | None = None,
+    state: str | None = None,
+    brand: str | None = None,
+    limit: int | None = Query(100, ge=1, le=1000),
+) -> list[LotView]:
     auction_code: str | None = None,
     state: str | None = None,
     brand: str | None = None,
@@ -425,8 +524,13 @@ async def list_lots(
 
 class SearchResultResponse(BaseModel):
     """A search result with lot details and match info."""
+
     auction_code: str
     lot_code: str
+    title: str | None = None
+    state: str | None = None
+    current_bid_eur: float | None = None
+    brand: str | None = None
     title: str | None = None
     state: str | None = None
     current_bid_eur: float | None = None
@@ -435,11 +539,14 @@ class SearchResultResponse(BaseModel):
 
 
 @app.get("/search", response_model=list[SearchResultResponse])
+@app.get("/search", response_model=list[SearchResultResponse])
 async def search_lots(
     lot_repository: LotRepositoryDep,
     q: str = Query(..., min_length=2, description="Search query (min 2 chars)"),
     state: str | None = Query(None, description="Filter by state"),
+    state: str | None = Query(None, description="Filter by state"),
     limit: int = Query(50, ge=1, le=200, description="Max results"),
+) -> list[SearchResultResponse]:
 ) -> list[SearchResultResponse]:
     """Search lots by title, brand, lot code, or EAN."""
     conn = lot_repository.conn
@@ -469,7 +576,15 @@ async def search_lots(
             l.ean LIKE ?
         )
     """
-    params: list = [query_param, query_param, query_param, query_param, query_param, query_param, query_param]
+    params: list = [
+        query_param,
+        query_param,
+        query_param,
+        query_param,
+        query_param,
+        query_param,
+        query_param,
+    ]
 
     if state:
         sql += " AND l.state = ?"
@@ -481,15 +596,17 @@ async def search_lots(
     cur = conn.execute(sql, params)
     results = []
     for row in cur.fetchall():
-        results.append(SearchResultResponse(
-            auction_code=row[0],
-            lot_code=row[1],
-            title=row[2],
-            state=row[3],
-            current_bid_eur=row[4],
-            brand=row[5],
-            match_field=row[7],
-        ))
+        results.append(
+            SearchResultResponse(
+                auction_code=row[0],
+                lot_code=row[1],
+                title=row[2],
+                state=row[3],
+                current_bid_eur=row[4],
+                brand=row[5],
+                match_field=row[7],
+            )
+        )
     return results
 
 
@@ -497,6 +614,7 @@ async def search_lots(
 async def get_lot_detail(
     lot_code: str,
     lot_repository: LotRepositoryDep,
+    auction_code: str | None = Query(None),
     auction_code: str | None = Query(None),
 ) -> LotDetailResponse:
     """Get detailed lot information including specs and reference prices."""
@@ -557,6 +675,7 @@ async def update_lot(
     payload: LotUpdateRequest,
     lot_repository: LotRepositoryDep,
     auction_code: str | None = Query(None),
+    auction_code: str | None = Query(None),
 ) -> LotDetailResponse:
     """Update lot notes and EAN."""
     success = lot_repository.update_lot(
@@ -575,12 +694,17 @@ async def update_lot(
 async def delete_lot(
     lot_code: str,
     lot_repository: LotRepositoryDep,
-    auction_code: str = Query(..., description="Auction code is required to identify the lot"),
+    auction_code: str = Query(
+        ..., description="Auction code is required to identify the lot"
+    ),
 ) -> None:
     """Delete a lot and all related data (specs, bids, reference prices, positions)."""
     success = lot_repository.delete_lot(lot_code, auction_code)
     if not success:
-        raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' in auction '{auction_code}' not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Lot '{lot_code}' in auction '{auction_code}' not found",
+        )
 
 
 # =============================================================================
@@ -589,9 +713,14 @@ async def delete_lot(
 
 
 @app.get("/lots/{lot_code}/reference-prices", response_model=list[ReferencePriceResponse])
+@app.get(
+    "/lots/{lot_code}/reference-prices", response_model=list[ReferencePriceResponse]
+)
 async def list_reference_prices(
     lot_code: str,
     lot_repository: LotRepositoryDep,
+    auction_code: str | None = Query(None),
+) -> list[ReferencePriceResponse]:
     auction_code: str | None = Query(None),
 ) -> list[ReferencePriceResponse]:
     """Get all reference prices for a lot."""
@@ -620,6 +749,7 @@ async def create_reference_price(
     payload: ReferencePriceCreateRequest,
     lot_repository: LotRepositoryDep,
     auction_code: str | None = Query(None),
+    auction_code: str | None = Query(None),
 ) -> ReferencePriceResponse:
     """Add a reference price for a lot."""
     try:
@@ -644,7 +774,9 @@ async def create_reference_price(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@app.patch("/lots/{lot_code}/reference-prices/{ref_id}", response_model=ReferencePriceResponse)
+@app.patch(
+    "/lots/{lot_code}/reference-prices/{ref_id}", response_model=ReferencePriceResponse
+)
 async def update_reference_price(
     lot_code: str,
     ref_id: int,
@@ -661,7 +793,9 @@ async def update_reference_price(
         notes=payload.notes,
     )
     if not success:
-        raise HTTPException(status_code=404, detail=f"Reference price {ref_id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Reference price {ref_id} not found"
+        )
 
     # Get updated price
     prices = lot_repository.get_reference_prices(lot_code)
@@ -679,7 +813,9 @@ async def update_reference_price(
     raise HTTPException(status_code=404, detail=f"Reference price {ref_id} not found")
 
 
-@app.delete("/lots/{lot_code}/reference-prices/{ref_id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete(
+    "/lots/{lot_code}/reference-prices/{ref_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_reference_price(
     lot_code: str,
     ref_id: int,
@@ -687,7 +823,9 @@ async def delete_reference_price(
 ) -> None:
     """Delete a reference price."""
     if not lot_repository.delete_reference_price(ref_id):
-        raise HTTPException(status_code=404, detail=f"Reference price {ref_id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Reference price {ref_id} not found"
+        )
 
 
 # =============================================================================
@@ -697,17 +835,23 @@ async def delete_reference_price(
 
 class BidHistoryEntryResponse(BaseModel):
     """A single bid in the lot's bid history."""
+
     id: int
     bidder_label: str
     amount_eur: float
     timestamp: str | None = None
     created_at: str | None = None
+    timestamp: str | None = None
+    created_at: str | None = None
 
 
+@app.get("/lots/{lot_code}/bid-history", response_model=list[BidHistoryEntryResponse])
 @app.get("/lots/{lot_code}/bid-history", response_model=list[BidHistoryEntryResponse])
 async def get_lot_bid_history(
     lot_code: str,
     lot_repository: LotRepositoryDep,
+    auction_code: str | None = Query(None),
+) -> list[BidHistoryEntryResponse]:
     auction_code: str | None = Query(None),
 ) -> list[BidHistoryEntryResponse]:
     """Get bid history for a lot, ordered by most recent first."""
@@ -726,6 +870,7 @@ async def get_lot_bid_history(
 
 class LotSpecCreateRequest(BaseModel):
     """Request to add or update a lot specification."""
+
     key: str
     value: str = ""
     parent_id: int | None = None
@@ -734,13 +879,24 @@ class LotSpecCreateRequest(BaseModel):
     template_id: int | None = None
     release_date: str | None = None
     category: str | None = None
+    parent_id: int | None = None
+    ean: str | None = None
+    price_eur: float | None = None
+    template_id: int | None = None
+    release_date: str | None = None
+    category: str | None = None
 
 
-@app.post("/lots/{lot_code}/specs", status_code=status.HTTP_201_CREATED, response_model=LotSpecResponse)
+@app.post(
+    "/lots/{lot_code}/specs",
+    status_code=status.HTTP_201_CREATED,
+    response_model=LotSpecResponse,
+)
 async def create_lot_spec(
     lot_code: str,
     payload: LotSpecCreateRequest,
     lot_repository: LotRepositoryDep,
+    auction_code: str | None = Query(None),
     auction_code: str | None = Query(None),
 ) -> LotSpecResponse:
     """Add or update a specification for a lot."""
@@ -787,11 +943,20 @@ async def delete_lot_spec(
 # Spec Templates Endpoints - Reusable specifications across lots
 # =============================================================================
 
+
 class SpecTemplateResponse(BaseModel):
     """A reusable specification template."""
+
     id: int
     parent_id: int | None = None
+    parent_id: int | None = None
     title: str
+    value: str | None = None
+    ean: str | None = None
+    price_eur: float | None = None
+    release_date: str | None = None
+    category: str | None = None
+    created_at: str | None = None
     value: str | None = None
     ean: str | None = None
     price_eur: float | None = None
@@ -802,7 +967,14 @@ class SpecTemplateResponse(BaseModel):
 
 class SpecTemplateCreateRequest(BaseModel):
     """Request to create a spec template."""
+
     title: str
+    value: str | None = None
+    ean: str | None = None
+    price_eur: float | None = None
+    parent_id: int | None = None
+    release_date: str | None = None
+    category: str | None = None
     value: str | None = None
     ean: str | None = None
     price_eur: float | None = None
@@ -820,16 +992,28 @@ class SpecTemplateUpdateRequest(BaseModel):
     release_date: str | None = None
     category: str | None = None
 
+    title: str | None = None
+    value: str | None = None
+    ean: str | None = None
+    price_eur: float | None = None
+    release_date: str | None = None
+    category: str | None = None
+
 
 class ApplyTemplateRequest(BaseModel):
     """Request to apply a template to a lot."""
+
     template_id: int
+    parent_id: int | None = None
     parent_id: int | None = None
 
 
 @app.get("/spec-templates", response_model=list[SpecTemplateResponse])
+@app.get("/spec-templates", response_model=list[SpecTemplateResponse])
 async def list_spec_templates(
     lot_repository: LotRepositoryDep,
+    parent_id: int | None = Query(None),
+) -> list[SpecTemplateResponse]:
     parent_id: int | None = Query(None),
 ) -> list[SpecTemplateResponse]:
     """List all spec templates, optionally filtered by parent."""
@@ -837,7 +1021,11 @@ async def list_spec_templates(
     return [SpecTemplateResponse(**t) for t in templates]
 
 
-@app.post("/spec-templates", status_code=status.HTTP_201_CREATED, response_model=SpecTemplateResponse)
+@app.post(
+    "/spec-templates",
+    status_code=status.HTTP_201_CREATED,
+    response_model=SpecTemplateResponse,
+)
 async def create_spec_template(
     payload: SpecTemplateCreateRequest,
     lot_repository: LotRepositoryDep,
@@ -898,18 +1086,25 @@ async def delete_spec_template(
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
 
 
-@app.post("/lots/{lot_code}/apply-template", status_code=status.HTTP_201_CREATED, response_model=LotSpecResponse)
+@app.post(
+    "/lots/{lot_code}/apply-template",
+    status_code=status.HTTP_201_CREATED,
+    response_model=LotSpecResponse,
+)
 async def apply_template_to_lot(
     lot_code: str,
     payload: ApplyTemplateRequest,
     lot_repository: LotRepositoryDep,
+    auction_code: str | None = Query(None),
     auction_code: str | None = Query(None),
 ) -> LotSpecResponse:
     """Apply a spec template to a lot."""
     try:
         template = lot_repository.get_spec_template(payload.template_id)
         if not template:
-            raise HTTPException(status_code=404, detail=f"Template {payload.template_id} not found")
+            raise HTTPException(
+                status_code=404, detail=f"Template {payload.template_id} not found"
+            )
 
         spec_id = lot_repository.apply_template_to_lot(
             lot_code=lot_code,
@@ -954,6 +1149,7 @@ async def upsert_positions(
             updated=cast(int, result.get("updated", 0)),
             created=cast(int, result.get("created", 0)),
             errors=cast(list[str], result.get("errors", [])),
+            errors=cast(list[str], result.get("errors", [])),
         )
     except ValueError as exc:  # raised when buyer or lot not found
         raise HTTPException(
@@ -962,8 +1158,11 @@ async def upsert_positions(
 
 
 @app.get("/positions", response_model=list[PositionResponse])
+@app.get("/positions", response_model=list[PositionResponse])
 async def list_positions(
     repository: PositionRepositoryDep,
+    buyer: str | None = Query(None, description="Filter by buyer label"),
+) -> list[PositionResponse]:
     buyer: str | None = Query(None, description="Filter by buyer label"),
 ) -> list[PositionResponse]:
     """List all tracked positions, optionally filtered by buyer."""
@@ -987,11 +1186,14 @@ async def list_positions(
     ]
 
 
-@app.delete("/positions/{buyer_label}/{lot_code}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete(
+    "/positions/{buyer_label}/{lot_code}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_position(
     buyer_label: str,
     lot_code: str,
     repository: PositionRepositoryDep,
+    auction_code: str | None = Query(None),
     auction_code: str | None = Query(None),
 ) -> None:
     """Delete a tracked position."""
@@ -1003,10 +1205,13 @@ async def delete_position(
 
 
 @app.get("/buyers", response_model=list[BuyerResponse])
+@app.get("/buyers", response_model=list[BuyerResponse])
 async def list_buyers(
     service: BuyerServiceDep,
 ) -> list[BuyerResponse]:
+) -> list[BuyerResponse]:
     buyers = service.list_buyers()
+    result: list[BuyerResponse] = []
     result: list[BuyerResponse] = []
     for buyer in buyers:
         result.append(
@@ -1039,9 +1244,7 @@ async def create_buyer(
 
 
 @app.delete("/buyers/{label}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_buyer(
-    label: str, service: BuyerServiceDep
-) -> None:
+async def delete_buyer(label: str, service: BuyerServiceDep) -> None:
     await service.delete_buyer(label=label)
 
 
@@ -1065,11 +1268,15 @@ def _bid_row_to_response(bid: dict[str, Any]) -> BidResponse:
 
 
 @app.get("/bids", response_model=list[BidResponse])
+@app.get("/bids", response_model=list[BidResponse])
 async def list_bids(
     repo: BidRepositoryDep,
     buyer: str | None = Query(None, description="Filter by buyer label"),
     lot_code: str | None = Query(None, description="Filter by lot code"),
+    buyer: str | None = Query(None, description="Filter by buyer label"),
+    lot_code: str | None = Query(None, description="Filter by lot code"),
     limit: int = Query(100, ge=1, le=500),
+) -> list[BidResponse]:
 ) -> list[BidResponse]:
     """List recorded bids with optional filters."""
     bids = repo.list(buyer_label=buyer, lot_code=lot_code, limit=limit)
@@ -1096,7 +1303,9 @@ async def create_bid(
         ) from exc
 
     # Fetch the created bid to return it
-    bids = repo.list(buyer_label=payload.buyer_label, lot_code=payload.lot_code, limit=1)
+    bids = repo.list(
+        buyer_label=payload.buyer_label, lot_code=payload.lot_code, limit=1
+    )
     if not bids:
         raise HTTPException(status_code=500, detail="Bid created but not found")
 
@@ -1132,11 +1341,10 @@ async def get_buyer_report(
         open_exposure_min_eur=summary_dict["open_exposure_min_eur"],
         open_exposure_max_eur=summary_dict["open_exposure_max_eur"],
         open_tracked_lots=[
-            TrackedLotSummaryResponse(**lot) for lot in summary_dict["open_tracked_lots"]
+            TrackedLotSummaryResponse(**lot)
+            for lot in summary_dict["open_tracked_lots"]
         ],
-        won_lots=[
-            TrackedLotSummaryResponse(**lot) for lot in summary_dict["won_lots"]
-        ],
+        won_lots=[TrackedLotSummaryResponse(**lot) for lot in summary_dict["won_lots"]],
     )
 
 
@@ -1155,6 +1363,7 @@ async def get_buyer_report(
 
 class DashboardStatsResponse(BaseModel):
     """Dashboard statistics overview."""
+
     total_auctions: int
     active_auctions: int
     total_lots: int
@@ -1185,9 +1394,15 @@ async def get_dashboard_stats(
 
     # Lot counts by state
     lot_total = conn.execute("SELECT COUNT(*) FROM lots").fetchone()[0]
-    lot_running = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'running'").fetchone()[0]
-    lot_scheduled = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'scheduled'").fetchone()[0]
-    lot_closed = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'closed'").fetchone()[0]
+    lot_running = conn.execute(
+        "SELECT COUNT(*) FROM lots WHERE state = 'running'"
+    ).fetchone()[0]
+    lot_scheduled = conn.execute(
+        "SELECT COUNT(*) FROM lots WHERE state = 'scheduled'"
+    ).fetchone()[0]
+    lot_closed = conn.execute(
+        "SELECT COUNT(*) FROM lots WHERE state = 'closed'"
+    ).fetchone()[0]
 
     # Other counts
     bid_total = conn.execute("SELECT COUNT(*) FROM my_bids").fetchone()[0]
@@ -1208,9 +1423,14 @@ async def get_dashboard_stats(
 
 
 @app.get("/auctions", response_model=list[AuctionResponse])
+@app.get("/auctions", response_model=list[AuctionResponse])
 async def list_auctions(
     repo: AuctionRepositoryDep,
     include_inactive: bool = Query(False, description="Include auctions without active lots"),
+) -> list[AuctionResponse]:
+    include_inactive: bool = Query(
+        False, description="Include auctions without active lots"
+    ),
 ) -> list[AuctionResponse]:
     """List all auctions, optionally including those without active lots."""
     auctions = repo.list(only_active=not include_inactive)
@@ -1230,7 +1450,12 @@ async def list_auctions(
 
 class AuctionDetailResponse(BaseModel):
     """Detailed auction information."""
+
     auction_code: str
+    title: str | None = None
+    url: str | None = None
+    starts_at: str | None = None
+    ends_at_planned: str | None = None
     title: str | None = None
     url: str | None = None
     starts_at: str | None = None
@@ -1245,9 +1470,15 @@ class AuctionUpdateRequest(BaseModel):
     starts_at: str | None = None
     ends_at_planned: str | None = None
 
+    title: str | None = None
+    url: str | None = None
+    starts_at: str | None = None
+    ends_at_planned: str | None = None
+
 
 class AuctionDeleteResponse(BaseModel):
     """Response after deleting an auction."""
+
     status: str
     auction_deleted: int
     lots_deleted: int
@@ -1261,7 +1492,9 @@ async def get_auction(
     """Get a single auction by code."""
     auction = repo.get_by_code(auction_code)
     if not auction:
-        raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Auction '{auction_code}' not found"
+        )
     return AuctionDetailResponse(
         auction_code=auction["auction_code"],
         title=auction.get("title"),
@@ -1286,11 +1519,15 @@ async def update_auction(
         starts_at=payload.starts_at,
         ends_at_planned=payload.ends_at_planned,
     ):
-        raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Auction '{auction_code}' not found"
+        )
 
     updated = repo.get_by_code(auction_code)
     if not updated:
-        raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found after update")
+        raise HTTPException(
+            status_code=404, detail=f"Auction '{auction_code}' not found after update"
+        )
 
     return AuctionDetailResponse(
         auction_code=updated["auction_code"],
@@ -1306,12 +1543,16 @@ async def update_auction(
 async def delete_auction(
     auction_code: str,
     repo: AuctionRepositoryDep,
-    delete_lots: bool = Query(False, description="Also delete all lots in this auction"),
+    delete_lots: bool = Query(
+        False, description="Also delete all lots in this auction"
+    ),
 ) -> AuctionDeleteResponse:
     """Delete an auction. Optionally delete all associated lots."""
     result = repo.delete(auction_code, delete_lots=delete_lots)
     if result["auction"] == 0:
-        raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Auction '{auction_code}' not found"
+        )
     return AuctionDeleteResponse(
         status="deleted",
         auction_deleted=result["auction"],
@@ -1340,13 +1581,16 @@ LotManagementServiceDep = Annotated[
 ]
 
 
-@app.post("/lots", status_code=status.HTTP_201_CREATED, response_model=LotCreateResponse)
+@app.post(
+    "/lots", status_code=status.HTTP_201_CREATED, response_model=LotCreateResponse
+)
 async def create_lot(
     payload: LotCreateRequest,
     service: LotManagementServiceDep,
 ) -> LotCreateResponse:
     """Manually add or update a lot in the database."""
     from datetime import datetime, timezone
+
     seen_at = datetime.now(timezone.utc).isoformat()
 
     lot_input = LotInput(
@@ -1374,7 +1618,9 @@ async def create_lot(
     )
 
 
-@app.post("/sync", status_code=status.HTTP_202_ACCEPTED, response_model=SyncSummaryResponse)
+@app.post(
+    "/sync", status_code=status.HTTP_202_ACCEPTED, response_model=SyncSummaryResponse
+)
 async def trigger_sync(
     request: SyncRequest, service: SyncServiceDep
 ) -> SyncSummaryResponse:
@@ -1392,13 +1638,21 @@ async def trigger_sync(
         result = SyncRunResultResponse(**result_data)
     return SyncSummaryResponse(
         status=str(summary_dict.get("status") or "error"),
-        auction_code=str(summary_dict.get("auction_code")) if summary_dict.get("auction_code") else None,
+        auction_code=(
+            str(summary_dict.get("auction_code"))
+            if summary_dict.get("auction_code")
+            else None
+        ),
         result=result,
         error=str(summary_dict.get("error")) if summary_dict.get("error") else None,
     )
 
 
-@app.post("/live-sync/start", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
+@app.post(
+    "/live-sync/start",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=LiveSyncControlResponse,
+)
 async def start_live_sync(
     request: LiveSyncStartRequest, service: SyncServiceDep
 ) -> LiveSyncControlResponse:
@@ -1415,7 +1669,11 @@ async def start_live_sync(
     )
 
 
-@app.post("/live-sync/pause", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
+@app.post(
+    "/live-sync/pause",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=LiveSyncControlResponse,
+)
 async def pause_live_sync(
     service: SyncServiceDep,
 ) -> LiveSyncControlResponse:
@@ -1426,7 +1684,11 @@ async def pause_live_sync(
     )
 
 
-@app.post("/live-sync/stop", status_code=status.HTTP_202_ACCEPTED, response_model=LiveSyncControlResponse)
+@app.post(
+    "/live-sync/stop",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=LiveSyncControlResponse,
+)
 async def stop_live_sync(
     service: SyncServiceDep,
 ) -> LiveSyncControlResponse:

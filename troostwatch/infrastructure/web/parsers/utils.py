@@ -13,6 +13,7 @@ import logging
 import re
 from collections.abc import Iterable
 from datetime import datetime, timezone
+from typing import Iterable
 
 from bs4 import BeautifulSoup, Tag
 
@@ -44,6 +45,7 @@ COUNTRY_CODES = {
 
 # HTML helpers
 
+
 def extract_text(element, default: str = "", separator: str = " ") -> str:
     """Return flattened text from a BeautifulSoup element.
 
@@ -58,7 +60,9 @@ def extract_text(element, default: str = "", separator: str = " ") -> str:
     return element.get_text(separator, strip=True)
 
 
-def extract_by_data_cy(soup: BeautifulSoup | Tag, data_cy: str, default: str = "") -> str:
+def extract_by_data_cy(
+    soup: BeautifulSoup | Tag, data_cy: str, default: str = ""
+) -> str:
     """Find an element by ``data-cy`` attribute and return its text."""
 
     element = soup.find(attrs={"data-cy": data_cy})
@@ -66,6 +70,7 @@ def extract_by_data_cy(soup: BeautifulSoup | Tag, data_cy: str, default: str = "
 
 
 # Numeric and currency helpers
+
 
 def parse_eur_to_float(text: str) -> float | None:
     """Convert a string like "€ 1.234,56" to a float 1234.56."""
@@ -81,6 +86,7 @@ def parse_eur_to_float(text: str) -> float | None:
 
 
 def amount_from_cents_dict(amount: dict | None) -> float | None:
+def amount_from_cents_dict(amount: dict | None) -> float | None:
     """Convert a Troostwijk ``{"cents": 19000}`` amount dictionary to float euros."""
 
     if not isinstance(amount, dict):
@@ -91,6 +97,7 @@ def amount_from_cents_dict(amount: dict | None) -> float | None:
     return None
 
 
+def parse_percent(text: str) -> float | None:
 def parse_percent(text: str) -> float | None:
     """Convert a percentage string like "21%" to a float 21.0."""
 
@@ -105,13 +112,16 @@ def parse_percent(text: str) -> float | None:
 
 # Datetime helpers
 
+
 def _format_iso(dt: datetime, strip_timezone: bool) -> str:
     if strip_timezone:
         dt = dt.replace(tzinfo=None)
     return dt.replace(second=0, microsecond=0).isoformat()
 
 
-def epoch_to_iso(ts: int | float | None, tz: timezone = timezone.utc, strip_timezone: bool = True) -> str | None:
+def epoch_to_iso(
+    ts: int | float | None, tz: timezone = timezone.utc, strip_timezone: bool = True
+) -> str | None:
     """Convert epoch seconds or milliseconds to an ISO-8601 string with optional timezone stripping.
 
     Automatically detects if timestamp is in milliseconds (>1e12) and converts accordingly.
@@ -129,7 +139,9 @@ def epoch_to_iso(ts: int | float | None, tz: timezone = timezone.utc, strip_time
         return None
 
 
-def parse_nl_datetime(text: str, tz: timezone = timezone.utc, strip_timezone: bool = True) -> str | None:
+def parse_nl_datetime(
+    text: str, tz: timezone = timezone.utc, strip_timezone: bool = True
+) -> str | None:
     """Parse a Dutch datetime string into ISO 8601 format with timezone support."""
 
     if not text:
@@ -148,7 +160,9 @@ def parse_nl_datetime(text: str, tz: timezone = timezone.utc, strip_timezone: bo
         return None
 
 
-def parse_datetime_from_text(text: str, tz: timezone = timezone.utc, strip_timezone: bool = True) -> str | None:
+def parse_datetime_from_text(
+    text: str, tz: timezone = timezone.utc, strip_timezone: bool = True
+) -> str | None:
     """Extract and parse a Dutch datetime from freeform text."""
 
     if not text:
@@ -159,6 +173,7 @@ def parse_datetime_from_text(text: str, tz: timezone = timezone.utc, strip_timez
     return parse_nl_datetime(match.group(1), tz=tz, strip_timezone=strip_timezone)
 
 
+def split_location(text: str) -> tuple[str | None, str | None]:
 def split_location(text: str) -> tuple[str | None, str | None]:
     """Split a location string into city and country components."""
 
@@ -171,6 +186,7 @@ def split_location(text: str) -> tuple[str | None, str | None]:
 
 
 # JSON helpers
+
 
 def extract_next_data(html: str | BeautifulSoup) -> dict:
     """Load ``__NEXT_DATA__`` JSON from a page when present."""
@@ -188,6 +204,7 @@ def extract_next_data(html: str | BeautifulSoup) -> dict:
 
 # Diagnostics helpers
 
+
 def structure_checksum(html_fragment: str) -> str:
     """Return a stable checksum for a markup fragment."""
 
@@ -195,14 +212,18 @@ def structure_checksum(html_fragment: str) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
-def log_structure_signature(logger: logging.Logger, section: str, html_fragment: str) -> None:
+def log_structure_signature(
+    logger: logging.Logger, section: str, html_fragment: str
+) -> None:
     """Log a checksum for a specific parser section to detect layout drift."""
 
     checksum = structure_checksum(html_fragment)
     logger.info("structure-signature", extra={"section": section, "checksum": checksum})
 
 
-def record_parsing_error(logger: logging.Logger, section: str, html_fragment: str, error: Exception) -> None:
+def record_parsing_error(
+    logger: logging.Logger, section: str, html_fragment: str, error: Exception
+) -> None:
     """Log a parsing failure with a checksum and a clipped HTML snippet."""
 
     checksum = structure_checksum(html_fragment)
@@ -211,7 +232,12 @@ def record_parsing_error(logger: logging.Logger, section: str, html_fragment: st
         snippet = snippet[:500] + "…"
     logger.error(
         "parsing-error",
-        extra={"section": section, "checksum": checksum, "snippet": snippet, "error": str(error)},
+        extra={
+            "section": section,
+            "checksum": checksum,
+            "snippet": snippet,
+            "error": str(error),
+        },
     )
 
 

@@ -14,6 +14,7 @@ import threading
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Iterable
 from urllib.parse import urlparse
 
 import aiohttp
@@ -25,6 +26,9 @@ class RequestResult:
     """Result of a single HTTP request."""
 
     url: str
+    text: str | None
+    error: str | None
+    status: int | None = None
     text: str | None
     error: str | None
     status: int | None = None
@@ -41,6 +45,7 @@ class RequestResult:
 class RateLimiter:
     """Simple host-level rate limiter supporting sync and async callers."""
 
+    def __init__(self, requests_per_second: float | None) -> None:
     def __init__(self, requests_per_second: float | None) -> None:
         self.min_interval = 1.0 / requests_per_second if requests_per_second else 0.0
         self._last_seen: dict[str, float] = {}
@@ -88,6 +93,7 @@ class HttpFetcher:
         *,
         max_concurrent_requests: int = 5,
         throttle_per_host: float | None = None,
+        throttle_per_host: float | None = None,
         retry_attempts: int = 3,
         backoff_base_seconds: float = 0.5,
         concurrency_mode: str = "asyncio",
@@ -95,6 +101,7 @@ class HttpFetcher:
         user_agent: str = "",  # Empty string triggers dynamic version lookup
     ) -> None:
         from troostwatch import __version__
+
         if not user_agent:
             user_agent = f"troostwatch-sync/{__version__}"
         self.max_concurrent_requests = max(1, max_concurrent_requests)
@@ -130,7 +137,9 @@ class HttpFetcher:
                     status = None
                     if hasattr(exc, "response") and exc.response is not None:
                         status = getattr(exc.response, "status_code", None)
-                    return RequestResult(url=url, text=None, error=str(exc), status=status)
+                    return RequestResult(
+                        url=url, text=None, error=str(exc), status=status
+                    )
                 time.sleep(self._backoff_delay(attempt))
         return RequestResult(url=url, text=None, error="Unknown error", status=None)
 
@@ -153,14 +162,19 @@ class HttpFetcher:
                             message=resp.reason or "",
                         )
                     text = await resp.text()
-                    return RequestResult(url=url, text=text, error=None, status=resp.status)
+                    return RequestResult(
+                        url=url, text=text, error=None, status=resp.status
+                    )
             except Exception as exc:
                 if attempt >= self.retry_attempts - 1:
                     status = exc.status if hasattr(exc, "status") else None
-                    return RequestResult(url=url, text=None, error=str(exc), status=status)
+                    return RequestResult(
+                        url=url, text=None, error=str(exc), status=status
+                    )
                 await asyncio.sleep(self._backoff_delay(attempt))
         return RequestResult(url=url, text=None, error="Unknown error", status=None)
 
+    async def _fetch_many_asyncio(self, urls: Iterable[str]) -> list[RequestResult]:
     async def _fetch_many_asyncio(self, urls: Iterable[str]) -> list[RequestResult]:
         semaphore = asyncio.Semaphore(self.max_concurrent_requests)
 
@@ -175,6 +189,7 @@ class HttpFetcher:
             return await asyncio.gather(*tasks)
 
     async def _fetch_many_threadpool(self, urls: Iterable[str]) -> list[RequestResult]:
+    async def _fetch_many_threadpool(self, urls: Iterable[str]) -> list[RequestResult]:
         loop = asyncio.get_running_loop()
         semaphore = asyncio.Semaphore(self.max_concurrent_requests)
 
@@ -185,6 +200,7 @@ class HttpFetcher:
         tasks = [_run(url) for url in urls]
         return await asyncio.gather(*tasks)
 
+    async def fetch_many(self, urls: Iterable[str]) -> list[RequestResult]:
     async def fetch_many(self, urls: Iterable[str]) -> list[RequestResult]:
         if self.concurrency_mode not in {"asyncio", "threadpool"}:
             raise ValueError("concurrency_mode must be 'asyncio' or 'threadpool'")

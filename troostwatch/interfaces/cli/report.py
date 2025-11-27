@@ -22,7 +22,11 @@ def report() -> None:
 @report.command(name="buyer")
 @click.option("--db", "db_path", required=True, help="Path to the SQLite database.")
 @click.argument("buyer")
-@click.option("--json-output", is_flag=True, help="Output the summary as JSON instead of plain text.")
+@click.option(
+    "--json-output",
+    is_flag=True,
+    help="Output the summary as JSON instead of plain text.",
+)
 def report_buyer(db_path: str, buyer: str, json_output: bool) -> None:
     """Show a summary of exposure and tracked lots for BUYER."""
     service = ReportingService.from_sqlite_path(db_path)

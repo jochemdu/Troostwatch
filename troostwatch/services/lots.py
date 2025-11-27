@@ -43,37 +43,49 @@ class LotView(BaseModel):
         # Use domain model for business logic
         lot = Lot.from_dict(dict(record))
 
-        return cls.model_validate({
-            "auction_code": record["auction_code"],
-            "lot_code": record["lot_code"],
-            "title": record.get("title"),
-            "state": record.get("state"),
-            "current_bid_eur": record.get("current_bid_eur"),
-            "bid_count": record.get("bid_count"),
-            "current_bidder_label": record.get("current_bidder_label"),
-            "closing_time_current": record.get("closing_time_current"),
-            "closing_time_original": record.get("closing_time_original"),
-            "brand": record.get("brand"),
-            "is_active": lot.is_active,
-            "effective_price": lot.effective_price,
-        })
+        return cls.model_validate(
+            {
+                "auction_code": record["auction_code"],
+                "lot_code": record["lot_code"],
+                "title": record.get("title"),
+                "state": record.get("state"),
+                "current_bid_eur": record.get("current_bid_eur"),
+                "bid_count": record.get("bid_count"),
+                "current_bidder_label": record.get("current_bidder_label"),
+                "closing_time_current": record.get("closing_time_current"),
+                "closing_time_original": record.get("closing_time_original"),
+                "brand": record.get("brand"),
+                "is_active": lot.is_active,
+                "effective_price": lot.effective_price,
+            }
+        )
 
     @classmethod
     def from_domain(cls, lot: Lot) -> "LotView":
         """Create a LotView from a domain Lot model."""
-        return cls.model_validate({
-            "auction_code": lot.auction_code,
-            "lot_code": lot.lot_code,
-            "title": lot.title,
-            "state": lot.state.value,
-            "current_bid_eur": lot.current_bid_eur,
-            "bid_count": lot.bid_count,
-            "current_bidder_label": lot.current_bidder_label,
-            "closing_time_current": lot.closing_time_current.isoformat() if lot.closing_time_current else None,
-            "closing_time_original": lot.closing_time_original.isoformat() if lot.closing_time_original else None,
-            "is_active": lot.is_active,
-            "effective_price": lot.effective_price,
-        })
+        return cls.model_validate(
+            {
+                "auction_code": lot.auction_code,
+                "lot_code": lot.lot_code,
+                "title": lot.title,
+                "state": lot.state.value,
+                "current_bid_eur": lot.current_bid_eur,
+                "bid_count": lot.bid_count,
+                "current_bidder_label": lot.current_bidder_label,
+                "closing_time_current": (
+                    lot.closing_time_current.isoformat()
+                    if lot.closing_time_current
+                    else None
+                ),
+                "closing_time_original": (
+                    lot.closing_time_original.isoformat()
+                    if lot.closing_time_original
+                    else None
+                ),
+                "is_active": lot.is_active,
+                "effective_price": lot.effective_price,
+            }
+        )
 
 
 class LotViewService:
@@ -97,7 +109,10 @@ class LotViewService:
         """List lots as LotView DTOs for presentation."""
         self._logger.debug(
             "Listing lots: auction=%s state=%s brand=%s limit=%s",
-            auction_code, state, brand, limit
+            auction_code,
+            state,
+            brand,
+            limit,
         )
         effective_limit = None if limit is not None and limit <= 0 else limit
         rows = self._lot_repository.list_lots(
@@ -165,8 +180,7 @@ class LotManagementService:
         Returns the lot_code of the added/updated lot.
         """
         self._logger.debug(
-            "Adding lot %s in auction %s",
-            lot_input.lot_code, lot_input.auction_code
+            "Adding lot %s in auction %s", lot_input.lot_code, lot_input.auction_code
         )
         from troostwatch.services.sync import (
             _listing_detail_from_card,
@@ -188,7 +202,10 @@ class LotManagementService:
             price_eur=lot_input.current_bid_eur or lot_input.opening_bid_eur,
             is_price_opening_bid=(
                 lot_input.opening_bid_eur is not None
-                and (lot_input.current_bid_eur is None or lot_input.opening_bid_eur == lot_input.current_bid_eur)
+                and (
+                    lot_input.current_bid_eur is None
+                    or lot_input.opening_bid_eur == lot_input.current_bid_eur
+                )
             ),
         )
 

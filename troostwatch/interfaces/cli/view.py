@@ -27,7 +27,9 @@ def _format_lot_line(lot: LotView) -> str:
     bid_str = f"€{current_bid:.2f}" if current_bid is not None else "n/a"
     bids = lot.bid_count or 0
     closing = lot.closing_time_current or lot.closing_time_original or "-"
-    bidder_suffix = f" | bidder={lot.current_bidder_label}" if lot.current_bidder_label else ""
+    bidder_suffix = (
+        f" | bidder={lot.current_bidder_label}" if lot.current_bidder_label else ""
+    )
     title = lot.title or "(no title)"
     state = lot.state or "?"
     return (
@@ -44,7 +46,9 @@ def _format_lot_line(lot: LotView) -> str:
     show_default=str(DEFAULT_CLI_CONTEXT.db_path),
     help="Path to the SQLite database.",
 )
-@click.option("--auction-code", default=None, help="Filter lots to a specific auction code.")
+@click.option(
+    "--auction-code", default=None, help="Filter lots to a specific auction code."
+)
 @click.option("--state", default=None, help="Filter lots by state (e.g. open, closed).")
 @click.option(
     "--limit",

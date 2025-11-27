@@ -6,6 +6,7 @@ import sqlite3
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
+from typing import Callable
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import PositionRepository
@@ -23,6 +24,10 @@ class PositionUpdateData:
 
     buyer_label: str
     lot_code: str
+    auction_code: str | None = None
+    max_budget_total_eur: float | None = None
+    preferred_bid_eur: float | None = None
+    watch: bool | None = None
     auction_code: str | None = None
     max_budget_total_eur: float | None = None
     preferred_bid_eur: float | None = None
@@ -52,6 +57,7 @@ class PositionsService:
         lot_code: str,
         track_active: bool = True,
         max_budget_total_eur: float | None = None,
+        max_budget_total_eur: float | None = None,
     ) -> None:
         """Create or update a tracked position."""
         with log_context(
@@ -69,9 +75,7 @@ class PositionsService:
                 )
             _logger.debug("Position added successfully")
 
-    def list_positions(
-        self, *, buyer_label: str | None = None
-    ) -> list[PositionDTO]:
+    def list_positions(self, *, buyer_label: str | None = None) -> list[PositionDTO]:
         """List positions, optionally filtered by buyer label, as DTOs."""
 
         with self._connection_factory() as conn:
@@ -80,6 +84,7 @@ class PositionsService:
             return [self._row_to_dto(row) for row in rows]
 
     @staticmethod
+    def _row_to_dto(row: dict[str, str | None]) -> PositionDTO:
     def _row_to_dto(row: dict[str, str | None]) -> PositionDTO:
         """Convert a repository row to a PositionDTO with proper type coercion."""
         max_budget = row.get("max_budget_total_eur")
@@ -121,6 +126,8 @@ def add_position(
     track_active: bool = True,
     max_budget_total_eur: float | None = None,
     connection_factory: ConnectionFactory | None = None,
+    max_budget_total_eur: float | None = None,
+    connection_factory: ConnectionFactory | None = None,
 ) -> None:
     """Add or update a tracked position using a SQLite-backed service."""
 
@@ -140,6 +147,9 @@ def list_positions(
     buyer_label: str | None = None,
     connection_factory: ConnectionFactory | None = None,
 ) -> list[PositionDTO]:
+    buyer_label: str | None = None,
+    connection_factory: ConnectionFactory | None = None,
+) -> list[PositionDTO]:
     """Return tracked positions using a SQLite-backed service."""
 
     service = _resolve_service(db_path=db_path, connection_factory=connection_factory)
@@ -153,14 +163,18 @@ def delete_position(
     auction_code: str,
     lot_code: str,
     connection_factory: ConnectionFactory | None = None,
+    connection_factory: ConnectionFactory | None = None,
 ) -> None:
     """Delete a tracked position using a SQLite-backed service."""
 
     service = _resolve_service(db_path=db_path, connection_factory=connection_factory)
-    service.delete_position(buyer_label=buyer_label, auction_code=auction_code, lot_code=lot_code)
+    service.delete_position(
+        buyer_label=buyer_label, auction_code=auction_code, lot_code=lot_code
+    )
 
 
 def _resolve_service(
+    *, db_path: str, connection_factory: ConnectionFactory | None
     *, db_path: str, connection_factory: ConnectionFactory | None
 ) -> PositionsService:
     if connection_factory is not None:
@@ -171,6 +185,9 @@ def _resolve_service(
 async def upsert_positions(
     *,
     repository: "PositionRepository",
+    updates: list[PositionUpdateData],
+    event_publisher: EventPublisher | None = None,
+) -> dict[str, object]:
     updates: list[PositionUpdateData],
     event_publisher: EventPublisher | None = None,
 ) -> dict[str, object]:
@@ -189,6 +206,7 @@ async def upsert_positions(
     """
     _logger.info("Batch upserting %d positions", len(updates))
     updated_positions: list[dict[str, object]] = []
+    updated_positions: list[dict[str, object]] = []
 
     for update in updates:
         # The repository.upsert method will validate buyer/lot existence
@@ -199,19 +217,23 @@ async def upsert_positions(
             auction_code=update.auction_code,
             max_budget_total_eur=update.max_budget_total_eur,
         )
-        updated_positions.append({
-            "buyer_label": update.buyer_label,
-            "lot_code": update.lot_code,
-            "auction_code": update.auction_code,
-        })
+        updated_positions.append(
+            {
+                "buyer_label": update.buyer_label,
+                "lot_code": update.lot_code,
+                "auction_code": update.auction_code,
+            }
+        )
 
     # Publish event if publisher provided
     if event_publisher is not None:
-        await event_publisher({
-            "type": "positions_updated",
-            "count": len(updated_positions),
-            "positions": updated_positions,
-        })
+        await event_publisher(
+            {
+                "type": "positions_updated",
+                "count": len(updated_positions),
+                "positions": updated_positions,
+            }
+        )
 
     _logger.info("Successfully upserted %d positions", len(updated_positions))
     return {"updated": len(updated_positions), "positions": updated_positions}

@@ -11,7 +11,11 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from troostwatch.interfaces.cli.context import CLIContext, build_cli_context, buyer_service
+from troostwatch.interfaces.cli.context import (
+    CLIContext,
+    build_cli_context,
+    buyer_service,
+)
 from troostwatch.services.buyers import BuyerAlreadyExistsError
 
 console = Console()
@@ -31,7 +35,9 @@ def buyer(ctx: click.Context, db_path: str | None) -> None:
     """Manage buyers stored in the database."""
 
     ctx.ensure_object(dict)
-    ctx.obj["cli_context"] = DEFAULT_CLI_CONTEXT if db_path is None else build_cli_context(db_path)
+    ctx.obj["cli_context"] = (
+        DEFAULT_CLI_CONTEXT if db_path is None else build_cli_context(db_path)
+    )
 
 
 @buyer.command("add")
@@ -39,7 +45,9 @@ def buyer(ctx: click.Context, db_path: str | None) -> None:
 @click.option("--name", default=None, help="Full name of the buyer.")
 @click.option("--notes", default=None, help="Additional notes for the buyer.")
 @click.pass_context
-def add_cmd(ctx: click.Context, label: str, name: str | None, notes: str | None) -> None:
+def add_cmd(
+    ctx: click.Context, label: str, name: str | None, notes: str | None
+) -> None:
     """Add a new buyer with a unique LABEL."""
 
     cli_context: CLIContext = ctx.obj["cli_context"]

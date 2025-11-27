@@ -33,7 +33,9 @@ class PositionRepository(BaseRepository):
             raise ValueError(f"Buyer with label '{buyer_label}' does not exist")
         lot_id = self.lots.get_id(lot_code, auction_code)
         if lot_id is None:
-            raise ValueError(f"Lot with code '{lot_code}' not found (auction: {auction_code})")
+            raise ValueError(
+                f"Lot with code '{lot_code}' not found (auction: {auction_code})"
+            )
         self._execute(
             """
             INSERT INTO my_lot_positions (buyer_id, lot_id, track_active, max_budget_total_eur, my_highest_bid_eur)
@@ -43,7 +45,13 @@ class PositionRepository(BaseRepository):
                 max_budget_total_eur = excluded.max_budget_total_eur,
                 my_highest_bid_eur = excluded.my_highest_bid_eur
             """,
-            (buyer_id, lot_id, 1 if track_active else 0, max_budget_total_eur, my_highest_bid_eur),
+            (
+                buyer_id,
+                lot_id,
+                1 if track_active else 0,
+                max_budget_total_eur,
+                my_highest_bid_eur,
+            ),
         )
         self.conn.commit()
 
@@ -78,7 +86,9 @@ class PositionRepository(BaseRepository):
             raise ValueError(f"Buyer with label '{buyer_label}' does not exist")
         lot_id = self.lots.get_id(lot_code, auction_code)
         if lot_id is None:
-            raise ValueError(f"Lot with code '{lot_code}' not found (auction: {auction_code})")
+            raise ValueError(
+                f"Lot with code '{lot_code}' not found (auction: {auction_code})"
+            )
         self._execute(
             "DELETE FROM my_lot_positions WHERE buyer_id = ? AND lot_id = ?",
             (buyer_id, lot_id),

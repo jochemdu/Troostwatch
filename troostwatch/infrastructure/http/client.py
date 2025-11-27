@@ -14,7 +14,7 @@ import json
 import re
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 from urllib.parse import urljoin
 
 import requests
@@ -33,21 +33,23 @@ class SessionExpiredError(Exception):
 class LoginCredentials:
     """Simple container for login inputs and optional cached token path."""
 
-    username: Optional[str] = None
-    password: Optional[str] = None
-    token_path: Optional[Path] = None
+    username: str | None = None
+    password: str | None = None
+    token_path: Path | None = None
 
 
 @dataclass
 class StoredSession:
     """Represents persisted session state on disk."""
 
-    csrf_token: Optional[str]
-    cookies: Dict[str, str]
+    csrf_token: str | None
+    cookies: dict[str, str]
     obtained_at: float
 
     def is_expired(self, timeout_seconds: float) -> bool:
-        return timeout_seconds > 0 and (time.time() - self.obtained_at) > timeout_seconds
+        return (
+            timeout_seconds > 0 and (time.time() - self.obtained_at) > timeout_seconds
+        )
 
 
 class TroostwatchHttpClient:
@@ -67,11 +69,11 @@ class TroostwatchHttpClient:
         self.credentials = credentials or LoginCredentials()
         self.session_timeout_seconds = session_timeout_seconds
         self.session = session or requests.Session()
-        self.csrf_token: Optional[str] = None
-        self.last_authenticated: Optional[float] = None
+        self.csrf_token: str | None = None
+        self.last_authenticated: float | None = None
 
     # -------------------- token helpers --------------------
-    def _extract_csrf(self, response: Response) -> Optional[str]:
+    def _extract_csrf(self, response: Response) -> str | None:
         header_token = response.headers.get("X-CSRFToken") or response.headers.get(
             "X-CSRF-Token"
         )
@@ -96,7 +98,7 @@ class TroostwatchHttpClient:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
-    def _load_session(self, path: Path) -> Optional[StoredSession]:
+    def _load_session(self, path: Path) -> StoredSession | None:
         if not path.exists():
             return None
         with open(path, "r", encoding="utf-8") as f:
@@ -152,7 +154,7 @@ class TroostwatchHttpClient:
         csrf = self._extract_csrf(page)
 
         payload = {"username": username, "email": username, "password": password}
-        headers: Dict[str, str] = {}
+        headers: dict[str, str] = {}
         if csrf:
             headers["X-CSRFToken"] = csrf
         response = self.session.post(login_url, data=payload, headers=headers)
@@ -164,8 +166,9 @@ class TroostwatchHttpClient:
         self.last_authenticated = time.time()
 
     # -------------------- request helpers --------------------
-    def _prepare_headers(self, extra: Optional[Dict[str, str]]) -> Dict[str, str]:
+    def _prepare_headers(self, extra: dict[str, str | None]) -> dict[str, str]:
         from troostwatch import __version__
+
         headers = {"User-Agent": f"troostwatch-client/{__version__}"}
         if extra:
             headers.update(extra)
@@ -201,7 +204,7 @@ class TroostwatchHttpClient:
         response.encoding = response.encoding or "utf-8"
         return response.text
 
-    def post_json(self, url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def post_json(self, url: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Authenticated POST returning parsed JSON."""
         response = self.authenticated_post(url, json=payload)
         try:

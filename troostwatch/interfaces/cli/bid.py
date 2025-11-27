@@ -21,7 +21,9 @@ from .auth import build_http_client
 @click.option("--auction-code", required=True, help="Auction code for the lot.")
 @click.option("--lot-code", required=True, help="Lot code to bid on.")
 @click.option("--amount", required=True, type=float, help="Bid amount in EUR.")
-@click.option("--note", default=None, help="Optional note to persist locally with the bid.")
+@click.option(
+    "--note", default=None, help="Optional note to persist locally with the bid."
+)
 @click.option("--username", help="Account username/email for authentication.")
 @click.option("--password", help="Account password (prompted if omitted).")
 @click.option(
@@ -98,7 +100,9 @@ def bid(
         return
 
     if db_path:
-        service = BiddingService.from_sqlite_path(client, db_path, api_base_url=api_base_url)
+        service = BiddingService.from_sqlite_path(
+            client, db_path, api_base_url=api_base_url
+        )
     else:
         service = BiddingService(client, api_base_url=api_base_url)
     try:

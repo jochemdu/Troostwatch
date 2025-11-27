@@ -53,23 +53,33 @@ def get_db_connection() -> Iterator[sqlite3.Connection]:
         yield conn
 
 
-def get_lot_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> LotRepository:
+def get_lot_repository(
+    conn: sqlite3.Connection = Depends(get_db_connection),
+) -> LotRepository:
     return LotRepository(conn)
 
 
-def get_buyer_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> BuyerRepository:
+def get_buyer_repository(
+    conn: sqlite3.Connection = Depends(get_db_connection),
+) -> BuyerRepository:
     return BuyerRepository(conn)
 
 
-def get_position_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> PositionRepository:
+def get_position_repository(
+    conn: sqlite3.Connection = Depends(get_db_connection),
+) -> PositionRepository:
     return PositionRepository(conn)
 
 
-def get_auction_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> AuctionRepository:
+def get_auction_repository(
+    conn: sqlite3.Connection = Depends(get_db_connection),
+) -> AuctionRepository:
     return AuctionRepository(conn)
 
 
-def get_bid_repository(conn: sqlite3.Connection = Depends(get_db_connection)) -> BidRepository:
+def get_bid_repository(
+    conn: sqlite3.Connection = Depends(get_db_connection),
+) -> BidRepository:
     return BidRepository(conn)
 
 

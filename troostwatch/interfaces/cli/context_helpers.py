@@ -6,7 +6,7 @@ database-related functionality without directly importing infrastructure modules
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from typing import Sequence
 
 from .context import build_cli_context
 from troostwatch.infrastructure.db.repositories import (
@@ -16,7 +16,7 @@ from troostwatch.infrastructure.db.repositories import (
 )
 
 
-def load_auctions(db_path: str, active_only: bool = True) -> list[dict[str, str | None]]:
+def load_auctions(db_path: str, active_only: bool = True) -> list[dict]:
     """Load auctions from the database.
 
     Args:
@@ -47,6 +47,7 @@ def load_lots_for_auction(db_path: str, auction_code: str) -> Sequence[str]:
 
 
 def get_preference(db_path: str, key: str) -> str | None:
+def get_preference(db_path: str, key: str) -> str | None:
     """Get a preference value from the database.
 
     Args:
@@ -61,6 +62,7 @@ def get_preference(db_path: str, key: str) -> str | None:
         return PreferenceRepository(conn).get(key)
 
 
+def set_preference(db_path: str, key: str, value: str | None) -> None:
 def set_preference(db_path: str, key: str, value: str | None) -> None:
     """Set a preference value in the database.
 

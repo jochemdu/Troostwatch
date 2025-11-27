@@ -8,5 +8,6 @@ from .sync_service import SyncService  # noqa: F401
 __all__ = ["BiddingService", "BidError", "BidResult", "PositionsService"] + [
     name
     for name in dir()
-    if not name.startswith("_") and name not in {"BidError", "BidResult", "BiddingService", "PositionsService"}
+    if not name.startswith("_")
+    and name not in {"BidError", "BidResult", "BiddingService", "PositionsService"}
 ]

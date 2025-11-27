@@ -65,7 +65,9 @@ class SchemaMigrator:
         self.conn.executescript(SCHEMA_MIGRATIONS_SQL)
 
     def has_migration(self, name: str) -> bool:
-        cur = self.conn.execute("SELECT 1 FROM schema_migrations WHERE name = ?", (name,))
+        cur = self.conn.execute(
+            "SELECT 1 FROM schema_migrations WHERE name = ?", (name,)
+        )
         return cur.fetchone() is not None
 
     def record(self, name: str, notes: str | None = None) -> None:
@@ -86,7 +88,9 @@ class SchemaMigrator:
     def apply_path(self, migrations_dir: str | Path | None = None) -> None:
         self.ensure_table()
         root = Path(__file__).resolve().parents[4]
-        migrations_path = Path(migrations_dir) if migrations_dir else (root / "migrations")
+        migrations_path = (
+            Path(migrations_dir) if migrations_dir else (root / "migrations")
+        )
         if not migrations_path.exists() or not migrations_path.is_dir():
             return
 

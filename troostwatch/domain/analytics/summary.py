@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterable, List, Optional
+from typing import Iterable
 
 
 @dataclass
@@ -13,8 +13,8 @@ class TrackedLotSummary:
     lot_code: str
     title: str
     state: str
-    current_bid_eur: Optional[float]
-    max_budget_total_eur: Optional[float]
+    current_bid_eur: float | None
+    max_budget_total_eur: float | None
     track_active: bool
 
     def to_dict(self) -> dict:
@@ -35,8 +35,8 @@ class BuyerSummary:
     tracked_count: int = 0
     open_count: int = 0
     closed_count: int = 0
-    open_tracked_lots: List[TrackedLotSummary] = field(default_factory=list)
-    won_lots: List[TrackedLotSummary] = field(default_factory=list)
+    open_tracked_lots: list[TrackedLotSummary] = field(default_factory=list)
+    won_lots: list[TrackedLotSummary] = field(default_factory=list)
     open_exposure_min_eur: float = 0.0
     open_exposure_max_eur: float = 0.0
 

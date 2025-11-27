@@ -184,7 +184,9 @@ def sync(
     )
 
     service = SyncService(db_path=str(command_context.cli_context.db_path))
-    selection = service.choose_auction(auction_code=auction_code, auction_url=auction_url)
+    selection = service.choose_auction(
+        auction_code=auction_code, auction_url=auction_url
+    )
 
     resolved_code = selection.resolved_code
     resolved_url = selection.resolved_url
@@ -227,7 +229,9 @@ def sync(
         f"[blue]{resolved_url}[/blue] into {command_context.cli_context.db_path}..."
     )
     if dry_run:
-        console.print("[yellow]Dry-run enabled; no database writes will occur.[/yellow]")
+        console.print(
+            "[yellow]Dry-run enabled; no database writes will occur.[/yellow]"
+        )
 
     if command_context.http_client is not None:
         try:
@@ -262,7 +266,9 @@ def sync(
         or summary.result is None
         or summary.status != "success"
     ):
-        console.print(f"[red]Error during sync: {getattr(summary, 'error', 'onbekende fout')}[/red]")
+        console.print(
+            f"[red]Error during sync: {getattr(summary, 'error', 'onbekende fout')}[/red]"
+        )
         return
 
     result = summary.result

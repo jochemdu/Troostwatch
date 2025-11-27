@@ -21,7 +21,10 @@ from .bid import bid
 from .add_lot import add_lot
 
 
-@click.group(context_settings={"help_option_names": ["-h", "--help"]}, invoke_without_command=True)
+@click.group(
+    context_settings={"help_option_names": ["-h", "--help"]},
+    invoke_without_command=True,
+)
 @click.pass_context
 def cli(ctx: click.Context) -> None:
     """Troostwatch command-line interface."""

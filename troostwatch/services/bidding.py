@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import AbstractContextManager
-from collections.abc import Callable
+from typing import Any, Callable
 from urllib.parse import urljoin
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
@@ -63,7 +63,9 @@ class BiddingService:
         def connection_factory() -> AbstractContextManager[sqlite3.Connection]:
             return get_connection(db_path)
 
-        return cls(client, api_base_url=api_base_url, connection_factory=connection_factory)
+        return cls(
+            client, api_base_url=api_base_url, connection_factory=connection_factory
+        )
 
     def _resolve(self, path: str) -> str:
         return urljoin(self.api_base_url + "/", path.lstrip("/"))
@@ -76,6 +78,7 @@ class BiddingService:
         lot_code: str,
         amount_eur: float,
         note: str | None = None,
+        note: str | None = None,
     ) -> BidResult:
         if amount_eur <= 0:
             raise ValueError("Bid amount must be positive")
@@ -85,7 +88,7 @@ class BiddingService:
         ):
             self._logger.info("Submitting bid for %.2f EUR", amount_eur)
 
-            payload: dict[str, object] = {
+            payload: dict[str, Any] = {
                 "auctionCode": auction_code,
                 "lotCode": lot_code,
                 "amountEur": amount_eur,
@@ -119,6 +122,7 @@ class BiddingService:
         auction_code: str,
         lot_code: str,
         amount_eur: float,
+        note: str | None,
         note: str | None,
     ) -> None:
         if self._connection_factory is None:

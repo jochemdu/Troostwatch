@@ -191,9 +191,13 @@ def sync_multi(
             console.print(f"[yellow]Skipping auction without code: {entry}[/yellow]")
             continue
         if not url:
-            console.print(f"[yellow]Skipping auction {code} because no URL is stored.[/yellow]")
+            console.print(
+                f"[yellow]Skipping auction {code} because no URL is stored.[/yellow]"
+            )
             continue
-        console.print(f"\n→ Syncing auction [bold]{code}[/bold] from [blue]{url}[/blue]...")
+        console.print(
+            f"\n→ Syncing auction [bold]{code}[/bold] from [blue]{url}[/blue]..."
+        )
         try:
             summary = asyncio.run(
                 service.run_sync(
@@ -223,7 +227,9 @@ def sync_multi(
                     for err in result.errors:
                         console.print(f"    [yellow]- {err}[/yellow]")
             else:
-                console.print(f"[red]✗ Error syncing auction {code}: {summary.error}[/red]")
+                console.print(
+                    f"[red]✗ Error syncing auction {code}: {summary.error}[/red]"
+                )
         except Exception as exc:
             console.print(f"[red]✗ Error syncing auction {code}: {exc}[/red]")
     console.print("\n[green]All auctions processed.[/green]")

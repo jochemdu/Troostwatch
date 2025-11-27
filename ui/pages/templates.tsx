@@ -33,6 +33,8 @@ interface TemplateFormData {
   ean: string;
   price: string;
   parentId: number | null;
+  releaseDate: string;
+  category: string;
 }
 
 const emptyForm: TemplateFormData = {
@@ -41,6 +43,8 @@ const emptyForm: TemplateFormData = {
   ean: '',
   price: '',
   parentId: null,
+  releaseDate: '',
+  category: '',
 };
 
 export default function TemplatesPage() {
@@ -84,6 +88,8 @@ export default function TemplatesPage() {
         ean: formData.ean.trim() || null,
         price_eur: formData.price ? parseFloat(formData.price) : null,
         parent_id: parentId,
+        release_date: formData.releaseDate.trim() || null,
+        category: formData.category.trim() || null,
       };
       const created = await createSpecTemplate(data);
       setTemplates(prev => [...prev, created]);
@@ -111,6 +117,8 @@ export default function TemplatesPage() {
         value: formData.value.trim() || null,
         ean: formData.ean.trim() || null,
         price_eur: formData.price ? parseFloat(formData.price) : null,
+        release_date: formData.releaseDate.trim() || null,
+        category: formData.category.trim() || null,
       };
       const updated = await updateSpecTemplate(editingTemplate.id, data);
       setTemplates(prev => prev.map(t => t.id === updated.id ? updated : t));
@@ -150,6 +158,8 @@ export default function TemplatesPage() {
       ean: template.ean || '',
       price: template.price_eur?.toString() || '',
       parentId: template.parent_id,
+      releaseDate: template.release_date || '',
+      category: template.category || '',
     });
     setShowAddForm(false);
     setAddingChildTo(null);
@@ -205,6 +215,24 @@ export default function TemplatesPage() {
           placeholder="0.00"
         />
       </div>
+      <div className="form-row">
+        <label>Release datum</label>
+        <input 
+          type="date" 
+          value={formData.releaseDate} 
+          onChange={e => setFormData({ ...formData, releaseDate: e.target.value })}
+        />
+        <small className="muted">Wanneer kwam dit product op de markt?</small>
+      </div>
+      <div className="form-row">
+        <label>Categorie</label>
+        <input 
+          type="text" 
+          value={formData.category} 
+          onChange={e => setFormData({ ...formData, category: e.target.value })}
+          placeholder="bijv. Elektronica, Computer"
+        />
+      </div>
     </div>
   );
 
@@ -218,6 +246,8 @@ export default function TemplatesPage() {
           {template.price_eur != null && (
             <span className="template-price">€{template.price_eur.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>
           )}
+          {template.release_date && <span className="template-release-date">📅 {template.release_date}</span>}
+          {template.category && <span className="template-category">🏷️ {template.category}</span>}
         </div>
         <div className="template-actions">
           <button 
@@ -400,6 +430,8 @@ export default function TemplatesPage() {
         .template-value { color: #a0a0c0; }
         .template-ean { font-size: 0.8rem; color: #888; background: #252540; padding: 3px 8px; border-radius: 4px; }
         .template-price { font-size: 0.9rem; color: #4ade80; font-weight: 600; font-family: monospace; }
+        .template-release-date { font-size: 0.8rem; color: #a0a0c0; background: #252540; padding: 3px 8px; border-radius: 4px; }
+        .template-category { font-size: 0.8rem; color: #60a5fa; background: #252540; padding: 3px 8px; border-radius: 4px; }
         .template-actions { display: flex; gap: 8px; }
         .btn-icon { 
           background: none; 

@@ -323,6 +323,8 @@ class LotSpecResponse(BaseModel):
     value: Optional[str] = None
     ean: Optional[str] = None
     price_eur: Optional[float] = None
+    release_date: Optional[str] = None
+    category: Optional[str] = None
 
 
 class ReferencePriceResponse(BaseModel):
@@ -430,7 +432,17 @@ async def get_lot_detail(
         location_country=lot.get("location_country"),
         notes=lot.get("notes"),
         specs=[
-            LotSpecResponse(id=int(s.get("id", 0)), key=str(s.get("key", "")), value=s.get("value"))
+            LotSpecResponse(
+                id=int(s.get("id", 0)),
+                parent_id=s.get("parent_id"),
+                template_id=s.get("template_id"),
+                key=str(s.get("key", "")),
+                value=s.get("value"),
+                ean=s.get("ean"),
+                price_eur=s.get("price_eur"),
+                release_date=s.get("release_date"),
+                category=s.get("category"),
+            )
             for s in specs
         ],
         reference_prices=[
@@ -579,6 +591,8 @@ class LotSpecCreateRequest(BaseModel):
     ean: Optional[str] = None
     price_eur: Optional[float] = None
     template_id: Optional[int] = None
+    release_date: Optional[str] = None
+    category: Optional[str] = None
 
 
 @app.post("/lots/{lot_code}/specs", status_code=status.HTTP_201_CREATED, response_model=LotSpecResponse)
@@ -599,6 +613,8 @@ async def create_lot_spec(
             payload.ean,
             payload.price_eur,
             payload.template_id,
+            payload.release_date,
+            payload.category,
         )
         return LotSpecResponse(
             id=spec_id,
@@ -608,6 +624,8 @@ async def create_lot_spec(
             value=payload.value,
             ean=payload.ean,
             price_eur=payload.price_eur,
+            release_date=payload.release_date,
+            category=payload.category,
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -636,6 +654,8 @@ class SpecTemplateResponse(BaseModel):
     value: Optional[str] = None
     ean: Optional[str] = None
     price_eur: Optional[float] = None
+    release_date: Optional[str] = None
+    category: Optional[str] = None
     created_at: Optional[str] = None
 
 
@@ -646,6 +666,8 @@ class SpecTemplateCreateRequest(BaseModel):
     ean: Optional[str] = None
     price_eur: Optional[float] = None
     parent_id: Optional[int] = None
+    release_date: Optional[str] = None
+    category: Optional[str] = None
 
 
 class SpecTemplateUpdateRequest(BaseModel):
@@ -654,6 +676,8 @@ class SpecTemplateUpdateRequest(BaseModel):
     value: Optional[str] = None
     ean: Optional[str] = None
     price_eur: Optional[float] = None
+    release_date: Optional[str] = None
+    category: Optional[str] = None
 
 
 class ApplyTemplateRequest(BaseModel):
@@ -684,6 +708,8 @@ async def create_spec_template(
         ean=payload.ean,
         price_eur=payload.price_eur,
         parent_id=payload.parent_id,
+        release_date=payload.release_date,
+        category=payload.category,
     )
     return SpecTemplateResponse(
         id=template_id,
@@ -692,6 +718,8 @@ async def create_spec_template(
         value=payload.value,
         ean=payload.ean,
         price_eur=payload.price_eur,
+        release_date=payload.release_date,
+        category=payload.category,
     )
 
 
@@ -708,6 +736,8 @@ async def update_spec_template(
         value=payload.value,
         ean=payload.ean,
         price_eur=payload.price_eur,
+        release_date=payload.release_date,
+        category=payload.category,
     ):
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
     

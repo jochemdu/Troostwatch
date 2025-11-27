@@ -121,7 +121,7 @@ class LotRepository:
             return []
         
         cur = self.conn.execute(
-            "SELECT id, parent_id, template_id, title AS key, value, ean, price_eur FROM product_layers WHERE lot_id = ? ORDER BY parent_id NULLS FIRST, layer",
+            "SELECT id, parent_id, template_id, title AS key, value, ean, price_eur, release_date, category FROM product_layers WHERE lot_id = ? ORDER BY parent_id NULLS FIRST, layer",
             (lot_id,)
         )
         columns = [c[0] for c in cur.description]
@@ -253,6 +253,8 @@ class LotRepository:
         ean: Optional[str] = None,
         price_eur: Optional[float] = None,
         template_id: Optional[int] = None,
+        release_date: Optional[str] = None,
+        category: Optional[str] = None,
     ) -> int:
         """Add or update a specification for a lot. Returns the spec id."""
         lot_id = self.get_id(lot_code, auction_code)
@@ -274,8 +276,8 @@ class LotRepository:
         
         if existing:
             self.conn.execute(
-                "UPDATE product_layers SET value = ?, ean = ?, price_eur = ?, template_id = ? WHERE id = ?",
-                (value, ean, price_eur, template_id, existing[0])
+                "UPDATE product_layers SET value = ?, ean = ?, price_eur = ?, template_id = ?, release_date = ?, category = ? WHERE id = ?",
+                (value, ean, price_eur, template_id, release_date, category, existing[0])
             )
             self.conn.commit()
             return existing[0]
@@ -294,8 +296,8 @@ class LotRepository:
             next_layer = cur.fetchone()[0]
             
             cur = self.conn.execute(
-                "INSERT INTO product_layers (lot_id, parent_id, layer, title, value, ean, price_eur, template_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (lot_id, parent_id, next_layer, key, value, ean, price_eur, template_id)
+                "INSERT INTO product_layers (lot_id, parent_id, layer, title, value, ean, price_eur, template_id, release_date, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (lot_id, parent_id, next_layer, key, value, ean, price_eur, template_id, release_date, category)
             )
             self.conn.commit()
             return cur.lastrowid or 0
@@ -314,12 +316,12 @@ class LotRepository:
         """List all spec templates, optionally filtered by parent."""
         if parent_id is not None:
             cur = self.conn.execute(
-                "SELECT id, parent_id, title, value, ean, price_eur, created_at FROM spec_templates WHERE parent_id = ? ORDER BY title",
+                "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates WHERE parent_id = ? ORDER BY title",
                 (parent_id,)
             )
         else:
             cur = self.conn.execute(
-                "SELECT id, parent_id, title, value, ean, price_eur, created_at FROM spec_templates ORDER BY parent_id NULLS FIRST, title"
+                "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates ORDER BY parent_id NULLS FIRST, title"
             )
         columns = [c[0] for c in cur.description]
         return [dict(zip(columns, row)) for row in cur.fetchall()]
@@ -327,7 +329,7 @@ class LotRepository:
     def get_spec_template(self, template_id: int) -> Optional[Dict[str, Any]]:
         """Get a single spec template by id."""
         cur = self.conn.execute(
-            "SELECT id, parent_id, title, value, ean, price_eur, created_at FROM spec_templates WHERE id = ?",
+            "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates WHERE id = ?",
             (template_id,)
         )
         row = cur.fetchone()
@@ -343,11 +345,13 @@ class LotRepository:
         ean: Optional[str] = None,
         price_eur: Optional[float] = None,
         parent_id: Optional[int] = None,
+        release_date: Optional[str] = None,
+        category: Optional[str] = None,
     ) -> int:
         """Create a new spec template. Returns the new id."""
         cur = self.conn.execute(
-            "INSERT INTO spec_templates (title, value, ean, price_eur, parent_id) VALUES (?, ?, ?, ?, ?)",
-            (title, value, ean, price_eur, parent_id)
+            "INSERT INTO spec_templates (title, value, ean, price_eur, parent_id, release_date, category) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (title, value, ean, price_eur, parent_id, release_date, category)
         )
         self.conn.commit()
         return cur.lastrowid or 0
@@ -359,6 +363,8 @@ class LotRepository:
         value: Optional[str] = None,
         ean: Optional[str] = None,
         price_eur: Optional[float] = None,
+        release_date: Optional[str] = None,
+        category: Optional[str] = None,
     ) -> bool:
         """Update a spec template. Returns True if updated."""
         updates = []
@@ -375,6 +381,12 @@ class LotRepository:
         if price_eur is not None:
             updates.append("price_eur = ?")
             params.append(price_eur)
+        if release_date is not None:
+            updates.append("release_date = ?")
+            params.append(release_date)
+        if category is not None:
+            updates.append("category = ?")
+            params.append(category)
         
         if not updates:
             return True
@@ -416,6 +428,8 @@ class LotRepository:
             ean=template.get("ean"),
             price_eur=template.get("price_eur"),
             template_id=template_id,
+            release_date=template.get("release_date"),
+            category=template.get("category"),
         )
 
     def upsert_from_parsed(

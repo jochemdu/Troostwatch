@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { LotDetailResponse, ReferencePrice, ReferencePriceCreateRequest, LotSpec, LotSpecCreateRequest, SpecTemplate } from '../lib/api';
 import { fetchLotDetail, updateLot, addReferencePrice, deleteReferencePrice, addLotSpec, deleteLotSpec, fetchSpecTemplates, createSpecTemplate, applyTemplateToLot } from '../lib/api';
 
@@ -54,6 +54,8 @@ interface NewSpecForm {
   parentId: number | null;
   ean: string;
   price: string;
+  releaseDate: string;
+  category: string;
   saveAsTemplate: boolean;
 }
 
@@ -63,6 +65,8 @@ const emptySpecForm: NewSpecForm = {
   parentId: null,
   ean: '',
   price: '',
+  releaseDate: '',
+  category: '',
   saveAsTemplate: false,
 };
 
@@ -85,6 +89,31 @@ function buildSpecTree(specs: LotSpec[]): SpecNode[] {
     const node = map.get(spec.id)!;
     if (spec.parent_id && map.has(spec.parent_id)) {
       map.get(spec.parent_id)!.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
+}
+
+// Helper to build a tree structure from flat templates
+interface TemplateNode extends SpecTemplate {
+  children: TemplateNode[];
+}
+
+function buildTemplateTree(templates: SpecTemplate[]): TemplateNode[] {
+  const map = new Map<number, TemplateNode>();
+  const roots: TemplateNode[] = [];
+
+  for (const template of templates) {
+    map.set(template.id, { ...template, children: [] });
+  }
+
+  for (const template of templates) {
+    const node = map.get(template.id)!;
+    if (template.parent_id && map.has(template.parent_id)) {
+      map.get(template.parent_id)!.children.push(node);
     } else {
       roots.push(node);
     }
@@ -118,6 +147,7 @@ export default function LotEditModal(props: Props) {
   const [addingSubspecTo, setAddingSubspecTo] = useState<number | null>(null);
   const [specTemplates, setSpecTemplates] = useState<SpecTemplate[]>(providedTemplates ?? []);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [templateParentId, setTemplateParentId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isOpen || providedLot) return;
@@ -212,6 +242,8 @@ export default function LotEditModal(props: Props) {
         parent_id: parentId,
         ean: specForm.ean.trim() || undefined,
         price_eur: specForm.price ? parseFloat(specForm.price) : undefined,
+        release_date: specForm.releaseDate.trim() || undefined,
+        category: specForm.category.trim() || undefined,
       };
       const created = await addLotSpec(lotCode, data, auctionCode);
       setSpecs((prev) => [...prev, created]);
@@ -224,6 +256,8 @@ export default function LotEditModal(props: Props) {
           ean: specForm.ean.trim() || null,
           price_eur: specForm.price ? parseFloat(specForm.price) : null,
           parent_id: null,
+          release_date: specForm.releaseDate.trim() || null,
+          category: specForm.category.trim() || null,
         });
         setSpecTemplates(prev => [...prev, template]);
       }
@@ -271,6 +305,37 @@ export default function LotEditModal(props: Props) {
   // Get root-level specs for the parent dropdown
   const rootSpecs = specs.filter(s => s.parent_id === null);
   const specTree = buildSpecTree(specs);
+  const templateTree = buildTemplateTree(specTemplates);
+
+  // Render a template node with indentation
+  const renderTemplateNode = (template: TemplateNode, depth: number): React.ReactNode => (
+    <div key={template.id} className="template-node">
+      <button 
+        className={`template-btn depth-${depth}`}
+        onClick={async () => {
+          try {
+            const created = await applyTemplateToLot(lotCode, template.id, templateParentId, auctionCode);
+            setSpecs(prev => [...prev, created]);
+            setShowTemplateSelector(false);
+            setTemplateParentId(null);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Kon template niet toepassen');
+          }
+        }}
+      >
+        <span className="template-title">{template.title}</span>
+        {template.value && <span className="template-value">{template.value}</span>}
+        {template.ean && <span className="template-ean">📦 {template.ean}</span>}
+        {template.price_eur != null && <span className="template-price">€{template.price_eur.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>}
+        {template.children.length > 0 && <span className="template-children-count">+{template.children.length} sub</span>}
+      </button>
+      {template.children.length > 0 && (
+        <div className="template-children">
+          {template.children.map(child => renderTemplateNode(child, depth + 1))}
+        </div>
+      )}
+    </div>
+  );
 
   const renderSpecRow = (spec: SpecNode, depth: number = 0) => (
     <div key={spec.id}>
@@ -279,6 +344,8 @@ export default function LotEditModal(props: Props) {
         <span className="spec-value">{spec.value ?? '—'}</span>
         {spec.ean && <span className="spec-ean" title="EAN">📦 {spec.ean}</span>}
         {spec.price_eur != null && <span className="spec-price">€{spec.price_eur.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>}
+        {spec.release_date && <span className="spec-release-date" title="Release datum">📅 {spec.release_date}</span>}
+        {spec.category && <span className="spec-category" title="Categorie">🏷️ {spec.category}</span>}
         {spec.template_id && <span className="spec-template" title="Gebaseerd op template">📋</span>}
         <div className="spec-actions">
           <button 
@@ -343,6 +410,23 @@ export default function LotEditModal(props: Props) {
                 value={newSpec.price} 
                 onChange={(e) => setNewSpec({ ...newSpec, price: e.target.value })} 
                 placeholder="0.00" 
+              />
+            </div>
+            <div className="form-row">
+              <label>Release datum</label>
+              <input 
+                type="date"
+                value={newSpec.releaseDate} 
+                onChange={(e) => setNewSpec({ ...newSpec, releaseDate: e.target.value })} 
+              />
+            </div>
+            <div className="form-row">
+              <label>Categorie</label>
+              <input 
+                type="text"
+                value={newSpec.category} 
+                onChange={(e) => setNewSpec({ ...newSpec, category: e.target.value })} 
+                placeholder="bijv. Elektronica" 
               />
             </div>
           </div>
@@ -470,28 +554,27 @@ export default function LotEditModal(props: Props) {
                 {showTemplateSelector && specTemplates.length > 0 && (
                   <div className="template-selector">
                     <p className="muted" style={{ marginBottom: 8 }}>Kies een template om toe te passen:</p>
-                    <div className="template-list">
-                      {specTemplates.filter(t => !t.parent_id).map(template => (
-                        <button 
-                          key={template.id} 
-                          className="template-btn"
-                          onClick={async () => {
-                            try {
-                              const created = await applyTemplateToLot(lotCode, template.id, null, auctionCode);
-                              setSpecs(prev => [...prev, created]);
-                              setShowTemplateSelector(false);
-                            } catch (err) {
-                              setError(err instanceof Error ? err.message : 'Kon template niet toepassen');
-                            }
-                          }}
+                    
+                    {/* Parent selector for where to add the template */}
+                    {rootSpecs.length > 0 && (
+                      <div className="form-row" style={{ marginBottom: 12 }}>
+                        <label>Toevoegen onder:</label>
+                        <select 
+                          value={templateParentId ?? ''} 
+                          onChange={(e) => setTemplateParentId(e.target.value ? parseInt(e.target.value) : null)}
                         >
-                          {template.title}
-                          {template.ean && <span className="template-ean">EAN: {template.ean}</span>}
-                          {template.price_eur && <span className="template-price">€{template.price_eur}</span>}
-                        </button>
-                      ))}
+                          <option value="">— Hoofdspecificatie —</option>
+                          {rootSpecs.map((s) => (
+                            <option key={s.id} value={s.id}>{s.key}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="template-tree">
+                      {buildTemplateTree(specTemplates).map(template => renderTemplateNode(template, 0))}
                     </div>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowTemplateSelector(false)} style={{ marginTop: 8 }}>Annuleren</button>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowTemplateSelector(false); setTemplateParentId(null); }} style={{ marginTop: 8 }}>Annuleren</button>
                   </div>
                 )}
 
@@ -517,6 +600,15 @@ export default function LotEditModal(props: Props) {
                       <div className="form-row">
                         <label>Prijs (€)</label>
                         <input type="number" step="0.01" min="0" value={newSpec.price} onChange={(e) => setNewSpec({ ...newSpec, price: e.target.value })} placeholder="0.00" />
+                      </div>
+                      <div className="form-row">
+                        <label>Release datum</label>
+                        <input type="date" value={newSpec.releaseDate} onChange={(e) => setNewSpec({ ...newSpec, releaseDate: e.target.value })} />
+                        <small className="muted">Wanneer kwam dit product op de markt?</small>
+                      </div>
+                      <div className="form-row">
+                        <label>Categorie</label>
+                        <input type="text" value={newSpec.category} onChange={(e) => setNewSpec({ ...newSpec, category: e.target.value })} placeholder="bijv. Elektronica, Computer" />
                       </div>
                     </div>
                     {rootSpecs.length > 0 && (
@@ -621,11 +713,31 @@ export default function LotEditModal(props: Props) {
         .btn-add-sub:hover:not(:disabled) { background: #444; color: #fff; border-color: #666; }
         .btn-add-sub:disabled { opacity: 0.3; cursor: not-allowed; }
         .template-selector { background: #252540; border: 1px solid #444; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
-        .template-list { display: flex; flex-wrap: wrap; gap: 8px; }
-        .template-btn { background: #1a1a2e; border: 1px solid #444; border-radius: 4px; padding: 8px 12px; color: #e0e0e0; cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+        .template-tree { display: flex; flex-direction: column; gap: 4px; }
+        .template-node { }
+        .template-btn { 
+          width: 100%;
+          background: #1a1a2e; 
+          border: 1px solid #444; 
+          border-radius: 4px; 
+          padding: 10px 12px; 
+          color: #e0e0e0; 
+          cursor: pointer; 
+          display: flex; 
+          align-items: center;
+          gap: 12px; 
+          text-align: left;
+        }
         .template-btn:hover { background: #2a2a4e; border-color: #6366f1; }
-        .template-ean { font-size: 0.7rem; color: #888; }
-        .template-price { font-size: 0.75rem; color: #4ade80; }
+        .template-btn.depth-1 { margin-left: 24px; background: #151528; }
+        .template-btn.depth-2 { margin-left: 48px; background: #121225; }
+        .template-btn.depth-3 { margin-left: 72px; background: #0f0f20; }
+        .template-title { font-weight: 500; }
+        .template-value { color: #a0a0c0; }
+        .template-ean { font-size: 0.75rem; color: #888; }
+        .template-price { font-size: 0.8rem; color: #4ade80; font-weight: 600; }
+        .template-children-count { font-size: 0.7rem; color: #6366f1; background: #2a2a5e; padding: 2px 6px; border-radius: 3px; margin-left: auto; }
+        .template-children { margin-top: 4px; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 20px; border-top: 1px solid #333; }
         .btn { padding: 8px 16px; border-radius: 4px; font-size: 0.9rem; cursor: pointer; border: none; }
         .btn-sm { padding: 4px 12px; font-size: 0.8rem; }

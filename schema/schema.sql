@@ -1,4 +1,4 @@
--- Troostwatch schema version: 6
+-- Troostwatch schema version: 7
 -- SQLite schema for Troostwatch
 --
 -- This file is the canonical source of truth for new databases. The schema
@@ -181,12 +181,15 @@ CREATE TABLE IF NOT EXISTS spec_templates (
     value TEXT,
     ean TEXT,
     price_eur REAL,
+    release_date TEXT,
+    category TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT,
     FOREIGN KEY (parent_id) REFERENCES spec_templates (id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_spec_templates_parent_id ON spec_templates (parent_id);
 CREATE INDEX IF NOT EXISTS idx_spec_templates_ean ON spec_templates (ean);
+CREATE INDEX IF NOT EXISTS idx_spec_templates_category ON spec_templates (category);
 
 CREATE TABLE IF NOT EXISTS product_layers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -198,6 +201,8 @@ CREATE TABLE IF NOT EXISTS product_layers (
     value TEXT,
     ean TEXT,
     price_eur REAL,
+    release_date TEXT,
+    category TEXT,
     FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE,
     FOREIGN KEY (parent_id) REFERENCES product_layers (id) ON DELETE CASCADE,
     FOREIGN KEY (template_id) REFERENCES spec_templates (id) ON DELETE SET NULL
@@ -205,6 +210,7 @@ CREATE TABLE IF NOT EXISTS product_layers (
 CREATE INDEX IF NOT EXISTS idx_product_layers_lot_id ON product_layers (lot_id);
 CREATE INDEX IF NOT EXISTS idx_product_layers_parent_id ON product_layers (parent_id);
 CREATE INDEX IF NOT EXISTS idx_product_layers_template_id ON product_layers (template_id);
+CREATE INDEX IF NOT EXISTS idx_product_layers_category ON product_layers (category);
 
 -- Table for storing multiple reference prices per lot from different sources
 CREATE TABLE IF NOT EXISTS reference_prices (

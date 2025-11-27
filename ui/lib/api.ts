@@ -39,6 +39,8 @@ export interface LotSpec {
   value: string | null;
   ean: string | null;
   price_eur: number | null;
+  release_date: string | null;
+  category: string | null;
 }
 
 /**
@@ -64,6 +66,8 @@ export interface SpecTemplate {
   value: string | null;
   ean: string | null;
   price_eur: number | null;
+  release_date: string | null;
+  category: string | null;
   created_at?: string | null;
 }
 
@@ -273,6 +277,8 @@ export interface LotSpecCreateRequest {
   ean?: string | null;
   price_eur?: number | null;
   template_id?: number | null;
+  release_date?: string | null;
+  category?: string | null;
 }
 
 /**
@@ -284,6 +290,8 @@ export interface SpecTemplateCreateRequest {
   ean?: string | null;
   price_eur?: number | null;
   parent_id?: number | null;
+  release_date?: string | null;
+  category?: string | null;
 }
 
 /**
@@ -370,6 +378,8 @@ export interface SpecTemplateUpdateRequest {
   value?: string | null;
   ean?: string | null;
   price_eur?: number | null;
+  release_date?: string | null;
+  category?: string | null;
 }
 
 /**

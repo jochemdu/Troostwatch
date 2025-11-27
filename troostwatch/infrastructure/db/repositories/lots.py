@@ -112,8 +112,7 @@ class LotRepository(BaseRepository):
         lot_id = self.get_id(lot_code, auction_code)
         if not lot_id:
             return []
-        
-            return self._fetch_all_as_dicts(
+        return self._fetch_all_as_dicts(
                 "SELECT id, parent_id, template_id, title AS key, value, ean, price_eur, release_date, category FROM product_layers WHERE lot_id = ? ORDER BY parent_id NULLS FIRST, layer",
                 (lot_id,)
             )

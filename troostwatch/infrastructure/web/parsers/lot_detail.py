@@ -220,6 +220,7 @@ def _parse_bid_history(lot: dict) -> list[BidHistoryEntry]:
         bidder = bid.get("bidderLabel") or bid.get("bidder") or ""
         amount_data = bid.get("amount") or bid.get("bidAmount") or {}
 
+        amount_eur: float | None = None
         if isinstance(amount_data, dict):
             amount = amount_data.get("amount")
             if amount is not None:
@@ -229,8 +230,6 @@ def _parse_bid_history(lot: dict) -> list[BidHistoryEntry]:
                 amount_eur = utils.parse_eur_to_float(str(display))
         elif isinstance(amount_data, (int, float)):
             amount_eur = float(amount_data) / 100
-        else:
-            amount_eur = None
 
         timestamp = utils.epoch_to_iso(bid.get("timestamp") or bid.get("time"))
 

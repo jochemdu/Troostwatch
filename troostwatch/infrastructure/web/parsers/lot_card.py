@@ -87,14 +87,16 @@ def parse_lot_card(html: str, auction_code: str, base_url: str | None = None) ->
         display_id = _text("display-id-text")
         title_link = card.find(attrs={"data-cy": "title-link"})
         title = utils.extract_text(title_link)
-        url = title_link.get("href", "") if title_link else ""
+        href = title_link.get("href", "") if title_link else ""
+        url = str(href) if isinstance(href, str) else (href[0] if href else "")
         if base_url and url.startswith("/"):
             url = base_url.rstrip("/") + url
 
         # Extract lot number from URL, fallback to display_id
         lot_code = _extract_lot_number_from_url(url) or display_id
 
-        state_text = (_text("state-chip") or (card.get("data-state") or "")).strip().lower()
+        state_attr = card.get("data-state") if hasattr(card, "get") else None
+        state_text = (_text("state-chip") or (str(state_attr) if state_attr else "")).strip().lower()
         state: Optional[str]
         if state_text.startswith("run"):
             state = "running"
@@ -256,7 +258,7 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
 
         for page_num in range(2, total_pages_int + 1):
             query = base_query.copy()
-            query["page"] = page_num
+            query["page"] = str(page_num)
             page_urls.append(
                 urlunsplit(
                     (

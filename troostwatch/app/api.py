@@ -6,7 +6,7 @@ Run with ``uvicorn troostwatch.app.api:app``.
 from __future__ import annotations
 
 import asyncio
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from fastapi import (
     Depends,
@@ -36,6 +36,7 @@ from troostwatch.services.lots import LotInput, LotManagementService, LotView, L
 from troostwatch.services.reporting import ReportingService
 from troostwatch.services.sync_service import SyncService
 from troostwatch.services.dto import PositionDTO, PositionUpdateDTO, BuyerDTO, BuyerCreateDTO, LotViewDTO
+from troostwatch.services.positions import PositionUpdateData
 
 
 class LotEventBus:
@@ -929,7 +930,7 @@ async def upsert_positions(
 ) -> PositionBatchResponse:
     try:
         updates = [
-            PositionUpdateDTO(
+            PositionUpdateData(
                 buyer_label=update.buyer_label,
                 lot_code=update.lot_code,
                 auction_code=update.auction_code,
@@ -943,9 +944,9 @@ async def upsert_positions(
             repository=repository, updates=updates, event_publisher=event_bus.publish
         )
         return PositionBatchResponse(
-            updated=result.get("updated", 0),
-            created=result.get("created", 0),
-            errors=result.get("errors", []),
+            updated=cast(int, result.get("updated", 0)),
+            created=cast(int, result.get("created", 0)),
+            errors=cast(List[str], result.get("errors", [])),
         )
     except ValueError as exc:  # raised when buyer or lot not found
         raise HTTPException(
@@ -1050,6 +1051,20 @@ def get_bid_repository() -> BidRepository:
     return BidRepository(conn)
 
 
+def _bid_row_to_response(bid: dict[str, Any]) -> BidResponse:
+    """Convert a bid repository row to a BidResponse."""
+    return BidResponse(
+        id=cast(int, bid.get("id", 0)),
+        buyer_label=str(bid.get("buyer_label", "")),
+        lot_code=str(bid.get("lot_code", "")),
+        auction_code=str(bid.get("auction_code", "")),
+        lot_title=str(bid["lot_title"]) if bid.get("lot_title") else None,
+        amount_eur=cast(float, bid.get("amount_eur", 0.0)),
+        placed_at=str(bid.get("placed_at", "")),
+        note=str(bid["note"]) if bid.get("note") else None,
+    )
+
+
 @app.get("/bids", response_model=List[BidResponse])
 async def list_bids(
     buyer: Optional[str] = Query(None, description="Filter by buyer label"),
@@ -1059,19 +1074,7 @@ async def list_bids(
     """List recorded bids with optional filters."""
     repo = get_bid_repository()
     bids = repo.list(buyer_label=buyer, lot_code=lot_code, limit=limit)
-    return [
-        BidResponse(
-            id=int(bid.get("id", 0)),
-            buyer_label=str(bid.get("buyer_label", "")),
-            lot_code=str(bid.get("lot_code", "")),
-            auction_code=str(bid.get("auction_code", "")),
-            lot_title=bid.get("lot_title"),
-            amount_eur=float(bid.get("amount_eur", 0)),
-            placed_at=str(bid.get("placed_at", "")),
-            note=bid.get("note"),
-        )
-        for bid in bids
-    ]
+    return [_bid_row_to_response(bid) for bid in bids]
 
 
 @app.post("/bids", status_code=status.HTTP_201_CREATED, response_model=BidResponse)
@@ -1096,17 +1099,7 @@ async def create_bid(payload: BidCreateRequest) -> BidResponse:
     if not bids:
         raise HTTPException(status_code=500, detail="Bid created but not found")
     
-    bid = bids[0]
-    return BidResponse(
-        id=int(bid.get("id", 0)),
-        buyer_label=str(bid.get("buyer_label", "")),
-        lot_code=str(bid.get("lot_code", "")),
-        auction_code=str(bid.get("auction_code", "")),
-        lot_title=bid.get("lot_title"),
-        amount_eur=float(bid.get("amount_eur", 0)),
-        placed_at=str(bid.get("placed_at", "")),
-        note=bid.get("note"),
-    )
+    return _bid_row_to_response(bids[0])
 
 
 # =============================================================================
@@ -1393,13 +1386,13 @@ async def trigger_sync(
     # Convert nested result if present
     result_data = summary_dict.get("result")
     result = None
-    if result_data:
+    if result_data and isinstance(result_data, dict):
         result = SyncRunResultResponse(**result_data)
     return SyncSummaryResponse(
-        status=summary_dict.get("status", "error"),
-        auction_code=summary_dict.get("auction_code"),
+        status=str(summary_dict.get("status") or "error"),
+        auction_code=str(summary_dict.get("auction_code")) if summary_dict.get("auction_code") else None,
         result=result,
-        error=summary_dict.get("error"),
+        error=str(summary_dict.get("error")) if summary_dict.get("error") else None,
     )
 
 
@@ -1415,8 +1408,8 @@ async def start_live_sync(
         interval_seconds=request.interval_seconds,
     )
     return LiveSyncControlResponse(
-        state=result.get("state", "unknown"),
-        detail=result.get("detail"),
+        state=str(result.get("state") or "unknown"),
+        detail=str(result.get("detail")) if result.get("detail") else None,
     )
 
 
@@ -1426,8 +1419,8 @@ async def pause_live_sync(
 ) -> LiveSyncControlResponse:
     result = await service.pause_live_sync()
     return LiveSyncControlResponse(
-        state=result.get("state", "unknown"),
-        detail=result.get("detail"),
+        state=str(result.get("state") or "unknown"),
+        detail=str(result.get("detail")) if result.get("detail") else None,
     )
 
 
@@ -1437,8 +1430,8 @@ async def stop_live_sync(
 ) -> LiveSyncControlResponse:
     result = await service.stop_live_sync()
     return LiveSyncControlResponse(
-        state=result.get("state", "unknown"),
-        detail=result.get("detail"),
+        state=str(result.get("state") or "unknown"),
+        detail=str(result.get("detail")) if result.get("detail") else None,
     )
 
 

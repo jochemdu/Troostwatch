@@ -119,7 +119,7 @@ class BaseRepository:
             42
         """
         cur = self.conn.execute(query, params or ())
-        return cur.lastrowid
+        return cur.lastrowid or 0
 
     def _execute(
         self, query: str, params: Optional[Tuple[Any, ...]] = None

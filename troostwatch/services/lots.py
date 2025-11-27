@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Mapping, Optional
 
 from pydantic import BaseModel, Field
 
@@ -33,10 +33,10 @@ class LotView(BaseModel):
     model_config = {"from_attributes": True}
 
     @classmethod
-    def from_record(cls, record: dict[str, object]) -> "LotView":
+    def from_record(cls, record: Mapping[str, object]) -> "LotView":
         """Create a LotView from a database record."""
         # Use domain model for business logic
-        lot = Lot.from_dict(record)
+        lot = Lot.from_dict(dict(record))
 
         return cls.model_validate({
             "auction_code": record["auction_code"],
@@ -131,28 +131,12 @@ class LotViewService:
         lots = self.list_domain_lots(auction_code=auction_code, limit=limit)
         return [lot for lot in lots if lot.is_active]
 
-    def _to_dtos(self, rows: Iterable[dict[str, object]]) -> List[LotView]:
+    def _to_dtos(self, rows: Iterable[Mapping[str, object]]) -> List[LotView]:
         return [LotView.from_record(row) for row in rows]
 
 
-@dataclass
-class LotInput:
-    """Input data for adding/updating a lot."""
-
-    auction_code: str
-    lot_code: str
-    title: str
-    url: Optional[str] = None
-    state: Optional[str] = None
-    opens_at: Optional[str] = None
-    closing_time: Optional[str] = None
-    bid_count: Optional[int] = None
-    opening_bid_eur: Optional[float] = None
-    current_bid_eur: Optional[float] = None
-    location_city: Optional[str] = None
-    location_country: Optional[str] = None
-    auction_title: Optional[str] = None
-    auction_url: Optional[str] = None
+# Alias for backwards compatibility - prefer LotInputDTO in new code
+LotInput = LotInputDTO
 
 
 class LotManagementService:

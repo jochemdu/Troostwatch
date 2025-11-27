@@ -26,7 +26,11 @@ async def sync_auction(
         dry_run=dry_run,
     )
 
-    payload = {"type": "sync_finished", "auction_code": auction_code, "result": asdict(result)}
+    payload: dict[str, object] = {
+        "type": "sync_finished",
+        "auction_code": auction_code,
+        "result": asdict(result),
+    }
     if event_publisher:
         await event_publisher(payload)
     return payload

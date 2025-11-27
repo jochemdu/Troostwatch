@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from troostwatch.infrastructure.db.repositories import BuyerRepository
 from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
@@ -12,6 +12,16 @@ _logger = get_logger(__name__)
 
 class BuyerAlreadyExistsError(Exception):
     """Raised when attempting to create a buyer with a duplicate label."""
+
+
+def _row_to_dto(row: dict[str, Any]) -> BuyerDTO:
+    """Convert a database row to a BuyerDTO with proper type coercion."""
+    return BuyerDTO(
+        id=int(row["id"]),
+        label=str(row["label"]),
+        name=str(row["name"]) if row.get("name") else None,
+        notes=str(row["notes"]) if row.get("notes") else None,
+    )
 
 
 class BuyerService:
@@ -26,7 +36,7 @@ class BuyerService:
     def list_buyers(self) -> list[BuyerDTO]:
         buyers = self._repository.list()
         _logger.debug("Listed %d buyers", len(buyers))
-        return [BuyerDTO(**buyer) for buyer in buyers]
+        return [_row_to_dto(buyer) for buyer in buyers]
 
     async def create_buyer(
         self,
@@ -59,7 +69,7 @@ class BuyerService:
         await self._event_publisher(payload)
 
 
-def list_buyers(repository: BuyerRepository) -> list[dict[str, int | str | None]]:
+def list_buyers(repository: BuyerRepository) -> list[BuyerDTO]:
     return BuyerService(repository).list_buyers()
 
 
@@ -70,7 +80,7 @@ async def create_buyer(
     name: Optional[str] = None,
     notes: Optional[str] = None,
     event_publisher: EventPublisher | None = None,
-) -> dict[str, str]:
+) -> BuyerCreateDTO:
     service = BuyerService(repository, event_publisher)
     return await service.create_buyer(label=label, name=name, notes=notes)
 

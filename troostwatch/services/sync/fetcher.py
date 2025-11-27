@@ -141,15 +141,16 @@ class HttpFetcher:
         await self.rate_limiter.wait_async(host)
         for attempt in range(self.retry_attempts):
             try:
+                timeout = aiohttp.ClientTimeout(total=self.timeout_seconds)
                 async with session.get(
-                    url, headers=self.headers, timeout=self.timeout_seconds
+                    url, headers=self.headers, timeout=timeout
                 ) as resp:
                     if resp.status >= 400:
                         raise aiohttp.ClientResponseError(
                             resp.request_info,
                             resp.history,
                             status=resp.status,
-                            message=resp.reason,
+                            message=resp.reason or "",
                         )
                     text = await resp.text()
                     return RequestResult(url=url, text=text, error=None, status=resp.status)

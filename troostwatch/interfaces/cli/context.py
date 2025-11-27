@@ -15,12 +15,13 @@ from typing import Callable, ContextManager, Iterator, TypeVar
 from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.db import ensure_schema, get_connection, get_path_config, iso_utcnow
 from troostwatch.infrastructure.db.repositories import AuctionRepository, BuyerRepository, LotRepository
+from troostwatch.infrastructure.db.repositories.base import BaseRepository
 from troostwatch.services.buyers import BuyerService
 from troostwatch.services.lots import LotManagementService, LotViewService
 
 from .auth import build_http_client
 
-RepositoryT = TypeVar("RepositoryT")
+RepositoryT = TypeVar("RepositoryT", bound=BaseRepository)
 
 
 @dataclass(frozen=True)

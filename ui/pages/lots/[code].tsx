@@ -196,7 +196,7 @@ export default function LotDetailPage() {
               {(() => {
                 const specTree = buildSpecTree(lot.specs);
                 
-                const renderSpecNode = (node: SpecNode, depth: number = 0): JSX.Element => (
+                const renderSpecNode = (node: SpecNode, depth: number = 0): React.ReactElement => (
                   <div key={node.id} className="spec-item">
                     <div 
                       className="spec-row" 

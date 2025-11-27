@@ -25,8 +25,9 @@ description = "Scrape Troostwijk auctions, track bids, analyse exposure and view
 # ensures that the README renders correctly on package indexes.
 readme = "README.md"
 # The minimum Python version required.  Troostwatch uses modern type hints
-# and dataclasses, so Python 3.10 or newer is recommended.
-requires-python = ">=3.10"
+# and dataclasses, so Python 3.11 or newer is recommended. Python 3.14 is
+# supported when available.
+requires-python = ">=3.11"
 # The project’s license.  If you intend to publish, replace with the
 # appropriate SPDX identifier or a license file.
 license = { text = "MIT" }
@@ -43,14 +44,16 @@ authors = [
 # improved command‑line output.  These versions are kept broad so they will
 # resolve correctly on most systems.
 dependencies = [
-  "click>=8.0",
-  "beautifulsoup4>=4.10",  # for robust HTML parsing
-  "requests>=2.31",        # HTTP client (alternative to urllib)
-  "rich>=13.4",            # fancy CLI output (tables, colours)
-  "aiohttp>=3.9",          # async HTTP client for concurrent fetching
-  "PyYAML>=5.0",           # YAML parsing for multi-sync
-  "fastapi>=0.110",        # REST API and WebSocket support
-  "uvicorn>=0.20",         # ASGI server for the FastAPI app
+  "click>=8.3",
+  "beautifulsoup4>=4.14",  # for robust HTML parsing
+  "requests>=2.32",        # HTTP client (alternative to urllib)
+  "rich>=14.0",            # fancy CLI output (tables, colours)
+  "aiohttp>=3.13",         # async HTTP client for concurrent fetching
+  "PyYAML>=6.0",           # YAML parsing for multi-sync
+  "fastapi>=0.122",        # REST API and WebSocket support
+  "uvicorn>=0.38",         # ASGI server for the FastAPI app
+  "websockets>=15.0",      # WebSocket support
+  "pydantic>=2.12",        # data validation
 ]
 
 [project.optional-dependencies]
@@ -59,11 +62,11 @@ dependencies = [
 # testing, linting and static analysis.  A separate "docs" group adds
 # dependencies useful for building documentation.
 dev = [
-  "pytest>=7.0",
-  "black>=23.0",
-  "flake8>=6.0",
-  "mypy>=1.2",
-  "import-linter>=2.0",
+  "pytest>=9.0",
+  "black>=24.0",
+  "flake8>=7.0",
+  "mypy>=1.13",
+  "import-linter>=2.1",
 ]
 docs = [
   "markdown-it-py>=2.2",  # used for rendering markdown in documentation builds

@@ -202,7 +202,7 @@ See `docs/api.md` for the full TypeScript types documentation.
 
 ## Python best practices
 
-- Target Python 3.11+; use type hints everywhere and prefer `dataclasses` or
+- Target Python 3.11+ (3.14 supported when available); use type hints everywhere and prefer `dataclasses` or
   `pydantic` models for structured data.
 - Avoid circular imports by isolating constants and interfaces in helper
   modules when necessary.

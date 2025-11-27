@@ -173,8 +173,8 @@ export default function LotsPage() {
         </div>
       </div>
 
-      {/* Search Results or Filters */}
-      {searchResults !== null ? (
+      {/* Search Results */}
+      {searchResults !== null && (
         <div className="panel" style={{ marginBottom: 18 }}>
           <h2 style={{ marginTop: 0 }}>Zoekresultaten ({searchResults.length})</h2>
           {searchResults.length === 0 ? (
@@ -203,90 +203,68 @@ export default function LotsPage() {
               ))}
             </div>
           )}
-          <style jsx>{`
-            .search-results { display: flex; flex-direction: column; gap: 8px; }
-            .search-result-item {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              padding: 12px 16px;
-              background: #252540;
-              border-radius: 6px;
-              text-decoration: none;
-              color: inherit;
-              transition: background 0.2s;
-            }
-            .search-result-item:hover { background: #333355; }
-            .result-main { display: flex; align-items: center; gap: 12px; flex: 1; }
-            .result-code { font-family: monospace; color: #888; min-width: 100px; }
-            .result-title { color: #fff; }
-            .result-brand { font-size: 0.85rem; color: #a0a0c0; }
-            .result-meta { display: flex; align-items: center; gap: 12px; }
-            .result-state { font-size: 0.8rem; padding: 2px 8px; border-radius: 4px; background: #333; }
-            .result-state.running { background: #166534; color: #4ade80; }
-            .result-state.scheduled { background: #854d0e; color: #fbbf24; }
-            .result-state.closed { background: #374151; color: #9ca3af; }
-            .result-price { font-family: monospace; color: #4ade80; }
-            .result-match { font-size: 0.75rem; color: #666; }
-          `}</style>
         </div>
-      ) : (
-      <div className="panel" style={{ marginBottom: 18 }}>
-        <h2 style={{ marginTop: 0 }}>Filters</h2>
-        <div className="form-row">
-          <div>
-            <label>Status</label>
-            <div className="controls">
-              <button
-                className={`button ${stateFilter === undefined ? 'primary' : ''}`}
-                onClick={() => setStateFilter(undefined)}
-              >
-                Alle
-              </button>
-              {STATE_OPTIONS.map((state) => (
-                <button
-                  key={state}
-                  className={`button ${stateFilter === state ? 'primary' : ''}`}
-                  onClick={() => setStateFilter(state)}
-                >
-                  {state}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label>Veiling code</label>
-            <input
-              value={auctionFilter}
-              onChange={(event) => setAuctionFilter(event.target.value)}
-              placeholder="bijv. ABC123"
-            />
-          </div>
-          <div>
-            <label>Merk</label>
-            <input
-              value={brandFilter}
-              onChange={(event) => setBrandFilter(event.target.value)}
-              placeholder="bijv. Caterpillar"
-              list="brand-options"
-            />
-            <datalist id="brand-options">
-              {availableBrands.map((brand) => (
-                <option key={brand} value={brand} />
-              ))}
-            </datalist>
-          </div>
-          <div>
-            <label>&nbsp;</label>
-            <button className="button" onClick={refreshLots} disabled={loading}>
-              Ververs
-            </button>
-          </div>
-        </div>
-        {feedback && <p className="muted" style={{ marginTop: 12 }}>{feedback}</p>}
-      </div>
       )}
 
+      {/* Filters */}
+      {searchResults === null && (
+        <div className="panel" style={{ marginBottom: 18 }}>
+          <h2 style={{ marginTop: 0 }}>Filters</h2>
+          <div className="form-row">
+            <div>
+              <label>Status</label>
+              <div className="controls">
+                <button
+                  className={`button ${stateFilter === undefined ? 'primary' : ''}`}
+                  onClick={() => setStateFilter(undefined)}
+                >
+                  Alle
+                </button>
+                {STATE_OPTIONS.map((state) => (
+                  <button
+                    key={state}
+                    className={`button ${stateFilter === state ? 'primary' : ''}`}
+                    onClick={() => setStateFilter(state)}
+                  >
+                    {state}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label>Veiling code</label>
+              <input
+                value={auctionFilter}
+                onChange={(event) => setAuctionFilter(event.target.value)}
+                placeholder="bijv. ABC123"
+              />
+            </div>
+            <div>
+              <label>Merk</label>
+              <input
+                value={brandFilter}
+                onChange={(event) => setBrandFilter(event.target.value)}
+                placeholder="bijv. Caterpillar"
+                list="brand-options"
+              />
+              <datalist id="brand-options">
+                {availableBrands.map((brand) => (
+                  <option key={brand} value={brand} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <button className="button" onClick={refreshLots} disabled={loading}>
+                Ververs
+              </button>
+            </div>
+          </div>
+          {feedback && <p className="muted" style={{ marginTop: 12 }}>{feedback}</p>}
+        </div>
+      )}
+
+      {/* Lot Table */}
       {loading ? (
         <div className="panel">Laden…</div>
       ) : searchResults === null && (
@@ -311,6 +289,74 @@ export default function LotsPage() {
           flex: 1;
           padding: 10px 14px;
           font-size: 1rem;
+        }
+        .search-results {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .search-result-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 16px;
+          background: #252540;
+          border-radius: 6px;
+          text-decoration: none;
+          color: inherit;
+          transition: background 0.2s;
+        }
+        .search-result-item:hover {
+          background: #333355;
+        }
+        .result-main {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex: 1;
+        }
+        .result-code {
+          font-family: monospace;
+          color: #888;
+          min-width: 100px;
+        }
+        .result-title {
+          color: #fff;
+        }
+        .result-brand {
+          font-size: 0.85rem;
+          color: #a0a0c0;
+        }
+        .result-meta {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .result-state {
+          font-size: 0.8rem;
+          padding: 2px 8px;
+          border-radius: 4px;
+          background: #333;
+        }
+        .result-state.running {
+          background: #166534;
+          color: #4ade80;
+        }
+        .result-state.scheduled {
+          background: #854d0e;
+          color: #fbbf24;
+        }
+        .result-state.closed {
+          background: #374151;
+          color: #9ca3af;
+        }
+        .result-price {
+          font-family: monospace;
+          color: #4ade80;
+        }
+        .result-match {
+          font-size: 0.75rem;
+          color: #666;
         }
       `}</style>
     </Layout>

@@ -6,6 +6,32 @@ import LotEditModal from './LotEditModal';
 export type SortField = 'lot_code' | 'closing_time_current' | 'current_bid_eur' | 'bid_count' | 'state';
 export type SortDirection = 'asc' | 'desc';
 
+interface SortableHeaderProps {
+  field: SortField;
+  sortField?: SortField;
+  sortDirection?: SortDirection;
+  onSort?: (field: SortField) => void;
+  children: React.ReactNode;
+}
+
+function SortableHeader({ field, sortField, sortDirection, onSort, children }: SortableHeaderProps) {
+  const getSortIndicator = () => {
+    if (sortField !== field) return ' ↕';
+    return sortDirection === 'asc' ? ' ↑' : ' ↓';
+  };
+
+  return (
+    <th 
+      className="sortable-header" 
+      onClick={() => onSort?.(field)}
+      title={`Sorteer op ${children}`}
+    >
+      {children}
+      <span className="sort-indicator">{getSortIndicator()}</span>
+    </th>
+  );
+}
+
 interface Props {
   lots: LotView[];
   selectedLots: Set<string>;
@@ -32,22 +58,6 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
     onLotUpdated?.();
   };
 
-  const getSortIndicator = (field: SortField) => {
-    if (sortField !== field) return ' ↕';
-    return sortDirection === 'asc' ? ' ↑' : ' ↓';
-  };
-
-  const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <th 
-      className="sortable-header" 
-      onClick={() => onSort?.(field)}
-      title={`Sorteer op ${children}`}
-    >
-      {children}
-      <span className="sort-indicator">{getSortIndicator(field)}</span>
-    </th>
-  );
-
   return (
     <>
       <div className="panel">
@@ -59,12 +69,12 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
           <thead>
             <tr>
               <th></th>
-              <SortableHeader field="lot_code">Lot</SortableHeader>
+              <SortableHeader field="lot_code" sortField={sortField} sortDirection={sortDirection} onSort={onSort}>Lot</SortableHeader>
               <th>Veiling</th>
-              <SortableHeader field="state">Status</SortableHeader>
-              <SortableHeader field="current_bid_eur">Huidig bod</SortableHeader>
-              <SortableHeader field="bid_count">Biedingen</SortableHeader>
-              <SortableHeader field="closing_time_current">Sluit</SortableHeader>
+              <SortableHeader field="state" sortField={sortField} sortDirection={sortDirection} onSort={onSort}>Status</SortableHeader>
+              <SortableHeader field="current_bid_eur" sortField={sortField} sortDirection={sortDirection} onSort={onSort}>Huidig bod</SortableHeader>
+              <SortableHeader field="bid_count" sortField={sortField} sortDirection={sortDirection} onSort={onSort}>Biedingen</SortableHeader>
+              <SortableHeader field="closing_time_current" sortField={sortField} sortDirection={sortDirection} onSort={onSort}>Sluit</SortableHeader>
               <th></th>
             </tr>
           </thead>

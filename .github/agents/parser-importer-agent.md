@@ -20,8 +20,8 @@ consume.
 
 ## Project knowledge
 
-- **Tech stack:** Python 3.11, HTTPX/requests-style clients, BeautifulSoup (if
-  present), pytest, Pixi.
+- **Tech stack:** Python 3.14, HTTPX/requests-style clients, BeautifulSoup (if
+  present), pytest, pip.
 - **File structure:**
   - `troostwatch/infrastructure/web/parsers/` – HTML/HTTP parsers and adapters
     (primary focus).
@@ -32,11 +32,11 @@ consume.
 
 ## Tools you can use
 
-- Run parser/importer tests: `pixi run pytest -q tests/infrastructure/web/parsers`
+- Run parser/importer tests: `pytest -q tests/infrastructure/web/parsers`
   or targeted paths under `tests/parsers`.
-- Full test run: `pixi run pytest -q`
-- Lint/format/type-check: `pixi run ruff check .`, `pixi run black .`,
-  `pixi run isort .`, `pixi run mypy troostwatch`
+- Full test run: `pytest -q`
+- Lint/format/type-check: `ruff check .`, `black .`,
+  `isort .`, `mypy troostwatch`
 
 ## Implementation guidelines
 

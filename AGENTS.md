@@ -202,8 +202,12 @@ See `docs/api.md` for the full TypeScript types documentation.
 
 ## Python best practices
 
-- Target Python 3.11+ (3.14 supported when available); use type hints everywhere and prefer `dataclasses` or
+- Target Python 3.14+; use type hints everywhere and prefer `dataclasses` or
   `pydantic` models for structured data.
+- Use Pydantic 2.12+ APIs: `model_dump()` instead of `.dict()`, `model_config`
+  instead of `class Config:`, `model_validate()` instead of `parse_obj()`.
+- Use FastAPI 0.122+ patterns: lifespan context managers instead of `@app.on_event()`,
+  `Annotated[T, Depends(...)]` for dependency injection.
 - Avoid circular imports by isolating constants and interfaces in helper
   modules when necessary.
 - Favour dependency injection for services and clients (e.g., database

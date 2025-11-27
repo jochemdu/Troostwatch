@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import type { BuyerResponse, BuyerCreateRequest } from '../lib/api';
 import { createBuyer, deleteBuyer, fetchBuyers } from '../lib/api';
@@ -10,6 +10,23 @@ export default function BuyersPage() {
   const [form, setForm] = useState<BuyerCreateRequest>(emptyForm);
   const [feedback, setFeedback] = useState<string>('');
 
+  useEffect(() => {
+    let cancelled = false;
+    fetchBuyers()
+      .then((data) => {
+        if (!cancelled) {
+          startTransition(() => setBuyers(data));
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          const detail = error instanceof Error ? error.message : 'Buyers laden mislukt';
+          startTransition(() => setFeedback(detail));
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   const loadBuyers = async () => {
     try {
       const data = await fetchBuyers();
@@ -19,10 +36,6 @@ export default function BuyersPage() {
       setFeedback(detail);
     }
   };
-
-  useEffect(() => {
-    loadBuyers();
-  }, []);
 
   const handleSubmit = async () => {
     if (!form.label.trim()) {

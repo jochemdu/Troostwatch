@@ -9,6 +9,7 @@ from typing import Awaitable, Callable, Dict, List, Optional
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import PositionRepository
 from troostwatch.infrastructure.observability import get_logger, log_context
+from troostwatch.services.dto import PositionDTO, PositionUpdateDTO
 
 _logger = get_logger(__name__)
 
@@ -29,7 +30,7 @@ class PositionUpdateData:
 
 
 class PositionsService:
-    """Service layer for creating, listing and deleting positions."""
+    """Service layer for creating, listing and deleting positions using DTOs."""
 
     def __init__(self, connection_factory: ConnectionFactory) -> None:
         self._connection_factory = connection_factory
@@ -70,12 +71,13 @@ class PositionsService:
 
     def list_positions(
         self, *, buyer_label: Optional[str] = None
-    ) -> List[Dict[str, object]]:
-        """List positions, optionally filtered by buyer label."""
+    ) -> List[PositionDTO]:
+        """List positions, optionally filtered by buyer label, as DTOs."""
 
         with self._connection_factory() as conn:
             ensure_schema(conn)
-            return PositionRepository(conn).list(buyer_label=buyer_label)
+            rows = PositionRepository(conn).list(buyer_label=buyer_label)
+            return [PositionDTO(**row) for row in rows]
 
     def delete_position(
         self, *, buyer_label: str, auction_code: str, lot_code: str

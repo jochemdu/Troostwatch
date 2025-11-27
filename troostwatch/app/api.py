@@ -35,6 +35,7 @@ from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
 from troostwatch.services.lots import LotInput, LotManagementService, LotView, LotViewService
 from troostwatch.services.reporting import ReportingService
 from troostwatch.services.sync_service import SyncService
+from troostwatch.services.dto import PositionDTO, PositionUpdateDTO, BuyerDTO, BuyerCreateDTO, LotViewDTO
 
 
 class LotEventBus:
@@ -389,17 +390,34 @@ class LotCreateResponse(BaseModel):
     auction_code: str
 
 
-@app.get("/lots", response_model=list[LotView])
+@app.get("/lots", response_model=List[LotView])
 async def list_lots(
     auction_code: Optional[str] = None,
     state: Optional[str] = None,
     brand: Optional[str] = None,
-    limit: Optional[int] = Query(default=None, ge=1),
+    limit: Optional[int] = Query(100, ge=1, le=1000),
     lot_view_service: LotViewService = Depends(get_lot_view_service),
 ) -> List[LotView]:
-    return lot_view_service.list_lots(
+    lots = lot_view_service.list_lots(
         auction_code=auction_code, state=state, brand=brand, limit=limit
     )
+    return [
+        LotView(
+            auction_code=lot.auction_code,
+            lot_code=lot.lot_code,
+            title=lot.title,
+            state=lot.state,
+            current_bid_eur=lot.current_bid_eur,
+            bid_count=lot.bid_count,
+            current_bidder_label=lot.current_bidder_label,
+            closing_time_current=lot.closing_time_current,
+            closing_time_original=lot.closing_time_original,
+            brand=lot.brand,
+            is_active=lot.is_active,
+            effective_price=lot.effective_price,
+        )
+        for lot in lots
+    ]
 
 
 class SearchResultResponse(BaseModel):
@@ -912,7 +930,7 @@ async def upsert_positions(
 ) -> PositionBatchResponse:
     try:
         updates = [
-            position_service.PositionUpdateData(
+            PositionUpdateDTO(
                 buyer_label=update.buyer_label,
                 lot_code=update.lot_code,
                 auction_code=update.auction_code,
@@ -942,19 +960,19 @@ async def list_positions(
     repository: PositionRepository = Depends(get_position_repository),
 ) -> List[PositionResponse]:
     """List all tracked positions, optionally filtered by buyer."""
-    positions = repository.list(buyer_label=buyer)
+    positions = [PositionDTO(**pos) for pos in repository.list(buyer_label=buyer)]
     return [
         PositionResponse(
-            id=int(pos.get("id", 0)),
-            buyer_label=str(pos.get("buyer_label", "")),
-            lot_code=str(pos.get("lot_code", "")),
-            auction_code=pos.get("auction_code"),
-            max_budget_total_eur=pos.get("max_budget_total_eur"),
-            preferred_bid_eur=pos.get("preferred_bid_eur"),
-            track_active=bool(pos.get("track_active", True)),
-            lot_title=pos.get("lot_title"),
-            current_bid_eur=pos.get("current_bid_eur"),
-            closing_time=pos.get("closing_time_current"),
+            id=pos.id,
+            buyer_label=pos.buyer_label,
+            lot_code=pos.lot_code,
+            auction_code=pos.auction_code,
+            max_budget_total_eur=pos.max_budget_total_eur,
+            preferred_bid_eur=pos.preferred_bid_eur,
+            track_active=pos.track_active,
+            lot_title=pos.lot_title,
+            current_bid_eur=pos.current_bid_eur,
+            closing_time=pos.closing_time,
         )
         for pos in positions
     ]
@@ -982,38 +1000,33 @@ async def list_buyers(
     buyers = service.list_buyers()
     result: List[BuyerResponse] = []
     for buyer in buyers:
-        buyer_id = buyer.get("id")
-        buyer_label = buyer.get("label")
-        if buyer_id is None or buyer_label is None:
-            continue
         result.append(
             BuyerResponse(
-                id=int(buyer_id),
-                label=str(buyer_label),
-                name=str(buyer.get("name")) if buyer.get("name") else None,
-                notes=str(buyer.get("notes")) if buyer.get("notes") else None,
+                id=buyer.id,
+                label=buyer.label,
+                name=buyer.name,
+                notes=buyer.notes,
             )
         )
     return result
 
 
 @app.post(
-    "/buyers", status_code=status.HTTP_201_CREATED, response_model=BuyerCreateResponse
+    "/buyers", response_model=BuyerCreateResponse, status_code=status.HTTP_201_CREATED
 )
 async def create_buyer(
-    payload: BuyerCreateRequest, service: BuyerService = Depends(get_buyer_service)
+    payload: BuyerCreateRequest,
+    service: BuyerService = Depends(get_buyer_service),
 ) -> BuyerCreateResponse:
     try:
-        result = await service.create_buyer(
+        result: BuyerCreateDTO = await service.create_buyer(
             label=payload.label,
             name=payload.name,
             notes=payload.notes,
         )
+        return BuyerCreateResponse(status="created", label=result.label)
     except BuyerAlreadyExistsError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
-        ) from exc
-    return BuyerCreateResponse(**result)
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.delete("/buyers/{label}", status_code=status.HTTP_204_NO_CONTENT)

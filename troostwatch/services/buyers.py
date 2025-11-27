@@ -5,6 +5,7 @@ from typing import Awaitable, Callable, Optional
 from troostwatch.infrastructure.db.repositories import BuyerRepository
 from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
 from troostwatch.infrastructure.observability import get_logger
+from troostwatch.services.dto import BuyerDTO, BuyerCreateDTO
 
 _logger = get_logger(__name__)
 
@@ -16,7 +17,7 @@ class BuyerAlreadyExistsError(Exception):
 
 
 class BuyerService:
-    """Service layer for managing buyers and emitting related events."""
+    """Service layer for managing buyers and emitting related events using DTOs."""
 
     def __init__(
         self, repository: BuyerRepository, event_publisher: EventPublisher | None = None
@@ -24,10 +25,10 @@ class BuyerService:
         self._repository = repository
         self._event_publisher = event_publisher
 
-    def list_buyers(self) -> list[dict[str, int | str | None]]:
+    def list_buyers(self) -> list[BuyerDTO]:
         buyers = self._repository.list()
         _logger.debug("Listed %d buyers", len(buyers))
-        return buyers
+        return [BuyerDTO(**buyer) for buyer in buyers]
 
     async def create_buyer(
         self,
@@ -35,7 +36,7 @@ class BuyerService:
         label: str,
         name: Optional[str] = None,
         notes: Optional[str] = None,
-    ) -> dict[str, str]:
+    ) -> BuyerCreateDTO:
         _logger.info("Creating buyer: %s", label)
         try:
             self._repository.add(label, name, notes)
@@ -43,7 +44,7 @@ class BuyerService:
             _logger.warning("Buyer already exists: %s", label)
             raise BuyerAlreadyExistsError(str(exc)) from exc
 
-        payload = {"status": "created", "label": label}
+        payload = BuyerCreateDTO(label=label, name=name, notes=notes)
         await self._publish_event({"type": "buyer_created", "label": label})
         _logger.info("Buyer created successfully: %s", label)
         return payload

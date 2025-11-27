@@ -71,7 +71,7 @@ def list_cmd(ctx: click.Context) -> None:
     table.add_column("Name")
     table.add_column("Notes")
     for buyer_item in buyers:
-        table.add_row(buyer_item["label"], buyer_item.get("name") or "", buyer_item.get("notes") or "")
+        table.add_row(buyer_item.label, buyer_item.name or "", buyer_item.notes or "")
     console.print(table)
 
 

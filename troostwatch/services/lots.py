@@ -144,7 +144,7 @@ class LotInput:
 
 
 class LotManagementService:
-    """Service for adding and updating lots."""
+    """Service for adding and updating lots using DTOs."""
 
     def __init__(
         self,
@@ -154,7 +154,7 @@ class LotManagementService:
         self._lot_repository = lot_repository
         self._auction_repository = auction_repository
 
-    def add_lot(self, lot_input: LotInput, seen_at: str) -> str:
+    def add_lot(self, lot_input: LotInputDTO, seen_at: str) -> str:
         """Add or update a lot in the database.
 
         Returns the lot_code of the added/updated lot.

@@ -65,12 +65,12 @@ def list_positions_cmd(db_path: str, buyer: Optional[str]) -> None:
         click.echo("No positions found.")
         return
     for pos in positions:
-        active = "active" if pos["track_active"] else "inactive"
-        budget = pos["max_budget_total_eur"]
+        active = "active" if pos.track_active else "inactive"
+        budget = pos.max_budget_total_eur
         budget_str = f"budget €{budget:.2f}" if budget is not None else "no budget"
         click.echo(
-            f"{pos['buyer_label']} – {pos['auction_code']}/{pos['lot_code']} "
-            f"({active}, {budget_str}, current €{pos['current_bid_eur'] or 0:.2f})"
+            f"{pos.buyer_label} – {pos.auction_code}/{pos.lot_code} "
+            f"({active}, {budget_str}, current €{pos.current_bid_eur or 0:.2f})"
         )
 
 

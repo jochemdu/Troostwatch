@@ -67,6 +67,7 @@ dev = [
   "flake8>=7.0",
   "mypy>=1.13",
   "import-linter>=2.1",
+  "types-requests>=2.31",
 ]
 docs = [
   "markdown-it-py>=2.2",  # used for rendering markdown in documentation builds

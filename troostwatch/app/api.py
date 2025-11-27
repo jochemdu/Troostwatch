@@ -21,14 +21,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from troostwatch.app.dependencies import (
+    get_auction_repository,
+    get_bid_repository,
     get_buyer_repository,
     get_lot_repository,
     get_position_repository,
+    AuctionRepository,
+    BidRepository,
     BuyerRepository,
     LotRepository,
     PositionRepository,
 )
-from troostwatch.infrastructure.db.repositories import BidRepository
 from troostwatch.infrastructure.db import get_connection
 from troostwatch.services import positions as position_service
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
@@ -1042,14 +1045,6 @@ async def delete_buyer(
 # Bids Endpoints
 # =============================================================================
 
-def get_bid_repository() -> BidRepository:
-    """Dependency that provides a BidRepository."""
-    import sqlite3
-    from troostwatch.infrastructure.db import ensure_schema
-    conn = sqlite3.connect("troostwatch.db", check_same_thread=False)
-    ensure_schema(conn)
-    return BidRepository(conn)
-
 
 def _bid_row_to_response(bid: dict[str, Any]) -> BidResponse:
     """Convert a bid repository row to a BidResponse."""
@@ -1141,14 +1136,7 @@ async def get_buyer_report(
 # =============================================================================
 
 
-def get_auction_repository():
-    """Dependency that provides an AuctionRepository."""
-    import sqlite3
-    from troostwatch.infrastructure.db import ensure_schema
-    from troostwatch.infrastructure.db.repositories import AuctionRepository
-    conn = sqlite3.connect("troostwatch.db", check_same_thread=False)
-    ensure_schema(conn)
-    return AuctionRepository(conn)
+# Use get_auction_repository from dependencies module
 
 
 # =============================================================================
@@ -1224,8 +1212,8 @@ async def list_auctions(
             url=a.get("url"),
             starts_at=a.get("starts_at"),
             ends_at_planned=a.get("ends_at_planned"),
-            active_lots=int(a.get("active_lots", 0)),
-            lot_count=int(a.get("lot_count", 0)),
+            active_lots=int(a.get("active_lots") or 0),
+            lot_count=int(a.get("lot_count") or 0),
         )
         for a in auctions
     ]
@@ -1325,16 +1313,14 @@ async def delete_auction(
 # =============================================================================
 
 
-def get_lot_management_service() -> LotManagementService:
+def get_lot_management_service(
+    lot_repo: LotRepository = Depends(get_lot_repository),
+    auction_repo: AuctionRepository = Depends(get_auction_repository),
+) -> LotManagementService:
     """Dependency that provides a LotManagementService."""
-    import sqlite3
-    from troostwatch.infrastructure.db import ensure_schema
-    from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
-    conn = sqlite3.connect("troostwatch.db", check_same_thread=False)
-    ensure_schema(conn)
     return LotManagementService(
-        lot_repository=LotRepository(conn),
-        auction_repository=AuctionRepository(conn),
+        lot_repository=lot_repo,
+        auction_repository=auction_repo,
     )
 
 

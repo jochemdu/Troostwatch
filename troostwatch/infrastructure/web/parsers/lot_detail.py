@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import re
 from typing import Optional
@@ -13,6 +13,15 @@ from troostwatch.infrastructure.observability.logging import get_logger
 from . import utils
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class BidHistoryEntry:
+    """A single bid in the lot's bid history."""
+
+    bidder_label: str
+    amount_eur: float
+    timestamp: str | None = None
 
 
 @dataclass
@@ -37,6 +46,8 @@ class LotDetailData:
     location_city: str | None = None
     location_country: str | None = None
     seller_allocation_note: str | None = None
+    brand: str | None = None
+    bid_history: list[BidHistoryEntry] = field(default_factory=list)
 
 
 def _strip_html_tags(text: str) -> str:
@@ -115,6 +126,9 @@ def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> L
             soup, "item-collection-info-text"
         )
 
+        brand = _parse_brand(lot)
+        bid_history = _parse_bid_history(lot)
+
         return LotDetailData(
             lot_code=lot.get("displayId") or lot_code,
             title=title or "",
@@ -134,6 +148,8 @@ def parse_lot_detail(html: str, lot_code: str, base_url: str | None = None) -> L
             location_city=location_city,
             location_country=location_country,
             seller_allocation_note=seller_allocation_note,
+            brand=brand,
+            bid_history=bid_history,
         )
     except Exception as exc:
         utils.record_parsing_error(logger, "lot_detail.dom", str(soup), exc)
@@ -151,4 +167,59 @@ def _build_url(base_url: str | None, slug: str | None, lot_code: str) -> Optiona
     return None
 
 
-__all__ = ["LotDetailData", "parse_lot_detail"]
+def _parse_brand(lot: dict) -> str | None:
+    """Extract brand from lot specifications.
+
+    The brand is typically stored in the lot's specifications/attributes
+    under keys like 'Merk', 'Brand', or 'Fabricaat'.
+    """
+    specs = lot.get("specifications") or lot.get("attributes") or []
+    brand_keys = {"merk", "brand", "fabricaat", "make", "manufacturer"}
+
+    for spec in specs:
+        key = (spec.get("label") or spec.get("key") or "").lower().strip()
+        if key in brand_keys:
+            value = spec.get("value") or spec.get("displayValue") or ""
+            if value:
+                return str(value).strip()
+    return None
+
+
+def _parse_bid_history(lot: dict) -> list[BidHistoryEntry]:
+    """Extract bid history from lot data.
+
+    The bid history is stored in lot.bidHistory or lot.bids as a list
+    of bid records with bidder label, amount and timestamp.
+    """
+    bids_raw = lot.get("bidHistory") or lot.get("bids") or []
+    entries: list[BidHistoryEntry] = []
+
+    for bid in bids_raw:
+        bidder = bid.get("bidderLabel") or bid.get("bidder") or ""
+        amount_data = bid.get("amount") or bid.get("bidAmount") or {}
+
+        if isinstance(amount_data, dict):
+            amount = amount_data.get("amount")
+            if amount is not None:
+                amount_eur = float(amount) / 100
+            else:
+                display = amount_data.get("display", "")
+                amount_eur = utils.parse_eur_to_float(str(display))
+        elif isinstance(amount_data, (int, float)):
+            amount_eur = float(amount_data) / 100
+        else:
+            amount_eur = None
+
+        timestamp = utils.epoch_to_iso(bid.get("timestamp") or bid.get("time"))
+
+        if bidder and amount_eur is not None:
+            entries.append(BidHistoryEntry(
+                bidder_label=str(bidder),
+                amount_eur=amount_eur,
+                timestamp=timestamp,
+            ))
+
+    return entries
+
+
+__all__ = ["BidHistoryEntry", "LotDetailData", "parse_lot_detail"]

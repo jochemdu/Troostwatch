@@ -30,9 +30,27 @@ Troostwatch uses several distinct version numbers, each with a specific purpose:
 
 The application version follows [Semantic Versioning](https://semver.org/):
 
-- **MAJOR**: Breaking changes (API incompatibilities, database migrations requiring data transformation)
-- **MINOR**: New features (backward-compatible additions)
-- **PATCH**: Bug fixes (backward-compatible fixes)
+- **MAJOR** (X.y.z): Breaking changes (API incompatibilities, database migrations requiring data transformation)
+- **MINOR** (x.Y.z): New features (backward-compatible additions)
+- **PATCH** (x.y.Z): Bug fixes (backward-compatible fixes)
+
+### When to Bump Each Level
+
+| Change Type | Version Bump | Examples |
+|-------------|--------------|----------|
+| **Breaking API changes** | MAJOR | Removing endpoints, renaming fields, changing response structure |
+| **New API endpoints** | MINOR | Adding `/lots/export`, new query parameters |
+| **Schema migrations** (externally visible) | MINOR | Adding required columns, new tables |
+| **Schema migrations** (internal only) | PATCH | Adding indexes, optional columns with defaults |
+| **Bug fixes** | PATCH | Fixing parsing errors, correcting calculations |
+| **Internal refactoring** | PATCH | Code restructuring, AGENTS.md updates, documentation |
+| **Dependency updates** | PATCH (usually) | Updating library versions (MINOR if new features exposed) |
+
+### Decision Guide
+
+1. **Does this break existing API consumers?** → MAJOR
+2. **Does this add new functionality or externally visible schema changes?** → MINOR
+3. **Is this a fix or internal change only?** → PATCH
 
 ## Where Versions Are Used
 
@@ -54,6 +72,39 @@ The application version follows [Semantic Versioning](https://semver.org/):
 - **Configuration files**: `config.json` and `examples/config.example.json`
 - **Future compatibility**: Allows config format changes without breaking old configs
 - **Currently at**: `1.0` (initial structured format)
+
+## Version Compatibility Matrix
+
+The application version and schema version are independent but related. This
+matrix documents which app versions require which minimum schema versions:
+
+| App Version | Min Schema Version | Notes |
+|-------------|-------------------|-------|
+| 0.6.x | 1 | Initial versioned schema |
+
+### Compatibility Rules
+
+1. **Upgrading the app**: Always run migrations after updating the package.
+   The app will refuse to start if the schema is outdated.
+
+2. **Downgrading the app**: Not officially supported. Schema migrations are
+   forward-only. Restore from backup if rollback is needed.
+
+3. **Schema changes require**:
+   - Increment `CURRENT_SCHEMA_VERSION` in `migrations.py`
+   - Update `schema/schema.sql` (canonical schema)
+   - Add migration code or SQL file in `migrations/`
+   - Update this compatibility matrix
+
+### Checking Compatibility
+
+```python
+from troostwatch.infrastructure.db.schema.migrations import CURRENT_SCHEMA_VERSION
+
+# At startup, SchemaMigrator checks:
+# - If schema_version < CURRENT_SCHEMA_VERSION → run migrations
+# - If schema_version > CURRENT_SCHEMA_VERSION → error (app too old)
+```
 
 ## Release Workflow
 

@@ -17,7 +17,7 @@ export default function LotsPage() {
   const [feedback, setFeedback] = useState<string>('');
 
   // Extract unique brands from lots for filter dropdown
-  const availableBrands = [...new Set(lots.map((lot) => lot.brand).filter((b): b is string => !!b))].sort();
+  const availableBrands = Array.from(new Set(lots.map((lot) => lot.brand).filter((b): b is string => !!b))).sort();
 
   useEffect(() => {
     const run = async () => {

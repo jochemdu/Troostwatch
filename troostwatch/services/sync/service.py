@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import asdict
-from typing import Awaitable, Callable, Optional
+from typing import Optional
 
+from troostwatch.services.dto import EventPublisher
 from . import sync as sync_module
-
-EventPublisher = Callable[[dict[str, object]], Awaitable[None]]
 
 
 async def sync_auction(

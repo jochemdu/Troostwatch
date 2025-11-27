@@ -10,15 +10,13 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import asdict, dataclass
-from typing import Awaitable, Callable, Dict, Literal
+from typing import Callable, Dict, Literal
 
 from troostwatch.infrastructure.db import iso_utcnow
-from troostwatch.infrastructure.observability.logging import get_logger
+from troostwatch.infrastructure.observability import get_logger
+from troostwatch.services.dto import EventPublisher
 from troostwatch.services.sync import SyncRunResult, sync_auction_to_db
 
-logger = get_logger(__name__)
-
-EventPublisher = Callable[[Dict], Awaitable[None]]
 SyncCallable = Callable[..., SyncRunResult]
 
 
@@ -66,6 +64,7 @@ class LiveSyncRunner:
         self._event_publisher = event_publisher
         self._sync_callable = sync_callable
         self._default_interval_seconds = default_interval_seconds
+        self._logger = get_logger(__name__)
 
         self._state = LiveSyncState()
         self._task: asyncio.Task | None = None
@@ -173,7 +172,7 @@ class LiveSyncRunner:
                 )
             except Exception as exc:  # pragma: no cover - defensive logging
                 message = f"Live sync failed: {exc}"
-                logger.exception(message)
+                self._logger.exception(message)
                 self._state.last_error = str(exc)
                 await self._publish_event(
                     {"type": "live_sync_error", "message": str(exc), "time": iso_utcnow()}
@@ -211,10 +210,10 @@ class LiveSyncRunner:
         try:
             await self._event_publisher(payload)
         except Exception:  # pragma: no cover - isolate websocket errors
-            logger.exception("Failed to publish live sync event")
+            self._logger.exception("Failed to publish live sync event")
 
     async def _emit_log(self, message: str) -> None:
-        logger.info(message)
+        self._logger.info(message)
         await self._publish_event(
             {
                 "type": "live_sync_log",

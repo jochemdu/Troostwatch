@@ -71,7 +71,7 @@ def test_submit_bid_surfaces_persistence_failure(tmp_path: Path) -> None:
         conn.close()
 
     client = DummyClient()
-    service = BiddingService(client, api_base_url="http://example.com/api")
+    service = BiddingService.from_sqlite_path(client, str(db_path), api_base_url="http://example.com/api")
 
     with pytest.raises(
         BidError, match="Failed to persist bid locally: Buyer 'missing' does not exist"
@@ -82,7 +82,6 @@ def test_submit_bid_surfaces_persistence_failure(tmp_path: Path) -> None:
             lot_code="A1-1",
             amount_eur=25.0,
             note=None,
-            db_path=str(db_path),
         )
 
     assert len(client.calls) == 1

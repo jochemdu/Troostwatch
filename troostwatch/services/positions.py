@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
+import sqlite3
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
-from typing import Awaitable, Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import PositionRepository
 from troostwatch.infrastructure.observability import get_logger, log_context
-from troostwatch.services.dto import PositionDTO, PositionUpdateDTO
+from troostwatch.services.dto import EventPublisher, PositionDTO, PositionUpdateDTO
 
 _logger = get_logger(__name__)
 
-ConnectionFactory = Callable[[], AbstractContextManager]
-EventPublisher = Callable[[dict[str, object]], Awaitable[None]]
+ConnectionFactory = Callable[[], AbstractContextManager[sqlite3.Connection]]
 
 
 @dataclass

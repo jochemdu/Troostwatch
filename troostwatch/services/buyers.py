@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Optional
+from typing import Optional
 
 from troostwatch.infrastructure.db.repositories import BuyerRepository
 from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
 from troostwatch.infrastructure.observability import get_logger
-from troostwatch.services.dto import BuyerDTO, BuyerCreateDTO
+from troostwatch.services.dto import BuyerDTO, BuyerCreateDTO, EventPublisher
 
 _logger = get_logger(__name__)
-
-EventPublisher = Callable[[dict[str, object]], Awaitable[None]]
 
 
 class BuyerAlreadyExistsError(Exception):

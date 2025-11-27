@@ -9,7 +9,9 @@ from pydantic import BaseModel, Field
 
 from troostwatch.domain.models import Lot
 from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
+from troostwatch.infrastructure.observability import get_logger
 from troostwatch.infrastructure.web.parsers import LotCardData, LotDetailData
+from troostwatch.services.dto import LotInputDTO
 
 
 class LotView(BaseModel):
@@ -70,10 +72,14 @@ class LotView(BaseModel):
 
 
 class LotViewService:
-    """Service exposing read-only lot views for APIs and CLIs."""
+    """Service exposing read-only lot views for APIs and CLIs.
+
+    Uses repository injection pattern - caller manages connection lifecycle.
+    """
 
     def __init__(self, lot_repository: LotRepository) -> None:
         self._lot_repository = lot_repository
+        self._logger = get_logger(__name__)
 
     def list_lots(
         self,
@@ -84,6 +90,10 @@ class LotViewService:
         limit: Optional[int] = None,
     ) -> List[LotView]:
         """List lots as LotView DTOs for presentation."""
+        self._logger.debug(
+            "Listing lots: auction=%s state=%s brand=%s limit=%s",
+            auction_code, state, brand, limit
+        )
         effective_limit = None if limit is not None and limit <= 0 else limit
         rows = self._lot_repository.list_lots(
             auction_code=auction_code,
@@ -91,7 +101,9 @@ class LotViewService:
             brand=brand,
             limit=effective_limit,
         )
-        return self._to_dtos(rows)
+        result = self._to_dtos(rows)
+        self._logger.debug("Found %d lots", len(result))
+        return result
 
     def list_domain_lots(
         self,
@@ -144,7 +156,10 @@ class LotInput:
 
 
 class LotManagementService:
-    """Service for adding and updating lots using DTOs."""
+    """Service for adding and updating lots using DTOs.
+
+    Uses repository injection pattern - caller manages connection lifecycle.
+    """
 
     def __init__(
         self,
@@ -153,12 +168,17 @@ class LotManagementService:
     ) -> None:
         self._lot_repository = lot_repository
         self._auction_repository = auction_repository
+        self._logger = get_logger(__name__)
 
     def add_lot(self, lot_input: LotInputDTO, seen_at: str) -> str:
         """Add or update a lot in the database.
 
         Returns the lot_code of the added/updated lot.
         """
+        self._logger.debug(
+            "Adding lot %s in auction %s",
+            lot_input.lot_code, lot_input.auction_code
+        )
         from troostwatch.services.sync import (
             _listing_detail_from_card,
             compute_detail_hash,
@@ -231,4 +251,5 @@ class LotManagementService:
             detail_last_seen_at=seen_at,
         )
 
+        self._logger.debug("Lot %s added/updated successfully", lot_input.lot_code)
         return lot_input.lot_code

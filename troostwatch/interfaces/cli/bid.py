@@ -97,7 +97,10 @@ def bid(
         click.echo(f"Authentication failed: {exc}")
         return
 
-    service = BiddingService(client, api_base_url=api_base_url)
+    if db_path:
+        service = BiddingService.from_sqlite_path(client, db_path, api_base_url=api_base_url)
+    else:
+        service = BiddingService(client, api_base_url=api_base_url)
     try:
         result = service.submit_bid(
             buyer_label=buyer_label,
@@ -105,7 +108,6 @@ def bid(
             lot_code=lot_code,
             amount_eur=amount,
             note=note,
-            db_path=db_path,
         )
     except AuthenticationError as exc:
         click.echo(f"Authentication error while bidding: {exc}")

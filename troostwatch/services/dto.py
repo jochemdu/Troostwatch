@@ -3,7 +3,18 @@ Centralized DTOs and input/output models for Troostwatch services.
 """
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
+from typing import Awaitable, Callable, Optional, List, Dict, Any
+
+
+# --- Event Publishing Types ---
+EventPayload = Dict[str, object]
+EventPublisher = Callable[[EventPayload], Awaitable[None]]
+
+
+async def noop_event_publisher(_: EventPayload) -> None:
+    """Default no-op event publisher for services that don't need events."""
+    pass
+
 
 # --- Lot DTOs ---
 @dataclass
@@ -95,20 +106,12 @@ class BidCreateDTO:
     amount_eur: float
     note: Optional[str] = None
 
-# --- Sync DTOs ---
-@dataclass
-class SyncRunResultDTO:
-    run_id: Optional[int]
-    status: str
-    pages_scanned: int = 0
-    lots_scanned: int = 0
-    lots_updated: int = 0
-    error_count: int = 0
-    errors: List[str] = None
 
+# --- Bid Result ---
 @dataclass
-class SyncSummaryDTO:
-    status: str
-    auction_code: Optional[str] = None
-    result: Optional[SyncRunResultDTO] = None
-    error: Optional[str] = None
+class BidResultDTO:
+    """Structured response from a bid submission."""
+    lot_code: str
+    auction_code: str
+    amount_eur: float
+    raw_response: Dict[str, Any]

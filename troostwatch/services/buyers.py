@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from troostwatch.infrastructure.db.repositories import BuyerRepository
 from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
@@ -42,8 +42,8 @@ class BuyerService:
         self,
         *,
         label: str,
-        name: Optional[str] = None,
-        notes: Optional[str] = None,
+        name: str | None = None,
+        notes: str | None = None,
     ) -> BuyerCreateDTO:
         _logger.info("Creating buyer: %s", label)
         try:
@@ -77,8 +77,8 @@ async def create_buyer(
     *,
     repository: BuyerRepository,
     label: str,
-    name: Optional[str] = None,
-    notes: Optional[str] = None,
+    name: str | None = None,
+    notes: str | None = None,
     event_publisher: EventPublisher | None = None,
 ) -> BuyerCreateDTO:
     service = BuyerService(repository, event_publisher)

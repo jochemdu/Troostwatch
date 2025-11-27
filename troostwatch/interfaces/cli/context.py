@@ -7,10 +7,12 @@ paths and building SQLite connections with the project defaults applied.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from contextlib import AbstractContextManager as ContextManager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, ContextManager, Iterator, TypeVar
+from typing import TypeVar
 
 from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.db import ensure_schema, get_connection, get_path_config, iso_utcnow

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import Optional
 
 import click
 from rich.console import Console
@@ -56,10 +55,10 @@ def _format_lot_line(lot: LotView) -> str:
 )
 @click.option("--json-output", is_flag=True, help="Output the results as JSON.")
 def view(
-    db_path: Optional[str],
-    auction_code: Optional[str],
-    state: Optional[str],
-    limit: Optional[int],
+    db_path: str | None,
+    auction_code: str | None,
+    state: str | None,
+    limit: int | None,
     json_output: bool,
 ) -> None:
     """Show lots stored in the Troostwatch database."""

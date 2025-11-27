@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import asdict
-from typing import Optional
 
 from troostwatch.services.dto import EventPublisher
 from . import sync as sync_module
@@ -13,7 +12,7 @@ async def sync_auction(
     db_path: str,
     auction_code: str,
     auction_url: str,
-    max_pages: Optional[int] = None,
+    max_pages: int | None = None,
     dry_run: bool = False,
     event_publisher: EventPublisher | None = None,
 ) -> dict[str, object]:

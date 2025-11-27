@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import PositionRepository
@@ -23,10 +23,10 @@ class PositionUpdateData:
 
     buyer_label: str
     lot_code: str
-    auction_code: Optional[str] = None
-    max_budget_total_eur: Optional[float] = None
-    preferred_bid_eur: Optional[float] = None
-    watch: Optional[bool] = None
+    auction_code: str | None = None
+    max_budget_total_eur: float | None = None
+    preferred_bid_eur: float | None = None
+    watch: bool | None = None
 
 
 class PositionsService:
@@ -51,7 +51,7 @@ class PositionsService:
         auction_code: str,
         lot_code: str,
         track_active: bool = True,
-        max_budget_total_eur: Optional[float] = None,
+        max_budget_total_eur: float | None = None,
     ) -> None:
         """Create or update a tracked position."""
         with log_context(
@@ -70,8 +70,8 @@ class PositionsService:
             _logger.debug("Position added successfully")
 
     def list_positions(
-        self, *, buyer_label: Optional[str] = None
-    ) -> List[PositionDTO]:
+        self, *, buyer_label: str | None = None
+    ) -> list[PositionDTO]:
         """List positions, optionally filtered by buyer label, as DTOs."""
 
         with self._connection_factory() as conn:
@@ -80,7 +80,7 @@ class PositionsService:
             return [self._row_to_dto(row) for row in rows]
 
     @staticmethod
-    def _row_to_dto(row: Dict[str, Optional[str]]) -> PositionDTO:
+    def _row_to_dto(row: dict[str, str | None]) -> PositionDTO:
         """Convert a repository row to a PositionDTO with proper type coercion."""
         max_budget = row.get("max_budget_total_eur")
         my_highest = row.get("my_highest_bid_eur")
@@ -119,8 +119,8 @@ def add_position(
     auction_code: str,
     lot_code: str,
     track_active: bool = True,
-    max_budget_total_eur: Optional[float] = None,
-    connection_factory: Optional[ConnectionFactory] = None,
+    max_budget_total_eur: float | None = None,
+    connection_factory: ConnectionFactory | None = None,
 ) -> None:
     """Add or update a tracked position using a SQLite-backed service."""
 
@@ -137,9 +137,9 @@ def add_position(
 def list_positions(
     *,
     db_path: str,
-    buyer_label: Optional[str] = None,
-    connection_factory: Optional[ConnectionFactory] = None,
-) -> List[PositionDTO]:
+    buyer_label: str | None = None,
+    connection_factory: ConnectionFactory | None = None,
+) -> list[PositionDTO]:
     """Return tracked positions using a SQLite-backed service."""
 
     service = _resolve_service(db_path=db_path, connection_factory=connection_factory)
@@ -152,7 +152,7 @@ def delete_position(
     buyer_label: str,
     auction_code: str,
     lot_code: str,
-    connection_factory: Optional[ConnectionFactory] = None,
+    connection_factory: ConnectionFactory | None = None,
 ) -> None:
     """Delete a tracked position using a SQLite-backed service."""
 
@@ -161,7 +161,7 @@ def delete_position(
 
 
 def _resolve_service(
-    *, db_path: str, connection_factory: Optional[ConnectionFactory]
+    *, db_path: str, connection_factory: ConnectionFactory | None
 ) -> PositionsService:
     if connection_factory is not None:
         return PositionsService(connection_factory)
@@ -171,9 +171,9 @@ def _resolve_service(
 async def upsert_positions(
     *,
     repository: "PositionRepository",
-    updates: List[PositionUpdateData],
-    event_publisher: Optional[EventPublisher] = None,
-) -> Dict[str, object]:
+    updates: list[PositionUpdateData],
+    event_publisher: EventPublisher | None = None,
+) -> dict[str, object]:
     """Batch upsert positions and optionally publish events.
 
     Args:
@@ -188,7 +188,7 @@ async def upsert_positions(
         ValueError: If a buyer or lot referenced in an update is not found.
     """
     _logger.info("Batch upserting %d positions", len(updates))
-    updated_positions: List[Dict[str, object]] = []
+    updated_positions: list[dict[str, object]] = []
 
     for update in updates:
         # The repository.upsert method will validate buyer/lot existence

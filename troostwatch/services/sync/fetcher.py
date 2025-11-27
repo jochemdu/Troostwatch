@@ -12,8 +12,8 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, List, Optional
 from urllib.parse import urlparse
 
 import aiohttp
@@ -25,9 +25,9 @@ class RequestResult:
     """Result of a single HTTP request."""
 
     url: str
-    text: Optional[str]
-    error: Optional[str]
-    status: Optional[int] = None
+    text: str | None
+    error: str | None
+    status: int | None = None
 
     @property
     def ok(self) -> bool:
@@ -41,7 +41,7 @@ class RequestResult:
 class RateLimiter:
     """Simple host-level rate limiter supporting sync and async callers."""
 
-    def __init__(self, requests_per_second: Optional[float]) -> None:
+    def __init__(self, requests_per_second: float | None) -> None:
         self.min_interval = 1.0 / requests_per_second if requests_per_second else 0.0
         self._last_seen: dict[str, float] = {}
         self._sync_lock = threading.Lock()
@@ -87,7 +87,7 @@ class HttpFetcher:
         self,
         *,
         max_concurrent_requests: int = 5,
-        throttle_per_host: Optional[float] = None,
+        throttle_per_host: float | None = None,
         retry_attempts: int = 3,
         backoff_base_seconds: float = 0.5,
         concurrency_mode: str = "asyncio",
@@ -161,7 +161,7 @@ class HttpFetcher:
                 await asyncio.sleep(self._backoff_delay(attempt))
         return RequestResult(url=url, text=None, error="Unknown error", status=None)
 
-    async def _fetch_many_asyncio(self, urls: Iterable[str]) -> List[RequestResult]:
+    async def _fetch_many_asyncio(self, urls: Iterable[str]) -> list[RequestResult]:
         semaphore = asyncio.Semaphore(self.max_concurrent_requests)
 
         async def _bounded_fetch(
@@ -174,7 +174,7 @@ class HttpFetcher:
             tasks = [_bounded_fetch(session, url) for url in urls]
             return await asyncio.gather(*tasks)
 
-    async def _fetch_many_threadpool(self, urls: Iterable[str]) -> List[RequestResult]:
+    async def _fetch_many_threadpool(self, urls: Iterable[str]) -> list[RequestResult]:
         loop = asyncio.get_running_loop()
         semaphore = asyncio.Semaphore(self.max_concurrent_requests)
 
@@ -185,7 +185,7 @@ class HttpFetcher:
         tasks = [_run(url) for url in urls]
         return await asyncio.gather(*tasks)
 
-    async def fetch_many(self, urls: Iterable[str]) -> List[RequestResult]:
+    async def fetch_many(self, urls: Iterable[str]) -> list[RequestResult]:
         if self.concurrency_mode not in {"asyncio", "threadpool"}:
             raise ValueError("concurrency_mode must be 'asyncio' or 'threadpool'")
         if self.concurrency_mode == "threadpool":

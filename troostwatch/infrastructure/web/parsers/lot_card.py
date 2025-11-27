@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 import json
 import re
-from typing import Iterable, Optional
 from urllib.parse import urlsplit, urlencode, urlunsplit
 
 from bs4 import BeautifulSoup
@@ -97,7 +97,7 @@ def parse_lot_card(html: str, auction_code: str, base_url: str | None = None) ->
 
         state_attr = card.get("data-state") if hasattr(card, "get") else None
         state_text = (_text("state-chip") or (str(state_attr) if state_attr else "")).strip().lower()
-        state: Optional[str]
+        state: str | None
         if state_text.startswith("run"):
             state = "running"
         elif state_text.startswith("sched") or state_text.startswith("open"):

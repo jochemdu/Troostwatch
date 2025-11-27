@@ -6,7 +6,7 @@ Run with ``uvicorn troostwatch.app.api:app``.
 from __future__ import annotations
 
 import asyncio
-from typing import Annotated, Any, Dict, List, Optional, cast
+from typing import Annotated, Any, cast
 
 from fastapi import (
     Depends,
@@ -54,7 +54,7 @@ class LotEventBus:
         async with self._lock:
             self._subscribers.discard(websocket)
 
-    async def publish(self, payload: Dict) -> None:
+    async def publish(self, payload: dict[str, Any]) -> None:
         stale: list[WebSocket] = []
         async with self._lock:
             subscribers = list(self._subscribers)
@@ -125,15 +125,15 @@ SyncServiceDep = Annotated[SyncService, Depends(get_sync_service)]
 
 class BuyerCreateRequest(BaseModel):
     label: str
-    name: Optional[str] = None
-    notes: Optional[str] = None
+    name: str | None = None
+    notes: str | None = None
 
 
 class BuyerResponse(BaseModel):
     id: int
     label: str
-    name: Optional[str] = None
-    notes: Optional[str] = None
+    name: str | None = None
+    notes: str | None = None
 
 
 class BuyerCreateResponse(BaseModel):
@@ -144,10 +144,10 @@ class BuyerCreateResponse(BaseModel):
 class PositionUpdate(BaseModel):
     buyer_label: str
     lot_code: str
-    auction_code: Optional[str] = None
-    max_budget_total_eur: Optional[float] = Field(None, ge=0)
-    preferred_bid_eur: Optional[float] = Field(None, ge=0)
-    watch: Optional[bool] = None
+    auction_code: str | None = None
+    max_budget_total_eur: float | None = Field(None, ge=0)
+    preferred_bid_eur: float | None = Field(None, ge=0)
+    watch: bool | None = None
 
 
 class PositionResponse(BaseModel):
@@ -155,17 +155,17 @@ class PositionResponse(BaseModel):
 
     buyer_label: str
     lot_code: str
-    auction_code: Optional[str] = None
+    auction_code: str | None = None
     track_active: bool = True
-    max_budget_total_eur: Optional[float] = None
-    my_highest_bid_eur: Optional[float] = None
-    lot_title: Optional[str] = None
-    lot_state: Optional[str] = None
-    current_bid_eur: Optional[float] = None
+    max_budget_total_eur: float | None = None
+    my_highest_bid_eur: float | None = None
+    lot_title: str | None = None
+    lot_state: str | None = None
+    current_bid_eur: float | None = None
 
 
 class PositionBatchRequest(BaseModel):
-    updates: List[PositionUpdate]
+    updates: list[PositionUpdate]
 
 
 class PositionBatchResponse(BaseModel):
@@ -173,59 +173,59 @@ class PositionBatchResponse(BaseModel):
 
     updated: int
     created: int = 0
-    errors: List[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
 
 
 class SyncRequest(BaseModel):
     auction_code: str
     auction_url: str
-    max_pages: Optional[int] = Field(None, ge=1)
+    max_pages: int | None = Field(None, ge=1)
     dry_run: bool = False
 
 
 class SyncRunResultResponse(BaseModel):
     """Result of a single sync run."""
 
-    run_id: Optional[int] = None
+    run_id: int | None = None
     status: str  # 'success', 'failed', 'running'
     pages_scanned: int = 0
     lots_scanned: int = 0
     lots_updated: int = 0
     error_count: int = 0
-    errors: List[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
 
 
 class SyncSummaryResponse(BaseModel):
     """Summary response for a sync operation."""
 
     status: str  # 'success', 'failed', 'error'
-    auction_code: Optional[str] = None
-    result: Optional[SyncRunResultResponse] = None
-    error: Optional[str] = None
+    auction_code: str | None = None
+    result: SyncRunResultResponse | None = None
+    error: str | None = None
 
 
 class LiveSyncStatusResponse(BaseModel):
     """Status of the live sync worker."""
 
     state: str  # 'idle', 'running', 'paused', 'stopping'
-    last_sync: Optional[str] = None
-    next_sync: Optional[str] = None
-    current_auction: Optional[str] = None
+    last_sync: str | None = None
+    next_sync: str | None = None
+    current_auction: str | None = None
 
 
 class LiveSyncControlResponse(BaseModel):
     """Response for live sync control actions."""
 
     state: str
-    detail: Optional[str] = None
+    detail: str | None = None
 
 
 class LiveSyncStartRequest(BaseModel):
     auction_code: str
     auction_url: str
-    max_pages: Optional[int] = Field(None, ge=1)
+    max_pages: int | None = Field(None, ge=1)
     dry_run: bool = False
-    interval_seconds: Optional[float] = Field(
+    interval_seconds: float | None = Field(
         None,
         ge=0,
         description="Seconds between sync runs; defaults to configured worker interval.",
@@ -239,10 +239,10 @@ class BidResponse(BaseModel):
     buyer_label: str
     lot_code: str
     auction_code: str
-    lot_title: Optional[str] = None
+    lot_title: str | None = None
     amount_eur: float
     placed_at: str
-    note: Optional[str] = None
+    note: str | None = None
 
 
 class BidCreateRequest(BaseModel):
@@ -252,7 +252,7 @@ class BidCreateRequest(BaseModel):
     auction_code: str
     lot_code: str
     amount_eur: float = Field(gt=0)
-    note: Optional[str] = None
+    note: str | None = None
 
 
 class TrackedLotSummaryResponse(BaseModel):
@@ -261,8 +261,8 @@ class TrackedLotSummaryResponse(BaseModel):
     lot_code: str
     title: str
     state: str
-    current_bid_eur: Optional[float] = None
-    max_budget_total_eur: Optional[float] = None
+    current_bid_eur: float | None = None
+    max_budget_total_eur: float | None = None
     track_active: bool = True
 
 
@@ -275,18 +275,18 @@ class BuyerSummaryResponse(BaseModel):
     closed_count: int = 0
     open_exposure_min_eur: float = 0.0
     open_exposure_max_eur: float = 0.0
-    open_tracked_lots: List[TrackedLotSummaryResponse] = Field(default_factory=list)
-    won_lots: List[TrackedLotSummaryResponse] = Field(default_factory=list)
+    open_tracked_lots: list[TrackedLotSummaryResponse] = Field(default_factory=list)
+    won_lots: list[TrackedLotSummaryResponse] = Field(default_factory=list)
 
 
 class AuctionResponse(BaseModel):
     """Auction summary."""
 
     auction_code: str
-    title: Optional[str] = None
-    url: Optional[str] = None
-    starts_at: Optional[str] = None
-    ends_at_planned: Optional[str] = None
+    title: str | None = None
+    url: str | None = None
+    starts_at: str | None = None
+    ends_at_planned: str | None = None
     active_lots: int = 0
     lot_count: int = 0
 
@@ -297,38 +297,38 @@ class LotCreateRequest(BaseModel):
     auction_code: str
     lot_code: str
     title: str
-    url: Optional[str] = None
-    state: Optional[str] = None
-    opens_at: Optional[str] = None
-    closing_time: Optional[str] = None
-    bid_count: Optional[int] = None
-    opening_bid_eur: Optional[float] = None
-    current_bid_eur: Optional[float] = None
-    location_city: Optional[str] = None
-    location_country: Optional[str] = None
-    auction_title: Optional[str] = None
-    auction_url: Optional[str] = None
+    url: str | None = None
+    state: str | None = None
+    opens_at: str | None = None
+    closing_time: str | None = None
+    bid_count: int | None = None
+    opening_bid_eur: float | None = None
+    current_bid_eur: float | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    auction_title: str | None = None
+    auction_url: str | None = None
 
 
 class LotUpdateRequest(BaseModel):
     """Request to update lot fields (notes, ean)."""
 
-    notes: Optional[str] = None
-    ean: Optional[str] = None
+    notes: str | None = None
+    ean: str | None = None
 
 
 class LotSpecResponse(BaseModel):
     """A specification key-value pair for a lot."""
 
     id: int
-    parent_id: Optional[int] = None
-    template_id: Optional[int] = None
+    parent_id: int | None = None
+    template_id: int | None = None
     key: str
-    value: Optional[str] = None
-    ean: Optional[str] = None
-    price_eur: Optional[float] = None
-    release_date: Optional[str] = None
-    category: Optional[str] = None
+    value: str | None = None
+    ean: str | None = None
+    price_eur: float | None = None
+    release_date: str | None = None
+    category: str | None = None
 
 
 class ReferencePriceResponse(BaseModel):
@@ -337,10 +337,10 @@ class ReferencePriceResponse(BaseModel):
     id: int
     condition: str  # 'new', 'used', 'refurbished'
     price_eur: float
-    source: Optional[str] = None
-    url: Optional[str] = None
-    notes: Optional[str] = None
-    created_at: Optional[str] = None
+    source: str | None = None
+    url: str | None = None
+    notes: str | None = None
+    created_at: str | None = None
 
 
 class ReferencePriceCreateRequest(BaseModel):
@@ -348,19 +348,19 @@ class ReferencePriceCreateRequest(BaseModel):
 
     condition: str = Field(default="used", pattern="^(new|used|refurbished)$")
     price_eur: float = Field(ge=0)
-    source: Optional[str] = None
-    url: Optional[str] = None
-    notes: Optional[str] = None
+    source: str | None = None
+    url: str | None = None
+    notes: str | None = None
 
 
 class ReferencePriceUpdateRequest(BaseModel):
     """Request to update a reference price."""
 
-    condition: Optional[str] = Field(None, pattern="^(new|used|refurbished)$")
-    price_eur: Optional[float] = Field(None, ge=0)
-    source: Optional[str] = None
-    url: Optional[str] = None
-    notes: Optional[str] = None
+    condition: str | None = Field(None, pattern="^(new|used|refurbished)$")
+    price_eur: float | None = Field(None, ge=0)
+    source: str | None = None
+    url: str | None = None
+    notes: str | None = None
 
 
 class LotDetailResponse(BaseModel):
@@ -368,21 +368,21 @@ class LotDetailResponse(BaseModel):
 
     auction_code: str
     lot_code: str
-    title: Optional[str] = None
-    url: Optional[str] = None
-    state: Optional[str] = None
-    current_bid_eur: Optional[float] = None
-    bid_count: Optional[int] = None
-    opening_bid_eur: Optional[float] = None
-    closing_time_current: Optional[str] = None
-    closing_time_original: Optional[str] = None
-    brand: Optional[str] = None
-    ean: Optional[str] = None
-    location_city: Optional[str] = None
-    location_country: Optional[str] = None
-    notes: Optional[str] = None
-    specs: List[LotSpecResponse] = Field(default_factory=list)
-    reference_prices: List[ReferencePriceResponse] = Field(default_factory=list)
+    title: str | None = None
+    url: str | None = None
+    state: str | None = None
+    current_bid_eur: float | None = None
+    bid_count: int | None = None
+    opening_bid_eur: float | None = None
+    closing_time_current: str | None = None
+    closing_time_original: str | None = None
+    brand: str | None = None
+    ean: str | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    notes: str | None = None
+    specs: list[LotSpecResponse] = Field(default_factory=list)
+    reference_prices: list[ReferencePriceResponse] = Field(default_factory=list)
 
 
 class LotCreateResponse(BaseModel):
@@ -393,14 +393,14 @@ class LotCreateResponse(BaseModel):
     auction_code: str
 
 
-@app.get("/lots", response_model=List[LotView])
+@app.get("/lots", response_model=list[LotView])
 async def list_lots(
     lot_view_service: LotViewServiceDep,
-    auction_code: Optional[str] = None,
-    state: Optional[str] = None,
-    brand: Optional[str] = None,
-    limit: Optional[int] = Query(100, ge=1, le=1000),
-) -> List[LotView]:
+    auction_code: str | None = None,
+    state: str | None = None,
+    brand: str | None = None,
+    limit: int | None = Query(100, ge=1, le=1000),
+) -> list[LotView]:
     lots = lot_view_service.list_lots(
         auction_code=auction_code, state=state, brand=brand, limit=limit
     )
@@ -427,20 +427,20 @@ class SearchResultResponse(BaseModel):
     """A search result with lot details and match info."""
     auction_code: str
     lot_code: str
-    title: Optional[str] = None
-    state: Optional[str] = None
-    current_bid_eur: Optional[float] = None
-    brand: Optional[str] = None
+    title: str | None = None
+    state: str | None = None
+    current_bid_eur: float | None = None
+    brand: str | None = None
     match_field: str  # Which field matched: 'title', 'brand', 'lot_code', 'ean'
 
 
-@app.get("/search", response_model=List[SearchResultResponse])
+@app.get("/search", response_model=list[SearchResultResponse])
 async def search_lots(
     lot_repository: LotRepositoryDep,
     q: str = Query(..., min_length=2, description="Search query (min 2 chars)"),
-    state: Optional[str] = Query(None, description="Filter by state"),
+    state: str | None = Query(None, description="Filter by state"),
     limit: int = Query(50, ge=1, le=200, description="Max results"),
-) -> List[SearchResultResponse]:
+) -> list[SearchResultResponse]:
     """Search lots by title, brand, lot code, or EAN."""
     conn = lot_repository.conn
     query_param = f"%{q}%"
@@ -497,7 +497,7 @@ async def search_lots(
 async def get_lot_detail(
     lot_code: str,
     lot_repository: LotRepositoryDep,
-    auction_code: Optional[str] = Query(None),
+    auction_code: str | None = Query(None),
 ) -> LotDetailResponse:
     """Get detailed lot information including specs and reference prices."""
     lot = lot_repository.get_lot_detail(lot_code, auction_code)
@@ -556,7 +556,7 @@ async def update_lot(
     lot_code: str,
     payload: LotUpdateRequest,
     lot_repository: LotRepositoryDep,
-    auction_code: Optional[str] = Query(None),
+    auction_code: str | None = Query(None),
 ) -> LotDetailResponse:
     """Update lot notes and EAN."""
     success = lot_repository.update_lot(
@@ -588,12 +588,12 @@ async def delete_lot(
 # =============================================================================
 
 
-@app.get("/lots/{lot_code}/reference-prices", response_model=List[ReferencePriceResponse])
+@app.get("/lots/{lot_code}/reference-prices", response_model=list[ReferencePriceResponse])
 async def list_reference_prices(
     lot_code: str,
     lot_repository: LotRepositoryDep,
-    auction_code: Optional[str] = Query(None),
-) -> List[ReferencePriceResponse]:
+    auction_code: str | None = Query(None),
+) -> list[ReferencePriceResponse]:
     """Get all reference prices for a lot."""
     prices = lot_repository.get_reference_prices(lot_code, auction_code)
     return [
@@ -619,7 +619,7 @@ async def create_reference_price(
     lot_code: str,
     payload: ReferencePriceCreateRequest,
     lot_repository: LotRepositoryDep,
-    auction_code: Optional[str] = Query(None),
+    auction_code: str | None = Query(None),
 ) -> ReferencePriceResponse:
     """Add a reference price for a lot."""
     try:
@@ -700,16 +700,16 @@ class BidHistoryEntryResponse(BaseModel):
     id: int
     bidder_label: str
     amount_eur: float
-    timestamp: Optional[str] = None
-    created_at: Optional[str] = None
+    timestamp: str | None = None
+    created_at: str | None = None
 
 
-@app.get("/lots/{lot_code}/bid-history", response_model=List[BidHistoryEntryResponse])
+@app.get("/lots/{lot_code}/bid-history", response_model=list[BidHistoryEntryResponse])
 async def get_lot_bid_history(
     lot_code: str,
     lot_repository: LotRepositoryDep,
-    auction_code: Optional[str] = Query(None),
-) -> List[BidHistoryEntryResponse]:
+    auction_code: str | None = Query(None),
+) -> list[BidHistoryEntryResponse]:
     """Get bid history for a lot, ordered by most recent first."""
     history = lot_repository.get_bid_history(lot_code, auction_code)
     return [
@@ -728,12 +728,12 @@ class LotSpecCreateRequest(BaseModel):
     """Request to add or update a lot specification."""
     key: str
     value: str = ""
-    parent_id: Optional[int] = None
-    ean: Optional[str] = None
-    price_eur: Optional[float] = None
-    template_id: Optional[int] = None
-    release_date: Optional[str] = None
-    category: Optional[str] = None
+    parent_id: int | None = None
+    ean: str | None = None
+    price_eur: float | None = None
+    template_id: int | None = None
+    release_date: str | None = None
+    category: str | None = None
 
 
 @app.post("/lots/{lot_code}/specs", status_code=status.HTTP_201_CREATED, response_model=LotSpecResponse)
@@ -741,7 +741,7 @@ async def create_lot_spec(
     lot_code: str,
     payload: LotSpecCreateRequest,
     lot_repository: LotRepositoryDep,
-    auction_code: Optional[str] = Query(None),
+    auction_code: str | None = Query(None),
 ) -> LotSpecResponse:
     """Add or update a specification for a lot."""
     try:
@@ -790,48 +790,48 @@ async def delete_lot_spec(
 class SpecTemplateResponse(BaseModel):
     """A reusable specification template."""
     id: int
-    parent_id: Optional[int] = None
+    parent_id: int | None = None
     title: str
-    value: Optional[str] = None
-    ean: Optional[str] = None
-    price_eur: Optional[float] = None
-    release_date: Optional[str] = None
-    category: Optional[str] = None
-    created_at: Optional[str] = None
+    value: str | None = None
+    ean: str | None = None
+    price_eur: float | None = None
+    release_date: str | None = None
+    category: str | None = None
+    created_at: str | None = None
 
 
 class SpecTemplateCreateRequest(BaseModel):
     """Request to create a spec template."""
     title: str
-    value: Optional[str] = None
-    ean: Optional[str] = None
-    price_eur: Optional[float] = None
-    parent_id: Optional[int] = None
-    release_date: Optional[str] = None
-    category: Optional[str] = None
+    value: str | None = None
+    ean: str | None = None
+    price_eur: float | None = None
+    parent_id: int | None = None
+    release_date: str | None = None
+    category: str | None = None
 
 
 class SpecTemplateUpdateRequest(BaseModel):
     """Request to update a spec template."""
-    title: Optional[str] = None
-    value: Optional[str] = None
-    ean: Optional[str] = None
-    price_eur: Optional[float] = None
-    release_date: Optional[str] = None
-    category: Optional[str] = None
+    title: str | None = None
+    value: str | None = None
+    ean: str | None = None
+    price_eur: float | None = None
+    release_date: str | None = None
+    category: str | None = None
 
 
 class ApplyTemplateRequest(BaseModel):
     """Request to apply a template to a lot."""
     template_id: int
-    parent_id: Optional[int] = None
+    parent_id: int | None = None
 
 
-@app.get("/spec-templates", response_model=List[SpecTemplateResponse])
+@app.get("/spec-templates", response_model=list[SpecTemplateResponse])
 async def list_spec_templates(
     lot_repository: LotRepositoryDep,
-    parent_id: Optional[int] = Query(None),
-) -> List[SpecTemplateResponse]:
+    parent_id: int | None = Query(None),
+) -> list[SpecTemplateResponse]:
     """List all spec templates, optionally filtered by parent."""
     templates = lot_repository.list_spec_templates(parent_id)
     return [SpecTemplateResponse(**t) for t in templates]
@@ -903,7 +903,7 @@ async def apply_template_to_lot(
     lot_code: str,
     payload: ApplyTemplateRequest,
     lot_repository: LotRepositoryDep,
-    auction_code: Optional[str] = Query(None),
+    auction_code: str | None = Query(None),
 ) -> LotSpecResponse:
     """Apply a spec template to a lot."""
     try:
@@ -953,7 +953,7 @@ async def upsert_positions(
         return PositionBatchResponse(
             updated=cast(int, result.get("updated", 0)),
             created=cast(int, result.get("created", 0)),
-            errors=cast(List[str], result.get("errors", [])),
+            errors=cast(list[str], result.get("errors", [])),
         )
     except ValueError as exc:  # raised when buyer or lot not found
         raise HTTPException(
@@ -961,11 +961,11 @@ async def upsert_positions(
         ) from exc
 
 
-@app.get("/positions", response_model=List[PositionResponse])
+@app.get("/positions", response_model=list[PositionResponse])
 async def list_positions(
     repository: PositionRepositoryDep,
-    buyer: Optional[str] = Query(None, description="Filter by buyer label"),
-) -> List[PositionResponse]:
+    buyer: str | None = Query(None, description="Filter by buyer label"),
+) -> list[PositionResponse]:
     """List all tracked positions, optionally filtered by buyer."""
     from troostwatch.services.positions import PositionsService
 
@@ -992,7 +992,7 @@ async def delete_position(
     buyer_label: str,
     lot_code: str,
     repository: PositionRepositoryDep,
-    auction_code: Optional[str] = Query(None),
+    auction_code: str | None = Query(None),
 ) -> None:
     """Delete a tracked position."""
     repository.delete(
@@ -1002,12 +1002,12 @@ async def delete_position(
     )
 
 
-@app.get("/buyers", response_model=List[BuyerResponse])
+@app.get("/buyers", response_model=list[BuyerResponse])
 async def list_buyers(
     service: BuyerServiceDep,
-) -> List[BuyerResponse]:
+) -> list[BuyerResponse]:
     buyers = service.list_buyers()
-    result: List[BuyerResponse] = []
+    result: list[BuyerResponse] = []
     for buyer in buyers:
         result.append(
             BuyerResponse(
@@ -1064,13 +1064,13 @@ def _bid_row_to_response(bid: dict[str, Any]) -> BidResponse:
     )
 
 
-@app.get("/bids", response_model=List[BidResponse])
+@app.get("/bids", response_model=list[BidResponse])
 async def list_bids(
     repo: BidRepositoryDep,
-    buyer: Optional[str] = Query(None, description="Filter by buyer label"),
-    lot_code: Optional[str] = Query(None, description="Filter by lot code"),
+    buyer: str | None = Query(None, description="Filter by buyer label"),
+    lot_code: str | None = Query(None, description="Filter by lot code"),
     limit: int = Query(100, ge=1, le=500),
-) -> List[BidResponse]:
+) -> list[BidResponse]:
     """List recorded bids with optional filters."""
     bids = repo.list(buyer_label=buyer, lot_code=lot_code, limit=limit)
     return [_bid_row_to_response(bid) for bid in bids]
@@ -1207,11 +1207,11 @@ async def get_dashboard_stats(
     )
 
 
-@app.get("/auctions", response_model=List[AuctionResponse])
+@app.get("/auctions", response_model=list[AuctionResponse])
 async def list_auctions(
     repo: AuctionRepositoryDep,
     include_inactive: bool = Query(False, description="Include auctions without active lots"),
-) -> List[AuctionResponse]:
+) -> list[AuctionResponse]:
     """List all auctions, optionally including those without active lots."""
     auctions = repo.list(only_active=not include_inactive)
     return [
@@ -1231,19 +1231,19 @@ async def list_auctions(
 class AuctionDetailResponse(BaseModel):
     """Detailed auction information."""
     auction_code: str
-    title: Optional[str] = None
-    url: Optional[str] = None
-    starts_at: Optional[str] = None
-    ends_at_planned: Optional[str] = None
+    title: str | None = None
+    url: str | None = None
+    starts_at: str | None = None
+    ends_at_planned: str | None = None
     lot_count: int = 0
 
 
 class AuctionUpdateRequest(BaseModel):
     """Request to update an auction."""
-    title: Optional[str] = None
-    url: Optional[str] = None
-    starts_at: Optional[str] = None
-    ends_at_planned: Optional[str] = None
+    title: str | None = None
+    url: str | None = None
+    starts_at: str | None = None
+    ends_at_planned: str | None = None
 
 
 class AuctionDeleteResponse(BaseModel):
@@ -1443,10 +1443,10 @@ async def get_live_sync_status(
 ) -> LiveSyncStatusResponse:
     status_dict = service.get_live_sync_status()
     return LiveSyncStatusResponse(
-        state=status_dict.get("state", "idle"),
-        last_sync=status_dict.get("last_sync"),
-        next_sync=status_dict.get("next_sync"),
-        current_auction=status_dict.get("current_auction"),
+        state=cast(str, status_dict.get("state", "idle")),
+        last_sync=cast(str | None, status_dict.get("last_sync")),
+        next_sync=cast(str | None, status_dict.get("next_sync")),
+        current_auction=cast(str | None, status_dict.get("current_auction")),
     )
 
 

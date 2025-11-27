@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 DEFAULT_DB_TIMEOUT = 30.0
 
@@ -10,7 +10,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _CONFIG_FILE = _REPO_ROOT / "config.json"
 
 
-def load_config(config_path: Path | str | None = None) -> Dict[str, Any]:
+def load_config(config_path: Path | str | None = None) -> dict[str, Any]:
     """Load ``config.json`` if present and return it as a dictionary."""
 
     path = Path(config_path) if config_path is not None else _CONFIG_FILE
@@ -20,13 +20,13 @@ def load_config(config_path: Path | str | None = None) -> Dict[str, Any]:
         return json.load(f)
 
 
-def get_config(config_path: Path | str | None = None) -> Dict[str, Any]:
+def get_config(config_path: Path | str | None = None) -> dict[str, Any]:
     """Return the loaded project configuration as a dictionary."""
 
     return load_config(config_path)
 
 
-def get_path_config(config_path: Path | str | None = None) -> Dict[str, Path]:
+def get_path_config(config_path: Path | str | None = None) -> dict[str, Path]:
     """Return resolved filesystem paths from the project configuration."""
 
     cfg = load_config(config_path)
@@ -38,7 +38,7 @@ def get_path_config(config_path: Path | str | None = None) -> Dict[str, Path]:
         "lot_details_dir": root / "snapshots" / "lot_details",
     }
     paths_cfg = cfg.get("paths", {}) if isinstance(cfg.get("paths", {}), dict) else {}
-    resolved: Dict[str, Path] = {}
+    resolved: dict[str, Path] = {}
     for key, default_value in defaults.items():
         raw_value = paths_cfg.get(key, default_value)
         resolved_value = Path(raw_value)

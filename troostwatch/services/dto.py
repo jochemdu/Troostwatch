@@ -2,12 +2,12 @@
 Centralized DTOs and input/output models for Troostwatch services.
 """
 from __future__ import annotations
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Awaitable, Callable, Optional, Dict, Any
 
 
 # --- Event Publishing Types ---
-EventPayload = Dict[str, object]
+EventPayload = dict[str, object]
 EventPublisher = Callable[[EventPayload], Awaitable[None]]
 
 
@@ -21,16 +21,16 @@ async def noop_event_publisher(_: EventPayload) -> None:
 class LotViewDTO:
     auction_code: str
     lot_code: str
-    title: Optional[str] = None
-    state: Optional[str] = None
-    current_bid_eur: Optional[float] = None
-    bid_count: Optional[int] = None
-    current_bidder_label: Optional[str] = None
-    closing_time_current: Optional[str] = None
-    closing_time_original: Optional[str] = None
-    brand: Optional[str] = None
+    title: str | None = None
+    state: str | None = None
+    current_bid_eur: float | None = None
+    bid_count: int | None = None
+    current_bidder_label: str | None = None
+    closing_time_current: str | None = None
+    closing_time_original: str | None = None
+    brand: str | None = None
     is_active: bool = False
-    effective_price: Optional[float] = None
+    effective_price: float | None = None
 
 
 @dataclass
@@ -38,17 +38,17 @@ class LotInputDTO:
     auction_code: str
     lot_code: str
     title: str
-    url: Optional[str] = None
-    state: Optional[str] = None
-    opens_at: Optional[str] = None
-    closing_time: Optional[str] = None
-    bid_count: Optional[int] = None
-    opening_bid_eur: Optional[float] = None
-    current_bid_eur: Optional[float] = None
-    location_city: Optional[str] = None
-    location_country: Optional[str] = None
-    auction_title: Optional[str] = None
-    auction_url: Optional[str] = None
+    url: str | None = None
+    state: str | None = None
+    opens_at: str | None = None
+    closing_time: str | None = None
+    bid_count: int | None = None
+    opening_bid_eur: float | None = None
+    current_bid_eur: float | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    auction_title: str | None = None
+    auction_url: str | None = None
 
 
 # --- Buyer DTOs ---
@@ -56,15 +56,15 @@ class LotInputDTO:
 class BuyerDTO:
     id: int
     label: str
-    name: Optional[str] = None
-    notes: Optional[str] = None
+    name: str | None = None
+    notes: str | None = None
 
 
 @dataclass
 class BuyerCreateDTO:
     label: str
-    name: Optional[str] = None
-    notes: Optional[str] = None
+    name: str | None = None
+    notes: str | None = None
 
 
 # --- Position DTOs ---
@@ -72,23 +72,23 @@ class BuyerCreateDTO:
 class PositionDTO:
     buyer_label: str
     lot_code: str
-    auction_code: Optional[str] = None
+    auction_code: str | None = None
     track_active: bool = True
-    max_budget_total_eur: Optional[float] = None
-    my_highest_bid_eur: Optional[float] = None
-    lot_title: Optional[str] = None
-    lot_state: Optional[str] = None
-    current_bid_eur: Optional[float] = None
+    max_budget_total_eur: float | None = None
+    my_highest_bid_eur: float | None = None
+    lot_title: str | None = None
+    lot_state: str | None = None
+    current_bid_eur: float | None = None
 
 
 @dataclass
 class PositionUpdateDTO:
     buyer_label: str
     lot_code: str
-    auction_code: Optional[str] = None
-    max_budget_total_eur: Optional[float] = None
-    preferred_bid_eur: Optional[float] = None
-    watch: Optional[bool] = None
+    auction_code: str | None = None
+    max_budget_total_eur: float | None = None
+    preferred_bid_eur: float | None = None
+    watch: bool | None = None
 
 
 # --- Bid DTOs ---
@@ -100,8 +100,8 @@ class BidDTO:
     auction_code: str
     amount_eur: float
     placed_at: str
-    lot_title: Optional[str] = None
-    note: Optional[str] = None
+    lot_title: str | None = None
+    note: str | None = None
 
 
 @dataclass
@@ -110,7 +110,7 @@ class BidCreateDTO:
     auction_code: str
     lot_code: str
     amount_eur: float
-    note: Optional[str] = None
+    note: str | None = None
 
 
 # --- Bid Result ---
@@ -120,4 +120,4 @@ class BidResultDTO:
     lot_code: str
     auction_code: str
     amount_eur: float
-    raw_response: Dict[str, Any]
+    raw_response: dict[str, object]

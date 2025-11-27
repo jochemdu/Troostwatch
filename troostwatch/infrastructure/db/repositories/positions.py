@@ -30,7 +30,7 @@ class PositionRepository(BaseRepository):
         lot_id = self.lots.get_id(lot_code, auction_code)
         if lot_id is None:
             raise ValueError(f"Lot with code '{lot_code}' not found (auction: {auction_code})")
-          self._execute(
+        self._execute(
             """
             INSERT INTO my_lot_positions (buyer_id, lot_id, track_active, max_budget_total_eur, my_highest_bid_eur)
             VALUES (?, ?, ?, ?, ?)
@@ -64,7 +64,7 @@ class PositionRepository(BaseRepository):
             query += " WHERE b.label = ?"
             params.append(buyer_label)
         query += " ORDER BY a.auction_code, l.lot_code"
-            return self._fetch_all_as_dicts(query, tuple(params))
+        return self._fetch_all_as_dicts(query, tuple(params))
 
     def delete(self, buyer_label: str, lot_code: str, auction_code: Optional[str] = None) -> None:
         buyer_id = self.buyers.get_id(buyer_label)
@@ -73,7 +73,7 @@ class PositionRepository(BaseRepository):
         lot_id = self.lots.get_id(lot_code, auction_code)
         if lot_id is None:
             raise ValueError(f"Lot with code '{lot_code}' not found (auction: {auction_code})")
-          self._execute(
+        self._execute(
             "DELETE FROM my_lot_positions WHERE buyer_id = ? AND lot_id = ?",
             (buyer_id, lot_id),
         )

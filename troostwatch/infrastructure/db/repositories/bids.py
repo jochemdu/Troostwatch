@@ -31,7 +31,7 @@ class BidRepository(BaseRepository):
             raise ValueError(
                 f"Lot '{lot_code}' in auction '{auction_code}' does not exist"
             )
-          self._execute(
+        self._execute(
             """
             INSERT INTO my_bids (lot_id, buyer_id, amount_eur, placed_at, note)
             VALUES (?, ?, ?, ?, ?)
@@ -75,4 +75,4 @@ class BidRepository(BaseRepository):
         query += " ORDER BY mb.placed_at DESC LIMIT ?"
         params.append(limit)
         
-            return self._fetch_all_as_dicts(query, tuple(params))
+        return self._fetch_all_as_dicts(query, tuple(params))

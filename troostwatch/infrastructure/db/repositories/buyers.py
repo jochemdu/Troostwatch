@@ -32,7 +32,7 @@ class BuyerRepository(BaseRepository):
        return self._fetch_all_as_dicts("SELECT id, label, name, notes FROM buyers ORDER BY id")
 
     def delete(self, label: str) -> None:
-       self._execute("DELETE FROM buyers WHERE label = ?", (label,))
+        self._execute("DELETE FROM buyers WHERE label = ?", (label,))
         self.conn.commit()
 
     def get_id(self, label: str) -> Optional[int]:

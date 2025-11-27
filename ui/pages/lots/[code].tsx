@@ -5,6 +5,7 @@ import Layout from '../../components/Layout';
 import LotEditModal from '../../components/LotEditModal';
 import type { LotDetailResponse, SpecTemplate } from '../../lib/api';
 import { fetchLotDetail, fetchSpecTemplates } from '../../lib/api';
+import { buildSpecTree, getDepthColor, type SpecNode } from '../../lib/specs';
 
 export default function LotDetailPage() {
   const router = useRouter();
@@ -181,29 +182,35 @@ export default function LotDetailPage() {
             <p className="empty">Geen specificaties. Klik op Bewerken om toe te voegen.</p>
           ) : (
             <div className="specs-list">
-              {lot.specs.filter(s => !s.parent_id).map(spec => (
-                <div key={spec.id} className="spec-item">
-                  <div className="spec-row">
-                    <span className="spec-key">{spec.key}</span>
-                    <span className="spec-value">{spec.value || '—'}</span>
-                    {spec.ean && <span className="spec-ean">📦 {spec.ean}</span>}
-                    {spec.price_eur != null && (
-                      <span className="spec-price">€{spec.price_eur.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>
-                    )}
-                  </div>
-                  {/* Child specs */}
-                  {lot.specs.filter(cs => cs.parent_id === spec.id).map(child => (
-                    <div key={child.id} className="spec-row child">
-                      <span className="spec-key">{child.key}</span>
-                      <span className="spec-value">{child.value || '—'}</span>
-                      {child.ean && <span className="spec-ean">📦 {child.ean}</span>}
-                      {child.price_eur != null && (
-                        <span className="spec-price">€{child.price_eur.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>
+              {(() => {
+                const specTree = buildSpecTree(lot.specs);
+                
+                const renderSpecNode = (node: SpecNode, depth: number = 0): JSX.Element => (
+                  <div key={node.id} className="spec-item">
+                    <div 
+                      className="spec-row" 
+                      style={{ 
+                        marginLeft: depth * 24, 
+                        borderLeft: depth > 0 ? `3px solid ${getDepthColor(depth)}` : undefined,
+                        paddingLeft: depth > 0 ? '12px' : undefined
+                      }}
+                    >
+                      {depth > 0 && <span className="spec-indent">└─ </span>}
+                      <span className="spec-key">{node.key}</span>
+                      <span className="spec-value">{node.value || '—'}</span>
+                      {node.ean && <span className="spec-ean">📦 {node.ean}</span>}
+                      {node.price_eur != null && (
+                        <span className="spec-price">€{node.price_eur.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>
                       )}
+                      {node.release_date && <span className="spec-release-date">📅 {node.release_date}</span>}
+                      {node.category && <span className="spec-category">🏷️ {node.category}</span>}
                     </div>
-                  ))}
-                </div>
-              ))}
+                    {node.children.map(child => renderSpecNode(child, depth + 1))}
+                  </div>
+                );
+                
+                return specTree.map(node => renderSpecNode(node));
+              })()}
             </div>
           )}
         </div>
@@ -279,11 +286,13 @@ export default function LotDetailPage() {
           border-radius: 6px;
           flex-wrap: wrap;
         }
-        .spec-row.child { margin-left: 24px; margin-top: 4px; background: #1e1e38; }
+        .spec-indent { color: #555; font-family: monospace; }
         .spec-key { font-weight: 500; color: #a0a0c0; min-width: 120px; }
         .spec-value { flex: 1; color: #fff; }
         .spec-ean { font-size: 0.8rem; color: #888; background: #1a1a2e; padding: 2px 8px; border-radius: 4px; }
         .spec-price { font-size: 0.9rem; color: #4ade80; font-weight: 600; font-family: monospace; }
+        .spec-release-date { font-size: 0.8rem; color: #a0a0c0; background: #1a1a2e; padding: 2px 8px; border-radius: 4px; }
+        .spec-category { font-size: 0.8rem; color: #60a5fa; background: #1a1a2e; padding: 2px 8px; border-radius: 4px; }
         
         .notes { background: #252540; border-radius: 6px; padding: 14px; white-space: pre-wrap; color: #e0e0e0; line-height: 1.5; }
       `}</style>

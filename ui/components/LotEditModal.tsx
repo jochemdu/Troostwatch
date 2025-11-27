@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { LotDetailResponse, ReferencePrice, ReferencePriceCreateRequest, LotSpec, LotSpecCreateRequest, SpecTemplate } from '../lib/api';
 import { fetchLotDetail, updateLot, addReferencePrice, deleteReferencePrice, addLotSpec, deleteLotSpec, fetchSpecTemplates, createSpecTemplate, applyTemplateToLot } from '../lib/api';
+import { buildSpecTree, buildTemplateTree, getDepthColor, type SpecNode, type TemplateNode } from '../lib/specs';
 
 interface BaseProps {
   onClose: () => void;
@@ -69,58 +70,6 @@ const emptySpecForm: NewSpecForm = {
   category: '',
   saveAsTemplate: false,
 };
-
-// Helper to build a tree structure from flat specs
-interface SpecNode extends LotSpec {
-  children: SpecNode[];
-}
-
-function buildSpecTree(specs: LotSpec[]): SpecNode[] {
-  const map = new Map<number, SpecNode>();
-  const roots: SpecNode[] = [];
-
-  // First pass: create nodes
-  for (const spec of specs) {
-    map.set(spec.id, { ...spec, children: [] });
-  }
-
-  // Second pass: build tree
-  for (const spec of specs) {
-    const node = map.get(spec.id)!;
-    if (spec.parent_id && map.has(spec.parent_id)) {
-      map.get(spec.parent_id)!.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  }
-
-  return roots;
-}
-
-// Helper to build a tree structure from flat templates
-interface TemplateNode extends SpecTemplate {
-  children: TemplateNode[];
-}
-
-function buildTemplateTree(templates: SpecTemplate[]): TemplateNode[] {
-  const map = new Map<number, TemplateNode>();
-  const roots: TemplateNode[] = [];
-
-  for (const template of templates) {
-    map.set(template.id, { ...template, children: [] });
-  }
-
-  for (const template of templates) {
-    const node = map.get(template.id)!;
-    if (template.parent_id && map.has(template.parent_id)) {
-      map.get(template.parent_id)!.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  }
-
-  return roots;
-}
 
 export default function LotEditModal(props: Props) {
   // Determine if we have a lot directly or need to fetch

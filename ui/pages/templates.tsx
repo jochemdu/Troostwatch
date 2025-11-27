@@ -2,46 +2,7 @@ import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import type { SpecTemplate, SpecTemplateCreateRequest, SpecTemplateUpdateRequest } from '../lib/api';
 import { fetchSpecTemplates, createSpecTemplate, deleteSpecTemplate, updateSpecTemplate } from '../lib/api';
-
-interface TemplateNode extends SpecTemplate {
-  children: TemplateNode[];
-  depth: number;
-}
-
-function buildTemplateTree(templates: SpecTemplate[]): TemplateNode[] {
-  const map = new Map<number, TemplateNode>();
-  const roots: TemplateNode[] = [];
-
-  // First pass: create nodes with depth 0
-  for (const template of templates) {
-    map.set(template.id, { ...template, children: [], depth: 0 });
-  }
-
-  // Second pass: build tree and calculate depths
-  for (const template of templates) {
-    const node = map.get(template.id)!;
-    if (template.parent_id && map.has(template.parent_id)) {
-      const parent = map.get(template.parent_id)!;
-      parent.children.push(node);
-      node.depth = parent.depth + 1;
-    } else {
-      roots.push(node);
-    }
-  }
-
-  // Third pass: recalculate depths for deeply nested items
-  function setDepths(node: TemplateNode, depth: number) {
-    node.depth = depth;
-    for (const child of node.children) {
-      setDepths(child, depth + 1);
-    }
-  }
-  for (const root of roots) {
-    setDepths(root, 0);
-  }
-
-  return roots;
-}
+import { buildTemplateTree, getDepthColor, type TemplateNode } from '../lib/specs';
 
 interface TemplateFormData {
   title: string;
@@ -254,7 +215,14 @@ export default function TemplatesPage() {
 
   const renderTemplateRow = (template: TemplateNode) => (
     <div key={template.id} className="template-item">
-      <div className={`template-row depth-${template.depth}`} style={{ marginLeft: template.depth * 32 }}>
+      <div 
+        className="template-row" 
+        style={{ 
+          marginLeft: template.depth * 32,
+          borderLeft: `3px solid ${getDepthColor(template.depth)}`,
+          background: template.depth === 0 ? '#1a1a2e' : `rgba(26, 26, 46, ${1 - template.depth * 0.15})`
+        }}
+      >
         <div className="template-info">
           <span className="template-indent">{template.depth > 0 ? '└─ ' : ''}</span>
           <span className="template-title">{template.title}</span>

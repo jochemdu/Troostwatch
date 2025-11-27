@@ -19,7 +19,7 @@ class AuctionSelection:
 
     resolved_code: str | None
     resolved_url: str | None
-    available: list[dict[str, object]]
+    available: list[dict[str, str | None]]
     preferred_index: int | None
 
     @property

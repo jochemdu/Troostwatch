@@ -550,6 +550,18 @@ async def update_lot(
     return await get_lot_detail(lot_code, auction_code, lot_repository)
 
 
+@app.delete("/lots/{lot_code}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_lot(
+    lot_code: str,
+    auction_code: str = Query(..., description="Auction code is required to identify the lot"),
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> None:
+    """Delete a lot and all related data (specs, bids, reference prices, positions)."""
+    success = lot_repository.delete_lot(lot_code, auction_code)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Lot '{lot_code}' in auction '{auction_code}' not found")
+
+
 # =============================================================================
 # Reference Prices Endpoints
 # =============================================================================

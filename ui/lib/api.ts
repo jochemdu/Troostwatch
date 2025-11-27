@@ -212,6 +212,20 @@ export async function updateLot(lotCode: string, updates: LotUpdateRequest, auct
 }
 
 /**
+ * Delete a lot and all related data.
+ * @see DELETE /lots/{lot_code} in troostwatch/app/api.py
+ */
+export async function deleteLot(lotCode: string, auctionCode: string): Promise<void> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}`);
+  url.searchParams.append('auction_code', auctionCode);
+  const response = await fetch(url.toString(), { method: 'DELETE' });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Failed to delete lot: ${response.status}`);
+  }
+}
+
+/**
  * Add a reference price for a lot.
  * @see POST /lots/{lot_code}/reference-prices in troostwatch/app/api.py
  */

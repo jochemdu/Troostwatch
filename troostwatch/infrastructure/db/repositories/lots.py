@@ -572,6 +572,40 @@ class LotRepository:
                     (lot_id, entry.bidder_label, entry.amount_eur, entry.timestamp),
                 )
 
+    def delete_lot(self, lot_code: str, auction_code: str) -> bool:
+        """Delete a lot and all related data (specs, bids, reference prices, positions).
+        
+        Returns True if the lot was deleted, False if not found.
+        """
+        # Get auction_id and lot_id
+        cur = self.conn.execute(
+            "SELECT id FROM auctions WHERE auction_code = ?", (auction_code,)
+        )
+        auction_row = cur.fetchone()
+        if not auction_row:
+            return False
+        auction_id = auction_row[0]
+
+        cur = self.conn.execute(
+            "SELECT id FROM lots WHERE lot_code = ? AND auction_id = ?",
+            (lot_code, auction_id),
+        )
+        lot_row = cur.fetchone()
+        if not lot_row:
+            return False
+        lot_id = lot_row[0]
+
+        # Delete related data in order (foreign key dependencies)
+        self.conn.execute("DELETE FROM bid_history WHERE lot_id = ?", (lot_id,))
+        self.conn.execute("DELETE FROM reference_prices WHERE lot_id = ?", (lot_id,))
+        self.conn.execute("DELETE FROM product_layers WHERE lot_id = ?", (lot_id,))
+        self.conn.execute("DELETE FROM my_lot_positions WHERE lot_id = ?", (lot_id,))
+        
+        # Delete the lot itself
+        self.conn.execute("DELETE FROM lots WHERE id = ?", (lot_id,))
+        self.conn.commit()
+        return True
+
 
 def _choose_value(*values: Optional[str | float | int | bool]):
     for value in values:

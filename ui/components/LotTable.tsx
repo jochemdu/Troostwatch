@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { LotView } from '../lib/api';
+import { deleteLot } from '../lib/api';
 import LotEditModal from './LotEditModal';
 
 export type SortField = 'lot_code' | 'closing_time_current' | 'current_bid_eur' | 'bid_count' | 'state';
@@ -44,9 +45,25 @@ interface Props {
 
 export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated, sortField, sortDirection, onSort }: Props) {
   const [editingLot, setEditingLot] = useState<{ lotCode: string; auctionCode: string } | null>(null);
+  const [deletingLot, setDeletingLot] = useState<{ lotCode: string; auctionCode: string; title?: string } | null>(null);
 
   const handleEditClick = (lot: LotView) => {
     setEditingLot({ lotCode: lot.lot_code, auctionCode: lot.auction_code });
+  };
+
+  const handleDeleteClick = (lot: LotView) => {
+    setDeletingLot({ lotCode: lot.lot_code, auctionCode: lot.auction_code, title: lot.title ?? lot.lot_code });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingLot) return;
+    try {
+      await deleteLot(deletingLot.lotCode, deletingLot.auctionCode);
+      setDeletingLot(null);
+      onLotUpdated?.();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Verwijderen mislukt');
+    }
   };
 
   const handleCloseModal = () => {
@@ -110,6 +127,14 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
                   >
                     ✏️
                   </button>
+                  <button 
+                    className="btn-delete"
+                    onClick={() => handleDeleteClick(lot)}
+                    aria-label={`verwijder ${lot.lot_code}`}
+                    title="Verwijderen"
+                  >
+                    🗑️
+                  </button>
                 </td>
               </tr>
             ))}
@@ -149,6 +174,20 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
           opacity: 1;
         }
 
+        .btn-delete {
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 4px 8px;
+          font-size: 1rem;
+          opacity: 0.6;
+          transition: opacity 0.2s;
+        }
+
+        .btn-delete:hover {
+          opacity: 1;
+        }
+
         .sortable-header {
           cursor: pointer;
           user-select: none;
@@ -179,6 +218,80 @@ export default function LotTable({ lots, selectedLots, onToggleLot, onLotUpdated
           color: #818cf8;
         }
       `}</style>
+
+      {/* Delete Confirmation Dialog */}
+      {deletingLot && (
+        <div className="delete-overlay">
+          <div className="delete-dialog">
+            <h3>Lot verwijderen?</h3>
+            <p>Weet je zeker dat je <strong>{deletingLot.title}</strong> wilt verwijderen?</p>
+            <p className="warning">Dit verwijdert ook alle specificaties, biedhistorie en referentieprijzen.</p>
+            <div className="delete-actions">
+              <button className="btn-cancel" onClick={() => setDeletingLot(null)}>Annuleren</button>
+              <button className="btn-confirm-delete" onClick={handleConfirmDelete}>Verwijderen</button>
+            </div>
+          </div>
+          <style jsx>{`
+            .delete-overlay {
+              position: fixed;
+              inset: 0;
+              background: rgba(0, 0, 0, 0.6);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              z-index: 1000;
+            }
+            .delete-dialog {
+              background: #1a1a2e;
+              border-radius: 8px;
+              padding: 24px;
+              max-width: 400px;
+              color: #e0e0e0;
+              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            }
+            .delete-dialog h3 {
+              margin: 0 0 12px 0;
+              color: #f56565;
+            }
+            .delete-dialog p {
+              margin: 8px 0;
+            }
+            .warning {
+              font-size: 0.9em;
+              color: #ed8936;
+            }
+            .delete-actions {
+              display: flex;
+              gap: 12px;
+              margin-top: 20px;
+              justify-content: flex-end;
+            }
+            .btn-cancel {
+              background: #333;
+              border: 1px solid #555;
+              color: #e0e0e0;
+              padding: 8px 16px;
+              border-radius: 4px;
+              cursor: pointer;
+            }
+            .btn-cancel:hover {
+              background: #444;
+            }
+            .btn-confirm-delete {
+              background: #f56565;
+              border: none;
+              color: #fff;
+              padding: 8px 16px;
+              border-radius: 4px;
+              cursor: pointer;
+              font-weight: 600;
+            }
+            .btn-confirm-delete:hover {
+              background: #e53e3e;
+            }
+          `}</style>
+        </div>
+      )}
     </>
   );
 }

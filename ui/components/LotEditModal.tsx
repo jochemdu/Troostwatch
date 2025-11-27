@@ -648,9 +648,9 @@ export default function LotEditModal(props: Props) {
         .btn-delete:disabled { opacity: 0.3; cursor: not-allowed; }
         .specs-tree { }
         .spec-row { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #2a2a40; gap: 12px; }
-        .spec-row.depth-0 { background: #252540; border-radius: 4px; margin-bottom: 4px; }
-        .spec-row.depth-1 { margin-left: 24px; background: #1e1e35; font-size: 0.9em; }
-        .spec-row.depth-2 { margin-left: 48px; background: #1a1a30; font-size: 0.85em; }
+        .spec-row.depth-0 { background: #252540; border-radius: 4px; margin-bottom: 4px; padding-left: 12px; }
+        .spec-row.depth-1 { background: #1e1e35; font-size: 0.9em; padding-left: 36px; border-left: 2px solid #4a4a70; margin-left: 12px; }
+        .spec-row.depth-2 { background: #1a1a30; font-size: 0.85em; padding-left: 60px; border-left: 2px solid #3a3a60; margin-left: 12px; }
         .spec-key { font-weight: 500; color: #a0a0c0; min-width: 120px; }
         .spec-value { flex: 1; color: #e0e0e0; }
         .spec-ean { font-size: 0.75rem; color: #888; background: #333; padding: 2px 6px; border-radius: 3px; }

@@ -5,8 +5,15 @@ import { startLiveSync, pauseLiveSync, stopLiveSync } from '../lib/api';
 
 const NAV_LINKS = [
   { href: '/lots', label: 'Lots overzicht' },
+  { href: '/auctions', label: 'Veilingen' },
+  { href: '/sync', label: 'Importeren' },
   { href: '/live', label: 'Live volgen' },
-  { href: '/buyers', label: 'Buyers' },
+  { href: '/positions', label: 'Posities' },
+  { href: '/bids', label: 'Biedingen' },
+  { href: '/buyers', label: 'Kopers' },
+  { href: '/templates', label: 'Templates' },
+  { href: '/reports', label: 'Rapportage' },
+  { href: '/add-lot', label: 'Lot toevoegen' },
   { href: '/debug', label: 'Debug' }
 ];
 

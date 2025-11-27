@@ -8,7 +8,7 @@ Troostwatch uses SQLite for local data storage. The canonical schema is defined
 in `schema/schema.sql` and managed via `SchemaMigrator` (see
 [Migration Policy](migration_policy.md)).
 
-**Current schema version:** 1
+**Current schema version:** 2
 
 ## Entity Relationship Diagram
 
@@ -24,11 +24,16 @@ in `schema/schema.sql` and managed via `SchemaMigrator` (see
         ┌──────────┐ ┌──────────┐ ┌──────────────────┐
         │ my_bids  │ │lot_items │ │ my_lot_positions │
         └──────────┘ └──────────┘ └──────────────────┘
-                          │
-                          ▼
-                    ┌──────────┐
-                    │ products │
-                    └──────────┘
+              │           │
+              │           ▼
+              │     ┌──────────┐
+              │     │ products │
+              │     └──────────┘
+              │
+              ▼
+        ┌─────────────┐
+        │ bid_history │  (scraped bids from lot pages)
+        └─────────────┘
 ```
 
 ## Tables
@@ -78,6 +83,7 @@ Stores individual lot data within auctions.
 | `location_city` | TEXT | Lot location city |
 | `location_country` | TEXT | Lot location country |
 | `seller_allocation_note` | TEXT | Seller notes |
+| `brand` | TEXT | Brand/manufacturer of the lot item |
 | `listing_hash` | TEXT | Hash of listing page (change detection) |
 | `detail_hash` | TEXT | Hash of detail page (change detection) |
 | `last_seen_at` | TEXT | Last sync timestamp for listing |
@@ -124,6 +130,24 @@ Tracks which lots a buyer is interested in and their budget limits.
 **Constraints:**
 - `UNIQUE (buyer_id, lot_id)`
 - Cascading deletes from both `buyers` and `lots`
+
+#### `bid_history`
+
+Stores historical bids on lots as scraped from lot detail pages.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER PK | Auto-increment ID |
+| `lot_id` | INTEGER FK | Reference to `lots.id` |
+| `bidder_label` | TEXT | Bidder identifier/label |
+| `amount_eur` | REAL | Bid amount in EUR |
+| `bid_time` | TEXT | ISO timestamp of the bid |
+
+**Indexes:**
+- `idx_bid_history_lot_id` on `lot_id`
+
+**Constraints:**
+- Cascading delete from `lots`
 
 #### `my_bids`
 

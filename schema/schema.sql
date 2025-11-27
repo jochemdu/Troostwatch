@@ -1,4 +1,4 @@
--- Troostwatch schema version: 1
+-- Troostwatch schema version: 7
 -- SQLite schema for Troostwatch
 --
 -- This file is the canonical source of truth for new databases. The schema
@@ -79,6 +79,13 @@ CREATE TABLE IF NOT EXISTS lots (
     location_city TEXT,
     location_country TEXT,
     seller_allocation_note TEXT,
+    brand TEXT,
+    ean TEXT,
+    reference_price_new_eur REAL,
+    reference_price_used_eur REAL,
+    reference_source TEXT,
+    reference_url TEXT,
+    notes TEXT,
     listing_hash TEXT,
     detail_hash TEXT,
     last_seen_at TEXT,
@@ -124,6 +131,17 @@ CREATE TABLE IF NOT EXISTS my_bids (
 
 CREATE INDEX IF NOT EXISTS idx_my_bids_lot_id ON my_bids (lot_id);
 
+CREATE TABLE IF NOT EXISTS bid_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id INTEGER NOT NULL,
+    bidder_label TEXT NOT NULL,
+    amount_eur REAL NOT NULL,
+    bid_time TEXT,
+    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_bid_history_lot_id ON bid_history (lot_id);
+
 CREATE TABLE IF NOT EXISTS lot_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lot_id INTEGER NOT NULL,
@@ -155,15 +173,59 @@ CREATE TABLE IF NOT EXISTS market_offers (
 CREATE INDEX IF NOT EXISTS idx_market_offers_lot_id ON market_offers (lot_id);
 CREATE INDEX IF NOT EXISTS idx_market_offers_buyer_id ON market_offers (buyer_id);
 
+-- Reusable spec templates that can be linked to multiple lots
+CREATE TABLE IF NOT EXISTS spec_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    parent_id INTEGER,
+    title TEXT NOT NULL,
+    value TEXT,
+    ean TEXT,
+    price_eur REAL,
+    release_date TEXT,
+    category TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT,
+    FOREIGN KEY (parent_id) REFERENCES spec_templates (id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_spec_templates_parent_id ON spec_templates (parent_id);
+CREATE INDEX IF NOT EXISTS idx_spec_templates_ean ON spec_templates (ean);
+CREATE INDEX IF NOT EXISTS idx_spec_templates_category ON spec_templates (category);
+
 CREATE TABLE IF NOT EXISTS product_layers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     lot_id INTEGER NOT NULL,
+    parent_id INTEGER,
+    template_id INTEGER,
     layer INTEGER NOT NULL DEFAULT 0,
     title TEXT,
     value TEXT,
-    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
+    ean TEXT,
+    price_eur REAL,
+    release_date TEXT,
+    category TEXT,
+    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES product_layers (id) ON DELETE CASCADE,
+    FOREIGN KEY (template_id) REFERENCES spec_templates (id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_product_layers_lot_id ON product_layers (lot_id);
+CREATE INDEX IF NOT EXISTS idx_product_layers_parent_id ON product_layers (parent_id);
+CREATE INDEX IF NOT EXISTS idx_product_layers_template_id ON product_layers (template_id);
+CREATE INDEX IF NOT EXISTS idx_product_layers_category ON product_layers (category);
+
+-- Table for storing multiple reference prices per lot from different sources
+CREATE TABLE IF NOT EXISTS reference_prices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id INTEGER NOT NULL,
+    condition TEXT NOT NULL DEFAULT 'used',  -- 'new', 'used', 'refurbished'
+    price_eur REAL NOT NULL,
+    source TEXT,                              -- e.g. 'Marktplaats', 'eBay', 'Coolblue'
+    url TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT,
+    FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_reference_prices_lot_id ON reference_prices (lot_id);
 
 CREATE TABLE IF NOT EXISTS sync_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

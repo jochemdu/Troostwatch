@@ -49,6 +49,7 @@ class LotRepository:
         *,
         auction_code: Optional[str] = None,
         state: Optional[str] = None,
+        brand: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> List[Dict[str, Optional[str]]]:
         query = """
@@ -60,7 +61,8 @@ class LotRepository:
                    l.bid_count AS bid_count,
                    l.current_bidder_label AS current_bidder_label,
                    l.closing_time_current AS closing_time_current,
-                   l.closing_time_original AS closing_time_original
+                   l.closing_time_original AS closing_time_original,
+                   l.brand AS brand
             FROM lots l
             JOIN auctions a ON l.auction_id = a.id
         """
@@ -73,6 +75,9 @@ class LotRepository:
         if state:
             conditions.append("l.state = ?")
             params.append(state)
+        if brand:
+            conditions.append("l.brand = ?")
+            params.append(brand)
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
 
@@ -84,6 +89,362 @@ class LotRepository:
         cur = self.conn.execute(query, tuple(params))
         columns = [c[0] for c in cur.description]
         return [dict(zip(columns, row)) for row in cur.fetchall()]
+
+    def get_lot_detail(self, lot_code: str, auction_code: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Get detailed lot information."""
+        query = """
+            SELECT a.auction_code, l.lot_code, l.title, l.url, l.state,
+                   l.current_bid_eur, l.bid_count, l.opening_bid_eur,
+                   l.closing_time_current, l.closing_time_original, l.brand, l.ean,
+                   l.location_city, l.location_country, l.notes
+            FROM lots l
+            JOIN auctions a ON l.auction_id = a.id
+            WHERE l.lot_code = ?
+        """
+        params: List = [lot_code]
+        if auction_code:
+            query += " AND a.auction_code = ?"
+            params.append(auction_code)
+        
+        cur = self.conn.execute(query, tuple(params))
+        row = cur.fetchone()
+        if not row:
+            return None
+        
+        columns = [c[0] for c in cur.description]
+        return dict(zip(columns, row))
+
+    def get_lot_specs(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get specifications (product_layers) for a lot, including parent_id, ean, price for hierarchy."""
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            return []
+        
+        cur = self.conn.execute(
+            "SELECT id, parent_id, template_id, title AS key, value, ean, price_eur, release_date, category FROM product_layers WHERE lot_id = ? ORDER BY parent_id NULLS FIRST, layer",
+            (lot_id,)
+        )
+        columns = [c[0] for c in cur.description]
+        return [dict(zip(columns, row)) for row in cur.fetchall()]
+
+    def get_reference_prices(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get all reference prices for a lot."""
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            return []
+        
+        cur = self.conn.execute(
+            """SELECT id, condition, price_eur, source, url, notes, created_at
+               FROM reference_prices WHERE lot_id = ? ORDER BY created_at DESC""",
+            (lot_id,)
+        )
+        columns = [c[0] for c in cur.description]
+        return [dict(zip(columns, row)) for row in cur.fetchall()]
+
+    def get_bid_history(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get bid history for a lot, ordered by timestamp descending (most recent first)."""
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            return []
+        
+        cur = self.conn.execute(
+            """SELECT id, bidder_label, amount_eur, timestamp, created_at
+               FROM bid_history WHERE lot_id = ? ORDER BY timestamp DESC, id DESC""",
+            (lot_id,)
+        )
+        columns = [c[0] for c in cur.description]
+        return [dict(zip(columns, row)) for row in cur.fetchall()]
+
+    def add_reference_price(
+        self,
+        lot_code: str,
+        price_eur: float,
+        condition: str = "used",
+        source: Optional[str] = None,
+        url: Optional[str] = None,
+        notes: Optional[str] = None,
+        auction_code: Optional[str] = None,
+    ) -> int:
+        """Add a reference price for a lot. Returns the new id."""
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            raise ValueError(f"Lot '{lot_code}' not found")
+        
+        cur = self.conn.execute(
+            """INSERT INTO reference_prices (lot_id, condition, price_eur, source, url, notes)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (lot_id, condition, price_eur, source, url, notes)
+        )
+        self.conn.commit()
+        return cur.lastrowid or 0
+
+    def update_reference_price(
+        self,
+        ref_id: int,
+        price_eur: Optional[float] = None,
+        condition: Optional[str] = None,
+        source: Optional[str] = None,
+        url: Optional[str] = None,
+        notes: Optional[str] = None,
+    ) -> bool:
+        """Update a reference price. Returns True if updated."""
+        updates = []
+        params: List = []
+        
+        if price_eur is not None:
+            updates.append("price_eur = ?")
+            params.append(price_eur)
+        if condition is not None:
+            updates.append("condition = ?")
+            params.append(condition)
+        if source is not None:
+            updates.append("source = ?")
+            params.append(source)
+        if url is not None:
+            updates.append("url = ?")
+            params.append(url)
+        if notes is not None:
+            updates.append("notes = ?")
+            params.append(notes)
+        
+        if not updates:
+            return True
+        
+        updates.append("updated_at = datetime('now')")
+        params.append(ref_id)
+        
+        cur = self.conn.execute(
+            f"UPDATE reference_prices SET {', '.join(updates)} WHERE id = ?",
+            tuple(params),
+        )
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def delete_reference_price(self, ref_id: int) -> bool:
+        """Delete a reference price. Returns True if deleted."""
+        cur = self.conn.execute("DELETE FROM reference_prices WHERE id = ?", (ref_id,))
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def update_lot(
+        self,
+        lot_code: str,
+        auction_code: Optional[str] = None,
+        *,
+        notes: Optional[str] = None,
+        ean: Optional[str] = None,
+    ) -> bool:
+        """Update user-editable lot fields (notes, ean). Returns True if a row was updated."""
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            return False
+        
+        updates = []
+        params: List = []
+        if notes is not None:
+            updates.append("notes = ?")
+            params.append(notes)
+        if ean is not None:
+            updates.append("ean = ?")
+            params.append(ean)
+        
+        if updates:
+            params.append(lot_id)
+            self.conn.execute(
+                f"UPDATE lots SET {', '.join(updates)} WHERE id = ?",
+                tuple(params),
+            )
+            self.conn.commit()
+        return True
+
+    def upsert_lot_spec(
+        self,
+        lot_code: str,
+        key: str,
+        value: str,
+        auction_code: Optional[str] = None,
+        parent_id: Optional[int] = None,
+        ean: Optional[str] = None,
+        price_eur: Optional[float] = None,
+        template_id: Optional[int] = None,
+        release_date: Optional[str] = None,
+        category: Optional[str] = None,
+    ) -> int:
+        """Add or update a specification for a lot. Returns the spec id."""
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            raise ValueError(f"Lot '{lot_code}' not found")
+        
+        # Check if spec exists (matching parent_id)
+        if parent_id is not None:
+            cur = self.conn.execute(
+                "SELECT id FROM product_layers WHERE lot_id = ? AND title = ? AND parent_id = ?",
+                (lot_id, key, parent_id)
+            )
+        else:
+            cur = self.conn.execute(
+                "SELECT id FROM product_layers WHERE lot_id = ? AND title = ? AND parent_id IS NULL",
+                (lot_id, key)
+            )
+        existing = cur.fetchone()
+        
+        if existing:
+            self.conn.execute(
+                "UPDATE product_layers SET value = ?, ean = ?, price_eur = ?, template_id = ?, release_date = ?, category = ? WHERE id = ?",
+                (value, ean, price_eur, template_id, release_date, category, existing[0])
+            )
+            self.conn.commit()
+            return existing[0]
+        else:
+            # Get max layer number for this parent
+            if parent_id is not None:
+                cur = self.conn.execute(
+                    "SELECT COALESCE(MAX(layer), -1) + 1 FROM product_layers WHERE lot_id = ? AND parent_id = ?",
+                    (lot_id, parent_id)
+                )
+            else:
+                cur = self.conn.execute(
+                    "SELECT COALESCE(MAX(layer), -1) + 1 FROM product_layers WHERE lot_id = ? AND parent_id IS NULL",
+                    (lot_id,)
+                )
+            next_layer = cur.fetchone()[0]
+            
+            cur = self.conn.execute(
+                "INSERT INTO product_layers (lot_id, parent_id, layer, title, value, ean, price_eur, template_id, release_date, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (lot_id, parent_id, next_layer, key, value, ean, price_eur, template_id, release_date, category)
+            )
+            self.conn.commit()
+            return cur.lastrowid or 0
+
+    def delete_lot_spec(self, spec_id: int) -> bool:
+        """Delete a specification by id. Returns True if deleted."""
+        cur = self.conn.execute("DELETE FROM product_layers WHERE id = ?", (spec_id,))
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    # -------------------------------------------------------------------------
+    # Spec Templates - reusable specifications across lots
+    # -------------------------------------------------------------------------
+
+    def list_spec_templates(self, parent_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """List all spec templates, optionally filtered by parent."""
+        if parent_id is not None:
+            cur = self.conn.execute(
+                "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates WHERE parent_id = ? ORDER BY title",
+                (parent_id,)
+            )
+        else:
+            cur = self.conn.execute(
+                "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates ORDER BY parent_id NULLS FIRST, title"
+            )
+        columns = [c[0] for c in cur.description]
+        return [dict(zip(columns, row)) for row in cur.fetchall()]
+
+    def get_spec_template(self, template_id: int) -> Optional[Dict[str, Any]]:
+        """Get a single spec template by id."""
+        cur = self.conn.execute(
+            "SELECT id, parent_id, title, value, ean, price_eur, release_date, category, created_at FROM spec_templates WHERE id = ?",
+            (template_id,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        columns = [c[0] for c in cur.description]
+        return dict(zip(columns, row))
+
+    def create_spec_template(
+        self,
+        title: str,
+        value: Optional[str] = None,
+        ean: Optional[str] = None,
+        price_eur: Optional[float] = None,
+        parent_id: Optional[int] = None,
+        release_date: Optional[str] = None,
+        category: Optional[str] = None,
+    ) -> int:
+        """Create a new spec template. Returns the new id."""
+        cur = self.conn.execute(
+            "INSERT INTO spec_templates (title, value, ean, price_eur, parent_id, release_date, category) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (title, value, ean, price_eur, parent_id, release_date, category)
+        )
+        self.conn.commit()
+        return cur.lastrowid or 0
+
+    def update_spec_template(
+        self,
+        template_id: int,
+        title: Optional[str] = None,
+        value: Optional[str] = None,
+        ean: Optional[str] = None,
+        price_eur: Optional[float] = None,
+        release_date: Optional[str] = None,
+        category: Optional[str] = None,
+    ) -> bool:
+        """Update a spec template. Returns True if updated."""
+        updates = []
+        params: List = []
+        if title is not None:
+            updates.append("title = ?")
+            params.append(title)
+        if value is not None:
+            updates.append("value = ?")
+            params.append(value)
+        if ean is not None:
+            updates.append("ean = ?")
+            params.append(ean)
+        if price_eur is not None:
+            updates.append("price_eur = ?")
+            params.append(price_eur)
+        if release_date is not None:
+            updates.append("release_date = ?")
+            params.append(release_date)
+        if category is not None:
+            updates.append("category = ?")
+            params.append(category)
+        
+        if not updates:
+            return True
+        
+        updates.append("updated_at = datetime('now')")
+        params.append(template_id)
+        
+        cur = self.conn.execute(
+            f"UPDATE spec_templates SET {', '.join(updates)} WHERE id = ?",
+            tuple(params),
+        )
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def delete_spec_template(self, template_id: int) -> bool:
+        """Delete a spec template. Returns True if deleted."""
+        cur = self.conn.execute("DELETE FROM spec_templates WHERE id = ?", (template_id,))
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def apply_template_to_lot(
+        self,
+        lot_code: str,
+        template_id: int,
+        auction_code: Optional[str] = None,
+        parent_id: Optional[int] = None,
+    ) -> int:
+        """Apply a spec template to a lot. Creates a new product_layer linked to the template."""
+        template = self.get_spec_template(template_id)
+        if not template:
+            raise ValueError(f"Template {template_id} not found")
+        
+        return self.upsert_lot_spec(
+            lot_code=lot_code,
+            key=template["title"],
+            value=template.get("value") or "",
+            auction_code=auction_code,
+            parent_id=parent_id,
+            ean=template.get("ean"),
+            price_eur=template.get("price_eur"),
+            template_id=template_id,
+            release_date=template.get("release_date"),
+            category=template.get("category"),
+        )
 
     def upsert_from_parsed(
         self,
@@ -116,9 +477,9 @@ class LotRepository:
                 opening_bid_eur, current_bid_eur, current_bidder_label,
                 buyer_fee_percent, buyer_fee_vat_percent, vat_percent,
                 awarding_state, total_example_price_eur, location_city,
-                location_country, seller_allocation_note,
+                location_country, seller_allocation_note, brand,
                 listing_hash, detail_hash, last_seen_at, detail_last_seen_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(auction_id, lot_code) DO UPDATE SET
                 title = excluded.title,
                 url = excluded.url,
@@ -139,6 +500,7 @@ class LotRepository:
                 location_city = excluded.location_city,
                 location_country = excluded.location_country,
                 seller_allocation_note = excluded.seller_allocation_note,
+                brand = excluded.brand,
                 listing_hash = excluded.listing_hash,
                 detail_hash = excluded.detail_hash,
                 last_seen_at = excluded.last_seen_at,
@@ -166,12 +528,49 @@ class LotRepository:
                 location_city,
                 location_country,
                 detail.seller_allocation_note,
+                detail.brand,
                 listing_hash,
                 detail_hash,
                 last_seen_at,
                 detail_last_seen_at,
             ),
         )
+
+        # Upsert bid history if available
+        if detail.bid_history:
+            self._upsert_bid_history(card.lot_code, auction_id, detail.bid_history)
+
+    def _upsert_bid_history(
+        self,
+        lot_code: str,
+        auction_id: int,
+        bid_history: list,
+    ) -> None:
+        """Insert or update bid history entries for a lot."""
+        from troostwatch.infrastructure.web.parsers.lot_detail import BidHistoryEntry
+
+        # Get lot_id
+        cur = self.conn.execute(
+            "SELECT id FROM lots WHERE lot_code = ? AND auction_id = ?",
+            (lot_code, auction_id),
+        )
+        row = cur.fetchone()
+        if not row:
+            return
+        lot_id = row[0]
+
+        # Clear existing bid history for this lot and insert fresh
+        self.conn.execute("DELETE FROM bid_history WHERE lot_id = ?", (lot_id,))
+
+        for entry in bid_history:
+            if isinstance(entry, BidHistoryEntry):
+                self.conn.execute(
+                    """
+                    INSERT INTO bid_history (lot_id, bidder_label, amount_eur, bid_time)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (lot_id, entry.bidder_label, entry.amount_eur, entry.timestamp),
+                )
 
 
 def _choose_value(*values: Optional[str | float | int | bool]):

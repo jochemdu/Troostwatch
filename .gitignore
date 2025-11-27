@@ -3,8 +3,10 @@ __pycache__/
 *.sqlite
 snapshots/
 troostwatch.db
+troostwatch.db-shm
+troostwatch.db-wal
 node_modules/
-ui/.next/sync.log
+ui/.next/
 .venv/
 *.egg-info/
 ui/.next/

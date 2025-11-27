@@ -18,7 +18,7 @@ build-backend = "setuptools.build_meta"
 # publish the package; change this if a different name is needed.
 name = "troostwatch"
 # The version number is the single source of truth; read at runtime via importlib.metadata.
-version = "0.6.2"
+version = "0.7.0"
 # A short, one‑line summary of what the project does.
 description = "Scrape Troostwijk auctions, track bids, analyse exposure and view results via a CLI."
 # A longer description taken from the README file.  When distributed, this

@@ -24,6 +24,7 @@ class LotView(BaseModel):
     current_bidder_label: Optional[str] = None
     closing_time_current: Optional[str] = Field(default=None, description="Current closing timestamp, if set.")
     closing_time_original: Optional[str] = Field(default=None, description="Original closing timestamp, if set.")
+    brand: Optional[str] = Field(default=None, description="Brand/manufacturer of the lot item.")
     is_active: bool = False
     effective_price: Optional[float] = None
 
@@ -45,6 +46,7 @@ class LotView(BaseModel):
             "current_bidder_label": record.get("current_bidder_label"),
             "closing_time_current": record.get("closing_time_current"),
             "closing_time_original": record.get("closing_time_original"),
+            "brand": record.get("brand"),
             "is_active": lot.is_active,
             "effective_price": lot.effective_price,
         })
@@ -78,6 +80,7 @@ class LotViewService:
         *,
         auction_code: Optional[str] = None,
         state: Optional[str] = None,
+        brand: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> List[LotView]:
         """List lots as LotView DTOs for presentation."""
@@ -85,6 +88,7 @@ class LotViewService:
         rows = self._lot_repository.list_lots(
             auction_code=auction_code,
             state=state,
+            brand=brand,
             limit=effective_limit,
         )
         return self._to_dtos(rows)

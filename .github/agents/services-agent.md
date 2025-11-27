@@ -12,7 +12,7 @@ You own the application service layer for Troostwatch. You work in:
 
 > **Enforcement level:** These rules are currently enforced at **Level 1
 > (Guidelines)** – best effort with reviewer signaling. See
-> [Architecture Maturity Levels](../../docs/architecture.md#maturity-levels)
+> [Architecture Maturity Levels](../../docs/architecture.md)
 > for context.
 
 - Implement business use‑cases such as bidding, syncing auctions and lots, and

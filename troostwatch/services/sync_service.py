@@ -225,7 +225,7 @@ class SyncService:
         return self._live_sync_runner.get_status()
 
     def _format_live_state(self, state: LiveSyncState) -> Dict[str, object]:
-        return {"status": state.status, "state": state.to_dict()}
+        return {"state": state.status, "detail": None}
 
     def _load_auctions(self, *, include_inactive: bool) -> list[dict[str, object]]:
         with get_connection(self._db_path) as conn:

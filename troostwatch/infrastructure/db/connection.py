@@ -39,6 +39,7 @@ def get_connection(
     timeout: float | None = None,
     enable_wal: bool | None = None,
     foreign_keys: bool | None = None,
+    check_same_thread: bool = True,
 ) -> Iterator[sqlite3.Connection]:
     """Yield a configured SQLite connection."""
 
@@ -46,7 +47,9 @@ def get_connection(
     resolved_db_path = Path(db_path) if db_path is not None else paths["db_path"]
     resolved_db_path.parent.mkdir(parents=True, exist_ok=True)
     timeout_value = timeout if timeout is not None else get_default_timeout()
-    conn = sqlite3.connect(resolved_db_path, timeout=timeout_value)
+    conn = sqlite3.connect(
+        resolved_db_path, timeout=timeout_value, check_same_thread=check_same_thread
+    )
     try:
         cfg = load_config()
         db_cfg = cfg.get("db", {}) if isinstance(cfg, dict) else {}

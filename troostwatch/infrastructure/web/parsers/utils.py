@@ -112,11 +112,17 @@ def _format_iso(dt: datetime, strip_timezone: bool) -> str:
 
 
 def epoch_to_iso(ts: int | float | None, tz: timezone = timezone.utc, strip_timezone: bool = True) -> Optional[str]:
-    """Convert epoch seconds to an ISO-8601 string with optional timezone stripping."""
+    """Convert epoch seconds or milliseconds to an ISO-8601 string with optional timezone stripping.
+    
+    Automatically detects if timestamp is in milliseconds (>1e12) and converts accordingly.
+    """
 
     if ts is None:
         return None
     try:
+        # Detect milliseconds (timestamps > year 33658 in seconds, ~1e12)
+        if ts > 1_000_000_000_000:
+            ts = ts / 1000
         dt = datetime.fromtimestamp(ts, tz=tz)
         return _format_iso(dt, strip_timezone)
     except Exception:

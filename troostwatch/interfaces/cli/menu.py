@@ -8,7 +8,7 @@ users who prefer interactive choice lists over long command invocations.
 
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 import click
 
@@ -27,12 +27,12 @@ from .context_helpers import load_auctions, load_lots_for_auction, get_preferenc
 PREFERRED_AUCTION_KEY = "preferred_auction"
 
 
-def _prompt_optional_str(message: str) -> Optional[str]:
+def _prompt_optional_str(message: str) -> str | None:
     value = click.prompt(message, default="", show_default=False)
     return value or None
 
 
-def _prompt_optional_int(message: str, default: Optional[int] = None) -> Optional[int]:
+def _prompt_optional_int(message: str, default: int | None = None) -> int | None:
     text_default = "" if default is None else default
     value = click.prompt(message, default=text_default, show_default=default is not None)
     if isinstance(value, str):
@@ -55,9 +55,9 @@ def _choose_auction(db_path: str, *, remember_choice: bool = True) -> str:
     preferred = get_preference(db_path, PREFERRED_AUCTION_KEY)
 
     if auctions:
-        codes = [a["auction_code"] for a in auctions]
+        codes = [str(a["auction_code"]) for a in auctions]
         default_choice = preferred if preferred in codes else codes[0]
-        options: Sequence[str] = list(codes) + ["other"]
+        options: list[str] = list(codes) + ["other"]
         selection = click.prompt(
             "Select auction",
             type=click.Choice(options, case_sensitive=False),
@@ -203,7 +203,7 @@ def _run_add_lot(ctx: click.Context) -> None:
     city = _prompt_optional_str("City (optional)")
     country = _prompt_optional_str("Country (optional)")
 
-    def _parse_float(val: Optional[str]) -> Optional[float]:
+    def _parse_float(val: str | None) -> float | None:
         if val is None:
             return None
         try:

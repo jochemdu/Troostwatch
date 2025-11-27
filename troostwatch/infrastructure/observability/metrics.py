@@ -14,7 +14,6 @@ import time
 import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 
 # ---------------------------------------------------------------------------
@@ -28,26 +27,26 @@ class Counter:
 
     name: str
     help_text: str = ""
-    _values: Dict[Tuple[Tuple[str, str], ...], float] = field(
+    _values: dict[tuple[tuple[str, str], ...], float] = field(
         default_factory=lambda: defaultdict(float)
     )
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
-    def inc(self, value: float = 1.0, labels: Optional[Dict[str, str]] = None) -> None:
+    def inc(self, value: float = 1.0, labels: dict[str, str] | None = None) -> None:
         """Increment the counter by the given value."""
         key = self._labels_to_key(labels)
         with self._lock:
             self._values[key] += value
 
-    def get(self, labels: Optional[Dict[str, str]] = None) -> float:
+    def get(self, labels: dict[str, str] | None = None) -> float:
         """Get the current counter value."""
         key = self._labels_to_key(labels)
         with self._lock:
             return self._values[key]
 
     def _labels_to_key(
-        self, labels: Optional[Dict[str, str]]
-    ) -> Tuple[Tuple[str, str], ...]:
+        self, labels: dict[str, str] | None
+    ) -> tuple[tuple[str, str], ...]:
         if labels is None:
             return ()
         return tuple(sorted(labels.items()))
@@ -63,21 +62,21 @@ class Histogram:
 
     name: str
     help_text: str = ""
-    buckets: Tuple[float, ...] = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
-    _observations: Dict[Tuple[Tuple[str, str], ...], List[float]] = field(
+    buckets: tuple[float, ...] = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
+    _observations: dict[tuple[tuple[str, str], ...], list[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
-    def observe(self, value: float, labels: Optional[Dict[str, str]] = None) -> None:
+    def observe(self, value: float, labels: dict[str, str] | None = None) -> None:
         """Record an observation."""
         key = self._labels_to_key(labels)
         with self._lock:
             self._observations[key].append(value)
 
     def get_stats(
-        self, labels: Optional[Dict[str, str]] = None
-    ) -> Dict[str, float]:
+        self, labels: dict[str, str] | None = None
+    ) -> dict[str, float]:
         """Get summary statistics for the histogram."""
         key = self._labels_to_key(labels)
         with self._lock:
@@ -91,8 +90,8 @@ class Histogram:
             }
 
     def _labels_to_key(
-        self, labels: Optional[Dict[str, str]]
-    ) -> Tuple[Tuple[str, str], ...]:
+        self, labels: dict[str, str] | None
+    ) -> tuple[tuple[str, str], ...]:
         if labels is None:
             return ()
         return tuple(sorted(labels.items()))
@@ -107,8 +106,8 @@ class MetricRegistry:
     """Global registry for all metrics."""
 
     def __init__(self) -> None:
-        self._counters: Dict[str, Counter] = {}
-        self._histograms: Dict[str, Histogram] = {}
+        self._counters: dict[str, Counter] = {}
+        self._histograms: dict[str, Histogram] = {}
         self._lock = threading.Lock()
 
     def counter(self, name: str, help_text: str = "") -> Counter:
@@ -122,23 +121,23 @@ class MetricRegistry:
         self,
         name: str,
         help_text: str = "",
-        buckets: Optional[Tuple[float, ...]] = None,
+        buckets: tuple[float, ...] | None = None,
     ) -> Histogram:
         """Get or create a histogram."""
         with self._lock:
             if name not in self._histograms:
-                kwargs: Dict[str, object] = {"name": name, "help_text": help_text}
+                kwargs: dict[str, object] = {"name": name, "help_text": help_text}
                 if buckets is not None:
                     kwargs["buckets"] = buckets
                 self._histograms[name] = Histogram(**kwargs)  # type: ignore[arg-type]
             return self._histograms[name]
 
-    def all_counters(self) -> Dict[str, Counter]:
+    def all_counters(self) -> dict[str, Counter]:
         """Return all registered counters."""
         with self._lock:
             return dict(self._counters)
 
-    def all_histograms(self) -> Dict[str, Histogram]:
+    def all_histograms(self) -> dict[str, Histogram]:
         """Return all registered histograms."""
         with self._lock:
             return dict(self._histograms)
@@ -156,7 +155,7 @@ _registry = MetricRegistry()
 def increment_counter(
     name: str,
     value: float = 1.0,
-    labels: Optional[Dict[str, str]] = None,
+    labels: dict[str, str] | None = None,
     help_text: str = "",
 ) -> None:
     """Increment a counter by name.
@@ -169,7 +168,7 @@ def increment_counter(
 def observe_histogram(
     name: str,
     value: float,
-    labels: Optional[Dict[str, str]] = None,
+    labels: dict[str, str] | None = None,
     help_text: str = "",
 ) -> None:
     """Record an observation in a histogram.
@@ -185,7 +184,7 @@ class Timer:
     def __init__(
         self,
         histogram_name: str,
-        labels: Optional[Dict[str, str]] = None,
+        labels: dict[str, str] | None = None,
         help_text: str = "",
     ) -> None:
         self.histogram_name = histogram_name
@@ -270,9 +269,9 @@ def record_bid(outcome: str, auction_code: str, lot_code: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def get_metrics_summary() -> Dict[str, object]:
+def get_metrics_summary() -> dict[str, object]:
     """Return a summary of all metrics for logging or API response."""
-    result: Dict[str, object] = {"counters": {}, "histograms": {}}
+    result: dict[str, object] = {"counters": {}, "histograms": {}}
 
     for name, counter in _registry.all_counters().items():
         values = {}
@@ -293,7 +292,7 @@ def get_metrics_summary() -> Dict[str, object]:
 
 def format_prometheus() -> str:
     """Format metrics in Prometheus text exposition format."""
-    lines: List[str] = []
+    lines: list[str] = []
 
     for name, counter in _registry.all_counters().items():
         if counter.help_text:

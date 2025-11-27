@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from ..connection import iso_utcnow
 from .tables import SCHEMA_MIGRATIONS_SQL, SCHEMA_VERSION_SQL

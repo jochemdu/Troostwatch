@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from troostwatch.infrastructure.http import LoginCredentials, TroostwatchHttpClient
 
@@ -12,9 +11,9 @@ def build_http_client(
     *,
     base_url: str,
     login_path: str,
-    username: Optional[str],
-    password: Optional[str],
-    token_path: Optional[str],
+    username: str | None,
+    password: str | None,
+    token_path: str | None,
     session_timeout: float,
 ) -> TroostwatchHttpClient | None:
     """Return a configured :class:`TroostwatchHttpClient` or ``None``.

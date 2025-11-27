@@ -9,8 +9,9 @@ date. It keeps lightweight state in memory while persisting run details via
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from typing import Callable, Dict, Literal
+from typing import Literal
 
 from troostwatch.infrastructure.db import iso_utcnow
 from troostwatch.infrastructure.observability import get_logger
@@ -43,7 +44,7 @@ class LiveSyncState:
     config: LiveSyncConfig | None = None
     paused_at: str | None = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict[str, object]:
         payload = asdict(self)
         if self.last_result is not None:
             payload["last_result"] = asdict(self.last_result)
@@ -124,7 +125,7 @@ class LiveSyncRunner:
             self._task = None
             return self._state
 
-    def get_status(self) -> Dict:
+    def get_status(self) -> dict[str, object]:
         return self._state.to_dict()
 
     def _resolved_interval(self) -> float | None:
@@ -215,7 +216,7 @@ class LiveSyncRunner:
                 "state": self.get_status(),
             })
 
-    async def _publish_event(self, payload: Dict) -> None:
+    async def _publish_event(self, payload: dict[str, object]) -> None:
         try:
             await self._event_publisher(payload)
         except Exception:  # pragma: no cover - isolate websocket errors

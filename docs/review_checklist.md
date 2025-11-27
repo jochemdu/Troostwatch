@@ -150,6 +150,7 @@ These rules exist to keep the codebase maintainable, but pragmatism wins:
 ## Related Documentation
 
 - [Architecture](architecture.md) – full layer rules and import constraints
+- [API Reference](api.md) – endpoints, stability policy, TypeScript types
 - [Contributing](contributing.md) – code patterns and where to put new code
 - [AGENTS.md](../AGENTS.md) – project-wide guidelines and agent roles
 - Agent-specific docs in `.github/agents/`:
@@ -157,3 +158,4 @@ These rules exist to keep the codebase maintainable, but pragmatism wins:
   - `cli-agent.md` – CLI command guidelines
   - `services-agent.md` – service layer guidelines
   - `migration-agent.md` – database migration rules
+  - `ui-agent.md` – UI component and type guidelines

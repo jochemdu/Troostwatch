@@ -59,7 +59,7 @@ class LotEventBus:
         async with self._lock:
             self._subscribers.discard(websocket)
 
-    async def publish(self, payload: dict) -> None:
+    async def publish(self, payload: Dict) -> None:
         stale: list[WebSocket] = []
         async with self._lock:
             subscribers = list(self._subscribers)
@@ -609,9 +609,7 @@ async def delete_lot(
 # =============================================================================
 
 
-@app.get(
-    "/lots/{lot_code}/reference-prices", response_model=list[ReferencePriceResponse]
-)
+@app.get("/lots/{lot_code}/reference-prices", response_model=List[ReferencePriceResponse])
 async def list_reference_prices(
     lot_code: str,
     lot_repository: LotRepositoryDep,
@@ -853,13 +851,12 @@ class SpecTemplateCreateRequest(BaseModel):
 
 class SpecTemplateUpdateRequest(BaseModel):
     """Request to update a spec template."""
-
-    title: str | None = None
-    value: str | None = None
-    ean: str | None = None
-    price_eur: float | None = None
-    release_date: str | None = None
-    category: str | None = None
+    title: Optional[str] = None
+    value: Optional[str] = None
+    ean: Optional[str] = None
+    price_eur: Optional[float] = None
+    release_date: Optional[str] = None
+    category: Optional[str] = None
 
 
 class ApplyTemplateRequest(BaseModel):
@@ -1270,10 +1267,8 @@ async def get_dashboard_stats(
 @app.get("/auctions", response_model=list[AuctionResponse])
 async def list_auctions(
     repo: AuctionRepositoryDep,
-    include_inactive: bool = Query(
-        False, description="Include auctions without active lots"
-    ),
-) -> list[AuctionResponse]:
+    include_inactive: bool = Query(False, description="Include auctions without active lots"),
+) -> List[AuctionResponse]:
     """List all auctions, optionally including those without active lots."""
     auctions = repo.list(only_active=not include_inactive)
     return [
@@ -1303,11 +1298,10 @@ class AuctionDetailResponse(BaseModel):
 
 class AuctionUpdateRequest(BaseModel):
     """Request to update an auction."""
-
-    title: str | None = None
-    url: str | None = None
-    starts_at: str | None = None
-    ends_at_planned: str | None = None
+    title: Optional[str] = None
+    url: Optional[str] = None
+    starts_at: Optional[str] = None
+    ends_at_planned: Optional[str] = None
 
 
 class AuctionDeleteResponse(BaseModel):
@@ -1539,10 +1533,10 @@ async def get_live_sync_status(
 ) -> LiveSyncStatusResponse:
     status_dict = service.get_live_sync_status()
     return LiveSyncStatusResponse(
-        state=status_dict.get("state", "idle"),
-        last_sync=status_dict.get("last_sync"),
-        next_sync=status_dict.get("next_sync"),
-        current_auction=status_dict.get("current_auction"),
+        state=cast(str, status_dict.get("state", "idle")),
+        last_sync=cast(str | None, status_dict.get("last_sync")),
+        next_sync=cast(str | None, status_dict.get("next_sync")),
+        current_auction=cast(str | None, status_dict.get("current_auction")),
     )
 
 

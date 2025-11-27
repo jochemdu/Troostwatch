@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from contextlib import AbstractContextManager
-from typing import Callable
 
 from troostwatch.domain.analytics.summary import BuyerSummary
 from troostwatch.infrastructure.db import ensure_schema, get_connection

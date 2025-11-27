@@ -9,7 +9,9 @@ date. It keeps lightweight state in memory while persisting run details via
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
+from typing import Literal
 from typing import Callable, Literal
 
 from troostwatch.infrastructure.db import iso_utcnow

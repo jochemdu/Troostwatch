@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Callable
@@ -23,6 +24,10 @@ class PositionUpdateData:
 
     buyer_label: str
     lot_code: str
+    auction_code: str | None = None
+    max_budget_total_eur: float | None = None
+    preferred_bid_eur: float | None = None
+    watch: bool | None = None
     auction_code: str | None = None
     max_budget_total_eur: float | None = None
     preferred_bid_eur: float | None = None
@@ -52,6 +57,7 @@ class PositionsService:
         lot_code: str,
         track_active: bool = True,
         max_budget_total_eur: float | None = None,
+        max_budget_total_eur: float | None = None,
     ) -> None:
         """Create or update a tracked position."""
         with log_context(
@@ -78,6 +84,7 @@ class PositionsService:
             return [self._row_to_dto(row) for row in rows]
 
     @staticmethod
+    def _row_to_dto(row: dict[str, str | None]) -> PositionDTO:
     def _row_to_dto(row: dict[str, str | None]) -> PositionDTO:
         """Convert a repository row to a PositionDTO with proper type coercion."""
         max_budget = row.get("max_budget_total_eur")
@@ -119,6 +126,8 @@ def add_position(
     track_active: bool = True,
     max_budget_total_eur: float | None = None,
     connection_factory: ConnectionFactory | None = None,
+    max_budget_total_eur: float | None = None,
+    connection_factory: ConnectionFactory | None = None,
 ) -> None:
     """Add or update a tracked position using a SQLite-backed service."""
 
@@ -138,6 +147,9 @@ def list_positions(
     buyer_label: str | None = None,
     connection_factory: ConnectionFactory | None = None,
 ) -> list[PositionDTO]:
+    buyer_label: str | None = None,
+    connection_factory: ConnectionFactory | None = None,
+) -> list[PositionDTO]:
     """Return tracked positions using a SQLite-backed service."""
 
     service = _resolve_service(db_path=db_path, connection_factory=connection_factory)
@@ -151,6 +163,7 @@ def delete_position(
     auction_code: str,
     lot_code: str,
     connection_factory: ConnectionFactory | None = None,
+    connection_factory: ConnectionFactory | None = None,
 ) -> None:
     """Delete a tracked position using a SQLite-backed service."""
 
@@ -162,6 +175,7 @@ def delete_position(
 
 def _resolve_service(
     *, db_path: str, connection_factory: ConnectionFactory | None
+    *, db_path: str, connection_factory: ConnectionFactory | None
 ) -> PositionsService:
     if connection_factory is not None:
         return PositionsService(connection_factory)
@@ -171,6 +185,9 @@ def _resolve_service(
 async def upsert_positions(
     *,
     repository: "PositionRepository",
+    updates: list[PositionUpdateData],
+    event_publisher: EventPublisher | None = None,
+) -> dict[str, object]:
     updates: list[PositionUpdateData],
     event_publisher: EventPublisher | None = None,
 ) -> dict[str, object]:
@@ -188,6 +205,7 @@ async def upsert_positions(
         ValueError: If a buyer or lot referenced in an update is not found.
     """
     _logger.info("Batch upserting %d positions", len(updates))
+    updated_positions: list[dict[str, object]] = []
     updated_positions: list[dict[str, object]] = []
 
     for update in updates:

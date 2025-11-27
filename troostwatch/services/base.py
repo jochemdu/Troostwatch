@@ -7,8 +7,9 @@ standardizing connection management, logging, and schema initialization.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from contextlib import AbstractContextManager
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.observability import get_logger

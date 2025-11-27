@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from typing import Any
+from typing import Any
 
 from ..schema import ensure_schema
 from .base import BaseRepository
@@ -14,6 +15,7 @@ class LotRepository(BaseRepository):
         super().__init__(conn)
         ensure_schema(self.conn)
 
+    def get_id(self, lot_code: str, auction_code: str | None = None) -> int | None:
     def get_id(self, lot_code: str, auction_code: str | None = None) -> int | None:
         query = "SELECT l.id FROM lots l JOIN auctions a ON l.auction_id = a.id WHERE l.lot_code = ?"
 
@@ -37,6 +39,7 @@ class LotRepository(BaseRepository):
         return lot_id
 
     def list_lot_codes_by_auction(self, auction_code: str) -> list[str]:
+    def list_lot_codes_by_auction(self, auction_code: str) -> list[str]:
         rows = self.conn.execute(
             """
             SELECT l.lot_code
@@ -52,6 +55,11 @@ class LotRepository(BaseRepository):
     def list_lots(
         self,
         *,
+        auction_code: str | None = None,
+        state: str | None = None,
+        brand: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, str | None]]:
         auction_code: str | None = None,
         state: str | None = None,
         brand: str | None = None,
@@ -106,7 +114,7 @@ class LotRepository(BaseRepository):
             JOIN auctions a ON l.auction_id = a.id
             WHERE l.lot_code = ?
         """
-        params: List = [lot_code]
+        params: list[object] = [lot_code]
         if auction_code:
             query += " AND a.auction_code = ?"
             params.append(auction_code)
@@ -165,6 +173,10 @@ class LotRepository(BaseRepository):
         url: str | None = None,
         notes: str | None = None,
         auction_code: str | None = None,
+        source: str | None = None,
+        url: str | None = None,
+        notes: str | None = None,
+        auction_code: str | None = None,
     ) -> int:
         """Add a reference price for a lot. Returns the new id."""
         lot_id = self.get_id(lot_code, auction_code)
@@ -187,10 +199,15 @@ class LotRepository(BaseRepository):
         source: str | None = None,
         url: str | None = None,
         notes: str | None = None,
+        price_eur: float | None = None,
+        condition: str | None = None,
+        source: str | None = None,
+        url: str | None = None,
+        notes: str | None = None,
     ) -> bool:
         """Update a reference price. Returns True if updated."""
         updates = []
-        params: List = []
+        params: list[object] = []
 
         if price_eur is not None:
             updates.append("price_eur = ?")
@@ -231,7 +248,10 @@ class LotRepository(BaseRepository):
         self,
         lot_code: str,
         auction_code: str | None = None,
+        auction_code: str | None = None,
         *,
+        notes: str | None = None,
+        ean: str | None = None,
         notes: str | None = None,
         ean: str | None = None,
     ) -> bool:
@@ -241,7 +261,7 @@ class LotRepository(BaseRepository):
             return False
 
         updates = []
-        params: List = []
+        params: list[object] = []
         if notes is not None:
             updates.append("notes = ?")
             params.append(notes)
@@ -270,6 +290,13 @@ class LotRepository(BaseRepository):
         template_id: int | None = None,
         release_date: str | None = None,
         category: str | None = None,
+        auction_code: str | None = None,
+        parent_id: int | None = None,
+        ean: str | None = None,
+        price_eur: float | None = None,
+        template_id: int | None = None,
+        release_date: str | None = None,
+        category: str | None = None,
     ) -> int:
         """Add or update a specification for a lot. Returns the spec id."""
         lot_id = self.get_id(lot_code, auction_code)
@@ -277,6 +304,7 @@ class LotRepository(BaseRepository):
             raise ValueError(f"Lot '{lot_code}' not found")
 
         # Check if spec exists (matching parent_id)
+        existing_id: int | None
         existing_id: int | None
         if parent_id is not None:
             existing_id = self._fetch_scalar(
@@ -349,6 +377,7 @@ class LotRepository(BaseRepository):
     # -------------------------------------------------------------------------
 
     def list_spec_templates(self, parent_id: int | None = None) -> list[dict[str, Any]]:
+    def list_spec_templates(self, parent_id: int | None = None) -> list[dict[str, Any]]:
         """List all spec templates, optionally filtered by parent."""
         if parent_id is not None:
             return self._fetch_all_as_dicts(
@@ -382,6 +411,12 @@ class LotRepository(BaseRepository):
         parent_id: int | None = None,
         release_date: str | None = None,
         category: str | None = None,
+        value: str | None = None,
+        ean: str | None = None,
+        price_eur: float | None = None,
+        parent_id: int | None = None,
+        release_date: str | None = None,
+        category: str | None = None,
     ) -> int:
         """Create a new spec template. Returns the new id."""
         template_id = self._execute_insert(
@@ -402,10 +437,16 @@ class LotRepository(BaseRepository):
         price_eur: float | None = None,
         release_date: str | None = None,
         category: str | None = None,
+        title: str | None = None,
+        value: str | None = None,
+        ean: str | None = None,
+        price_eur: float | None = None,
+        release_date: str | None = None,
+        category: str | None = None,
     ) -> bool:
         """Update a spec template. Returns True if updated."""
         updates = []
-        params: List = []
+        params: list[object] = []
         if title is not None:
             updates.append("title = ?")
             params.append(title)
@@ -448,6 +489,8 @@ class LotRepository(BaseRepository):
         self,
         lot_code: str,
         template_id: int,
+        auction_code: str | None = None,
+        parent_id: int | None = None,
         auction_code: str | None = None,
         parent_id: int | None = None,
     ) -> int:
@@ -629,6 +672,7 @@ class LotRepository(BaseRepository):
         return True
 
 
+def _choose_value(*values: str | float | int | bool | None):
 def _choose_value(*values: str | float | int | bool | None):
     for value in values:
         if value is not None:

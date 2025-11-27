@@ -3,11 +3,13 @@ Centralized DTOs and input/output models for Troostwatch services.
 """
 
 from __future__ import annotations
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
 
 # --- Event Publishing Types ---
+EventPayload = dict[str, object]
 EventPayload = dict[str, object]
 EventPublisher = Callable[[EventPayload], Awaitable[None]]
 
@@ -30,7 +32,16 @@ class LotViewDTO:
     closing_time_current: str | None = None
     closing_time_original: str | None = None
     brand: str | None = None
+    title: str | None = None
+    state: str | None = None
+    current_bid_eur: float | None = None
+    bid_count: int | None = None
+    current_bidder_label: str | None = None
+    closing_time_current: str | None = None
+    closing_time_original: str | None = None
+    brand: str | None = None
     is_active: bool = False
+    effective_price: float | None = None
     effective_price: float | None = None
 
 
@@ -39,6 +50,17 @@ class LotInputDTO:
     auction_code: str
     lot_code: str
     title: str
+    url: str | None = None
+    state: str | None = None
+    opens_at: str | None = None
+    closing_time: str | None = None
+    bid_count: int | None = None
+    opening_bid_eur: float | None = None
+    current_bid_eur: float | None = None
+    location_city: str | None = None
+    location_country: str | None = None
+    auction_title: str | None = None
+    auction_url: str | None = None
     url: str | None = None
     state: str | None = None
     opens_at: str | None = None
@@ -59,11 +81,15 @@ class BuyerDTO:
     label: str
     name: str | None = None
     notes: str | None = None
+    name: str | None = None
+    notes: str | None = None
 
 
 @dataclass
 class BuyerCreateDTO:
     label: str
+    name: str | None = None
+    notes: str | None = None
     name: str | None = None
     notes: str | None = None
 
@@ -74,7 +100,13 @@ class PositionDTO:
     buyer_label: str
     lot_code: str
     auction_code: str | None = None
+    auction_code: str | None = None
     track_active: bool = True
+    max_budget_total_eur: float | None = None
+    my_highest_bid_eur: float | None = None
+    lot_title: str | None = None
+    lot_state: str | None = None
+    current_bid_eur: float | None = None
     max_budget_total_eur: float | None = None
     my_highest_bid_eur: float | None = None
     lot_title: str | None = None
@@ -86,6 +118,10 @@ class PositionDTO:
 class PositionUpdateDTO:
     buyer_label: str
     lot_code: str
+    auction_code: str | None = None
+    max_budget_total_eur: float | None = None
+    preferred_bid_eur: float | None = None
+    watch: bool | None = None
     auction_code: str | None = None
     max_budget_total_eur: float | None = None
     preferred_bid_eur: float | None = None
@@ -103,6 +139,8 @@ class BidDTO:
     placed_at: str
     lot_title: str | None = None
     note: str | None = None
+    lot_title: str | None = None
+    note: str | None = None
 
 
 @dataclass
@@ -111,6 +149,7 @@ class BidCreateDTO:
     auction_code: str
     lot_code: str
     amount_eur: float
+    note: str | None = None
     note: str | None = None
 
 

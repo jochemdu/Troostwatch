@@ -402,6 +402,76 @@ async def list_lots(
     )
 
 
+class SearchResultResponse(BaseModel):
+    """A search result with lot details and match info."""
+    auction_code: str
+    lot_code: str
+    title: Optional[str] = None
+    state: Optional[str] = None
+    current_bid_eur: Optional[float] = None
+    brand: Optional[str] = None
+    match_field: str  # Which field matched: 'title', 'brand', 'lot_code', 'ean'
+
+
+@app.get("/search", response_model=List[SearchResultResponse])
+async def search_lots(
+    q: str = Query(..., min_length=2, description="Search query (min 2 chars)"),
+    state: Optional[str] = Query(None, description="Filter by state"),
+    limit: int = Query(50, ge=1, le=200, description="Max results"),
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> List[SearchResultResponse]:
+    """Search lots by title, brand, lot code, or EAN."""
+    conn = lot_repository.conn
+    query_param = f"%{q}%"
+    
+    sql = """
+        SELECT 
+            a.auction_code,
+            l.lot_code,
+            l.title,
+            l.state,
+            l.current_bid_eur,
+            l.brand,
+            l.ean,
+            CASE 
+                WHEN l.lot_code LIKE ? THEN 'lot_code'
+                WHEN l.ean LIKE ? THEN 'ean'
+                WHEN l.brand LIKE ? THEN 'brand'
+                ELSE 'title'
+            END as match_field
+        FROM lots l
+        JOIN auctions a ON l.auction_id = a.id
+        WHERE (
+            l.title LIKE ? OR 
+            l.brand LIKE ? OR 
+            l.lot_code LIKE ? OR 
+            l.ean LIKE ?
+        )
+    """
+    params: list = [query_param, query_param, query_param, query_param, query_param, query_param, query_param]
+    
+    if state:
+        sql += " AND l.state = ?"
+        params.append(state)
+    
+    sql += " ORDER BY l.state = 'running' DESC, l.closing_time_current ASC LIMIT ?"
+    params.append(limit)
+    
+    cur = conn.execute(sql, params)
+    results = []
+    for row in cur.fetchall():
+        results.append(SearchResultResponse(
+            auction_code=row[0],
+            lot_code=row[1],
+            title=row[2],
+            state=row[3],
+            current_bid_eur=row[4],
+            brand=row[5],
+            match_field=row[7],
+        ))
+    return results
+
+
 @app.get("/lots/{lot_code}", response_model=LotDetailResponse)
 async def get_lot_detail(
     lot_code: str,
@@ -581,6 +651,40 @@ async def delete_reference_price(
     """Delete a reference price."""
     if not lot_repository.delete_reference_price(ref_id):
         raise HTTPException(status_code=404, detail=f"Reference price {ref_id} not found")
+
+
+# =============================================================================
+# Bid History Endpoints
+# =============================================================================
+
+
+class BidHistoryEntryResponse(BaseModel):
+    """A single bid in the lot's bid history."""
+    id: int
+    bidder_label: str
+    amount_eur: float
+    timestamp: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+@app.get("/lots/{lot_code}/bid-history", response_model=List[BidHistoryEntryResponse])
+async def get_lot_bid_history(
+    lot_code: str,
+    auction_code: Optional[str] = Query(None),
+    lot_repository: LotRepository = Depends(get_lot_repository),
+) -> List[BidHistoryEntryResponse]:
+    """Get bid history for a lot, ordered by most recent first."""
+    history = lot_repository.get_bid_history(lot_code, auction_code)
+    return [
+        BidHistoryEntryResponse(
+            id=h.get("id", 0),
+            bidder_label=h.get("bidder_label", ""),
+            amount_eur=float(h.get("amount_eur", 0)),
+            timestamp=h.get("timestamp"),
+            created_at=h.get("created_at"),
+        )
+        for h in history
+    ]
 
 
 class LotSpecCreateRequest(BaseModel):
@@ -1026,6 +1130,65 @@ def get_auction_repository():
     conn = sqlite3.connect("troostwatch.db", check_same_thread=False)
     ensure_schema(conn)
     return AuctionRepository(conn)
+
+
+# =============================================================================
+# Dashboard Stats Endpoint
+# =============================================================================
+
+
+class DashboardStatsResponse(BaseModel):
+    """Dashboard statistics overview."""
+    total_auctions: int
+    active_auctions: int
+    total_lots: int
+    running_lots: int
+    scheduled_lots: int
+    closed_lots: int
+    total_bids: int
+    total_positions: int
+    total_buyers: int
+
+
+@app.get("/stats", response_model=DashboardStatsResponse)
+async def get_dashboard_stats(
+    lot_repository: LotRepository = Depends(get_lot_repository),
+    buyer_repository: BuyerRepository = Depends(get_buyer_repository),
+    position_repository: PositionRepository = Depends(get_position_repository),
+) -> DashboardStatsResponse:
+    """Get dashboard statistics overview."""
+    conn = lot_repository.conn
+    
+    # Auction counts
+    auction_total = conn.execute("SELECT COUNT(*) FROM auctions").fetchone()[0]
+    auction_active = conn.execute(
+        """SELECT COUNT(DISTINCT a.id) FROM auctions a 
+           JOIN lots l ON l.auction_id = a.id 
+           WHERE l.state IN ('running', 'scheduled')"""
+    ).fetchone()[0]
+    
+    # Lot counts by state
+    lot_total = conn.execute("SELECT COUNT(*) FROM lots").fetchone()[0]
+    lot_running = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'running'").fetchone()[0]
+    lot_scheduled = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'scheduled'").fetchone()[0]
+    lot_closed = conn.execute("SELECT COUNT(*) FROM lots WHERE state = 'closed'").fetchone()[0]
+    
+    # Other counts
+    bid_total = conn.execute("SELECT COUNT(*) FROM my_bids").fetchone()[0]
+    position_total = conn.execute("SELECT COUNT(*) FROM positions").fetchone()[0]
+    buyer_total = conn.execute("SELECT COUNT(*) FROM buyers").fetchone()[0]
+    
+    return DashboardStatsResponse(
+        total_auctions=auction_total,
+        active_auctions=auction_active,
+        total_lots=lot_total,
+        running_lots=lot_running,
+        scheduled_lots=lot_scheduled,
+        closed_lots=lot_closed,
+        total_bids=bid_total,
+        total_positions=position_total,
+        total_buyers=buyer_total,
+    )
 
 
 @app.get("/auctions", response_model=List[AuctionResponse])

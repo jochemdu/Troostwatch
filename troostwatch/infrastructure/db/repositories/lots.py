@@ -141,6 +141,20 @@ class LotRepository:
         columns = [c[0] for c in cur.description]
         return [dict(zip(columns, row)) for row in cur.fetchall()]
 
+    def get_bid_history(self, lot_code: str, auction_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get bid history for a lot, ordered by timestamp descending (most recent first)."""
+        lot_id = self.get_id(lot_code, auction_code)
+        if not lot_id:
+            return []
+        
+        cur = self.conn.execute(
+            """SELECT id, bidder_label, amount_eur, timestamp, created_at
+               FROM bid_history WHERE lot_id = ? ORDER BY timestamp DESC, id DESC""",
+            (lot_id,)
+        )
+        columns = [c[0] for c in cur.description]
+        return [dict(zip(columns, row)) for row in cur.fetchall()]
+
     def add_reference_price(
         self,
         lot_code: str,

@@ -28,6 +28,8 @@ from troostwatch.app.dependencies import (
     LotRepository,
     PositionRepository,
 )
+from troostwatch.infrastructure.db.repositories import BidRepository
+from troostwatch.infrastructure.db import get_connection
 from troostwatch.services import positions as position_service
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
 from troostwatch.services.lots import LotView, LotViewService
@@ -142,6 +144,21 @@ class PositionUpdate(BaseModel):
     watch: Optional[bool] = None
 
 
+class PositionResponse(BaseModel):
+    """A tracked position linking a buyer to a lot."""
+
+    id: int
+    buyer_label: str
+    lot_code: str
+    auction_code: Optional[str] = None
+    max_budget_total_eur: Optional[float] = None
+    preferred_bid_eur: Optional[float] = None
+    track_active: bool = True
+    lot_title: Optional[str] = None
+    current_bid_eur: Optional[float] = None
+    closing_time: Optional[str] = None
+
+
 class PositionBatchRequest(BaseModel):
     updates: List[PositionUpdate]
 
@@ -210,6 +227,29 @@ class LiveSyncStartRequest(BaseModel):
     )
 
 
+class BidResponse(BaseModel):
+    """A recorded bid."""
+
+    id: int
+    buyer_label: str
+    lot_code: str
+    auction_code: str
+    lot_title: Optional[str] = None
+    amount_eur: float
+    placed_at: str
+    note: Optional[str] = None
+
+
+class BidCreateRequest(BaseModel):
+    """Request to record a new bid."""
+
+    buyer_label: str
+    auction_code: str
+    lot_code: str
+    amount_eur: float = Field(gt=0)
+    note: Optional[str] = None
+
+
 @app.get("/lots", response_model=list[LotView])
 async def list_lots(
     auction_code: Optional[str] = None,
@@ -252,6 +292,45 @@ async def upsert_positions(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
         ) from exc
+
+
+@app.get("/positions", response_model=List[PositionResponse])
+async def list_positions(
+    buyer: Optional[str] = Query(None, description="Filter by buyer label"),
+    repository: PositionRepository = Depends(get_position_repository),
+) -> List[PositionResponse]:
+    """List all tracked positions, optionally filtered by buyer."""
+    positions = repository.list(buyer_label=buyer)
+    return [
+        PositionResponse(
+            id=int(pos.get("id", 0)),
+            buyer_label=str(pos.get("buyer_label", "")),
+            lot_code=str(pos.get("lot_code", "")),
+            auction_code=pos.get("auction_code"),
+            max_budget_total_eur=pos.get("max_budget_total_eur"),
+            preferred_bid_eur=pos.get("preferred_bid_eur"),
+            track_active=bool(pos.get("track_active", True)),
+            lot_title=pos.get("lot_title"),
+            current_bid_eur=pos.get("current_bid_eur"),
+            closing_time=pos.get("closing_time_current"),
+        )
+        for pos in positions
+    ]
+
+
+@app.delete("/positions/{buyer_label}/{lot_code}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_position(
+    buyer_label: str,
+    lot_code: str,
+    auction_code: Optional[str] = Query(None),
+    repository: PositionRepository = Depends(get_position_repository),
+) -> None:
+    """Delete a tracked position."""
+    repository.delete(
+        buyer_label=buyer_label,
+        lot_code=lot_code,
+        auction_code=auction_code,
+    )
 
 
 @app.get("/buyers", response_model=List[BuyerResponse])
@@ -300,6 +379,76 @@ async def delete_buyer(
     label: str, service: BuyerService = Depends(get_buyer_service)
 ) -> None:
     await service.delete_buyer(label=label)
+
+
+# =============================================================================
+# Bids Endpoints
+# =============================================================================
+
+def get_bid_repository() -> BidRepository:
+    """Dependency that provides a BidRepository."""
+    from troostwatch.app.config import get_db_path
+    conn = get_connection(get_db_path(), check_same_thread=False)
+    return BidRepository(conn)
+
+
+@app.get("/bids", response_model=List[BidResponse])
+async def list_bids(
+    buyer: Optional[str] = Query(None, description="Filter by buyer label"),
+    lot_code: Optional[str] = Query(None, description="Filter by lot code"),
+    limit: int = Query(100, ge=1, le=500),
+) -> List[BidResponse]:
+    """List recorded bids with optional filters."""
+    repo = get_bid_repository()
+    bids = repo.list(buyer_label=buyer, lot_code=lot_code, limit=limit)
+    return [
+        BidResponse(
+            id=int(bid.get("id", 0)),
+            buyer_label=str(bid.get("buyer_label", "")),
+            lot_code=str(bid.get("lot_code", "")),
+            auction_code=str(bid.get("auction_code", "")),
+            lot_title=bid.get("lot_title"),
+            amount_eur=float(bid.get("amount_eur", 0)),
+            placed_at=str(bid.get("placed_at", "")),
+            note=bid.get("note"),
+        )
+        for bid in bids
+    ]
+
+
+@app.post("/bids", status_code=status.HTTP_201_CREATED, response_model=BidResponse)
+async def create_bid(payload: BidCreateRequest) -> BidResponse:
+    """Record a new bid (local only, does not submit to Troostwijk)."""
+    repo = get_bid_repository()
+    try:
+        repo.record_bid(
+            buyer_label=payload.buyer_label,
+            auction_code=payload.auction_code,
+            lot_code=payload.lot_code,
+            amount_eur=payload.amount_eur,
+            note=payload.note,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    
+    # Fetch the created bid to return it
+    bids = repo.list(buyer_label=payload.buyer_label, lot_code=payload.lot_code, limit=1)
+    if not bids:
+        raise HTTPException(status_code=500, detail="Bid created but not found")
+    
+    bid = bids[0]
+    return BidResponse(
+        id=int(bid.get("id", 0)),
+        buyer_label=str(bid.get("buyer_label", "")),
+        lot_code=str(bid.get("lot_code", "")),
+        auction_code=str(bid.get("auction_code", "")),
+        lot_title=bid.get("lot_title"),
+        amount_eur=float(bid.get("amount_eur", 0)),
+        placed_at=str(bid.get("placed_at", "")),
+        note=bid.get("note"),
+    )
 
 
 @app.post("/sync", status_code=status.HTTP_202_ACCEPTED, response_model=SyncSummaryResponse)

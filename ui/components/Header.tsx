@@ -7,7 +7,9 @@ const NAV_LINKS = [
   { href: '/lots', label: 'Lots overzicht' },
   { href: '/sync', label: 'Importeren' },
   { href: '/live', label: 'Live volgen' },
-  { href: '/buyers', label: 'Buyers' },
+  { href: '/positions', label: 'Posities' },
+  { href: '/bids', label: 'Biedingen' },
+  { href: '/buyers', label: 'Kopers' },
   { href: '/debug', label: 'Debug' }
 ];
 

@@ -4,6 +4,11 @@
 
 Troostwatch follows a layered architecture pattern to maintain separation of concerns and enable testability.
 
+> **Maturity note**: These architecture rules represent the *target state*. The
+> codebase is actively moving toward full compliance. New code must follow the
+> rules; existing code is cleaned up incrementally. See "Policy for violations"
+> below for how deviations are handled.
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Interfaces Layer                          │

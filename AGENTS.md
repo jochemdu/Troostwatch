@@ -65,6 +65,22 @@ Troostwatch follows a layered architecture with strict import rules:
   rule blocks legitimate work, propose updating the rule rather than working
   around it.
 
+**Enforcement level: Guidelines with teeth**
+
+The architecture rules serve as **directional guidance**, not a rigid straitjacket:
+
+1. **New code follows the rules** – All new modules and features should respect
+   layer boundaries. This is enforced by CI.
+2. **Legacy code is cleaned up gradually** – Existing violations are tracked and
+   fixed opportunistically during related work.
+3. **Pragmatism over purity** – If a rule blocks legitimate progress, document
+   the deviation and propose a rule update rather than working around it silently.
+4. **"Not perfect, but conscious"** – Minor deviations are acceptable when they
+   are explicit (commented, documented in PR) and the alternative would be worse.
+
+Reviewers should **signal** architecture concerns but not automatically block PRs.
+The goal is awareness and improvement, not gatekeeping.
+
 See `docs/architecture.md` for full details and `docs/review_checklist.md`
 for PR review guidelines.
 

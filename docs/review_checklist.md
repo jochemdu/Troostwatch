@@ -175,6 +175,30 @@ These rules exist to keep the codebase maintainable, but pragmatism wins:
 4. **Discuss before enforcing** – If a rule seems wrong, propose changing the
    rule rather than silently ignoring it.
 
+### Handling Architecture Deviations
+
+When a PR deviates from architecture rules:
+
+1. **Reviewer signals the deviation** – Add a comment noting the violation and
+   its location.
+2. **Evaluate the trade-off** – Is fixing this now worth the effort? Consider:
+   - Size of the fix vs. size of the PR
+   - Risk of introducing bugs
+   - Whether related cleanup is planned
+3. **Decide together**:
+   - **Fix now** if the fix is small and low-risk
+   - **Create a TODO/issue** if fixing would derail the PR's main purpose
+   - **Document inline** with `# TODO(arch):` comment explaining the deviation
+4. **Never merge silently** – Every deviation should be acknowledged, even if
+   not fixed immediately.
+
+### Architecture Deviation Checklist
+
+- [ ] Deviation is noted in PR description or review comment
+- [ ] If not fixing now: TODO comment added at violation site
+- [ ] If not fixing now: Issue created for follow-up (optional but encouraged)
+- [ ] Team agrees the trade-off is acceptable
+
 ---
 
 ## Related Documentation

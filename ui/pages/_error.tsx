@@ -1,4 +1,5 @@
 import { NextPageContext } from 'next';
+import Link from 'next/link';
 import Layout from '../components/Layout';
 
 interface ErrorProps {
@@ -17,7 +18,7 @@ function Error({ statusCode }: ErrorProps) {
             ? `Er is een serverfout opgetreden (${statusCode}).`
             : 'Er is een fout opgetreden in de client.'}
         </p>
-        <a href="/" className="btn btn-primary">Terug naar home</a>
+        <Link href="/" className="btn btn-primary">Terug naar home</Link>
       </div>
 
       <style jsx>{`

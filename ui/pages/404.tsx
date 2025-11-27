@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import Layout from '../components/Layout';
 
 export default function Custom404() {
@@ -6,7 +7,7 @@ export default function Custom404() {
       <div className="error-container">
         <h1>404</h1>
         <p>Deze pagina kon niet worden gevonden.</p>
-        <a href="/" className="btn btn-primary">Terug naar home</a>
+        <Link href="/" className="btn btn-primary">Terug naar home</Link>
       </div>
 
       <style jsx>{`

@@ -146,7 +146,13 @@ De pipeline bestaat uit drie blokken:
 - [x] Code normalisatie (whitespace, case, leading zeros)
   - Integrated in code_validation.py normalize_code()
   - Automatic leading zero padding for short EANs
-- [ ] OpenAI Vision fallback voor low-confidence codes
+- [x] OpenAI Vision fallback voor low-confidence codes
+  - `promote_to_openai()` in ImageAnalysisService
+  - Uses OpenAIAnalyzer class with GPT-4 Vision
+  - Re-analyzes `needs_review` images with higher accuracy
+  - Auto-approves high-confidence OpenAI results (approved_by='openai')
+  - CLI: `images openai-analyze --limit 50`
+  - Requires OPENAI_API_KEY environment variable
 - [ ] Export naar product database
 
 ---

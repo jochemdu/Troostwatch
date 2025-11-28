@@ -21,6 +21,7 @@ from troostwatch.infrastructure.ai.image_analyzer import (
     ExtractedCode,
     ImageAnalysisResult,
     LocalOCRAnalyzer,
+    OpenAIAnalyzer,
 )
 from troostwatch.infrastructure.ai.image_hashing import (
     compute_phash,
@@ -431,10 +432,123 @@ class ImageAnalysisService(BaseService):
         Returns:
             Statistics about the operation.
         """
-        # TODO: Implement OpenAI re-analysis
-        # This would use the OpenAIAnalyzer class
-        logger.warning("OpenAI promotion not yet implemented")
-        return AnalysisStats()
+        import os
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            logger.warning("OPENAI_API_KEY not set, cannot promote to OpenAI")
+            return AnalysisStats()
+
+        stats = AnalysisStats()
+
+        with self._connection_factory() as conn:
+            image_repo = LotImageRepository(conn)
+            code_repo = ExtractedCodeRepository(conn)
+
+            # Get images that need review
+            images = image_repo.get_needs_review(limit=limit)
+            if not images:
+                logger.info("No images need OpenAI analysis")
+                return stats
+
+            stats.images_processed = len(images)
+            logger.info(
+                "Starting OpenAI analysis",
+                extra={"count": len(images)},
+            )
+
+            # Run async analysis in sync context
+            async def analyze_batch() -> list[tuple[LotImage, ImageAnalysisResult]]:
+                analyzer = OpenAIAnalyzer(api_key=api_key)
+                results: list[tuple[LotImage, ImageAnalysisResult]] = []
+                try:
+                    for image in images:
+                        # Use local path if available, otherwise URL
+                        if image.local_path and Path(image.local_path).exists():
+                            with open(image.local_path, "rb") as f:
+                                image_data = f.read()
+                            result = await analyzer.analyze_image_bytes(
+                                image_data, mime_type="image/jpeg"
+                            )
+                        else:
+                            result = await analyzer.analyze_image_url(image.url)
+                        results.append((image, result))
+                finally:
+                    await analyzer.close()
+                return results
+
+            # Run the async analysis
+            try:
+                batch_results = asyncio.run(analyze_batch())
+            except Exception as e:
+                logger.error("OpenAI batch analysis failed: %s", str(e))
+                return stats
+
+            # Process results
+            for image, result in batch_results:
+                if result.error:
+                    logger.warning(
+                        "OpenAI analysis failed",
+                        extra={"image_id": image.id, "error": result.error},
+                    )
+                    stats.images_failed += 1
+                    continue
+
+                # Calculate confidence
+                avg_confidence = self._calculate_confidence(result.codes)
+
+                # OpenAI results are generally higher quality, so we use a lower threshold
+                if avg_confidence >= 0.5 or not result.codes:
+                    status = "analyzed"
+                    stats.images_analyzed += 1
+                else:
+                    status = "needs_review"
+                    stats.images_needs_review += 1
+
+                # Mark image as analyzed by OpenAI
+                image_repo.mark_analyzed(image.id, "openai", status)
+
+                # Store extracted codes (replace old codes)
+                if result.codes:
+                    code_repo.delete_by_image_id(image.id)
+                    for code in result.codes:
+                        code_repo.insert_code(
+                            lot_image_id=image.id,
+                            code_type=code.code_type,
+                            value=code.value,
+                            confidence=code.confidence,
+                            context=code.context,
+                        )
+                        stats.codes_extracted += 1
+
+                    # Auto-approve high/medium confidence codes from OpenAI
+                    if avg_confidence >= 0.6:
+                        approved_count = code_repo.approve_codes_by_image(
+                            image.id, approved_by="openai"
+                        )
+                        if approved_count > 0:
+                            stats.codes_auto_approved += approved_count
+                            for code in result.codes:
+                                record_code_approval("openai", code.code_type)
+
+                record_image_analysis(
+                    "openai", status, 0.0, len(result.codes)
+                )
+
+            conn.commit()
+
+        logger.info(
+            "OpenAI analysis complete",
+            extra={
+                "processed": stats.images_processed,
+                "analyzed": stats.images_analyzed,
+                "needs_review": stats.images_needs_review,
+                "failed": stats.images_failed,
+                "codes_extracted": stats.codes_extracted,
+                "codes_auto_approved": stats.codes_auto_approved,
+            },
+        )
+        return stats
 
     def reprocess_failed(self, limit: int = 100) -> AnalysisStats:
         """Retry analysis for previously failed images.

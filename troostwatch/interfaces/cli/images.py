@@ -362,6 +362,83 @@ def reprocess_failed(db_path: str, limit: int, images_dir: str | None) -> None:
     console.print(f"  Failed: {stats.images_failed}")
 
 
+@images_cli.command(name="openai-analyze")
+@click.option(
+    "--db",
+    "db_path",
+    default="troostwatch.db",
+    help="Path to the SQLite database file.",
+    show_default=True,
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=50,
+    help="Maximum number of images to analyze.",
+    show_default=True,
+)
+@click.option(
+    "--images-dir",
+    type=click.Path(),
+    default=None,
+    help="Directory for stored images. Uses config.json if not specified.",
+)
+def openai_analyze(db_path: str, limit: int, images_dir: str | None) -> None:
+    """Re-analyze needs_review images using OpenAI Vision.
+
+    Takes images that were marked as 'needs_review' by local OCR
+    (due to low confidence) and re-analyzes them using OpenAI's
+    GPT-4 Vision API for better accuracy.
+
+    Requires OPENAI_API_KEY environment variable to be set.
+
+    This is more expensive than local OCR but provides better
+    results for difficult images.
+
+    Example:
+        export OPENAI_API_KEY=sk-...
+        troostwatch images openai-analyze --limit 20
+    """
+    import os
+
+    if not os.environ.get("OPENAI_API_KEY"):
+        console.print(
+            "[bold red]Error:[/bold red] OPENAI_API_KEY environment variable not set."
+        )
+        console.print("Set it with: export OPENAI_API_KEY=sk-...")
+        raise SystemExit(1)
+
+    images_path = Path(images_dir) if images_dir else _get_images_dir()
+
+    console.print("[bold]Re-analyzing with OpenAI Vision...[/bold]")
+    console.print(f"[bold]Database:[/bold] {db_path}")
+    console.print(f"[bold]Limit:[/bold] {limit}")
+    console.print()
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Analyzing...", total=None)
+
+        service = ImageAnalysisService.from_sqlite_path(db_path, images_path)
+        stats = service.promote_to_openai(limit=limit)
+
+        progress.update(task, completed=True)
+
+    console.print()
+    console.print("[bold green]OpenAI analysis complete![/bold green]")
+    console.print(f"  Processed: {stats.images_processed}")
+    console.print(f"  Analyzed: {stats.images_analyzed}")
+    console.print(f"  Still needs review: {stats.images_needs_review}")
+    console.print(f"  Failed: {stats.images_failed}")
+    console.print(f"  Codes extracted: {stats.codes_extracted}")
+    console.print(f"  [green]Codes auto-approved: {stats.codes_auto_approved}[/green]")
+
+
 @images_cli.command(name="export-tokens")
 @click.option(
     "--db",

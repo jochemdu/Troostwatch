@@ -137,8 +137,15 @@ De pipeline bestaat uit drie blokken:
   - Service: compute_image_hashes, find_duplicate_images, get_duplicate_stats
   - CLI: `images hash`, `images duplicates`, `images hash-stats`
   - Migration: 0010_add_image_phash.sql
-- [ ] Automatische EAN validatie met GS1 check digit
-- [ ] Code normalisatie (whitespace, case, leading zeros)
+- [x] Automatische EAN validatie met GS1 check digit
+  - `code_validation.py` met validators voor EAN-13, EAN-8, UPC-A, GTIN-14, ISBN, MAC, UUID
+  - OCR error correction: O→0, I→1, S→5, B→8
+  - Service: validate_extracted_code(), validate_pending_codes()
+  - CLI: `images validate-codes`
+  - Test suite: 39 tests
+- [x] Code normalisatie (whitespace, case, leading zeros)
+  - Integrated in code_validation.py normalize_code()
+  - Automatic leading zero padding for short EANs
 - [ ] OpenAI Vision fallback voor low-confidence codes
 - [ ] Export naar product database
 
@@ -165,8 +172,8 @@ De pipeline bestaat uit drie blokken:
 | 14. Metrics & monitoring | ✅ Done | 2025-11-28 |
 | **Iteratie 3** | | |
 | 15. Image deduplicatie | ✅ Done | 2025-01-XX |
-| 16. EAN validatie | ⬜ Todo | |
-| 17. Code normalisatie | ⬜ Todo | |
+| 16. EAN validatie | ✅ Done | 2025-01-XX |
+| 17. Code normalisatie | ✅ Done | 2025-01-XX |
 | 18. OpenAI fallback | ⬜ Todo | |
 | 19. Product DB export | ⬜ Todo | |
 
@@ -218,6 +225,20 @@ troostwatch images duplicates --threshold 0
 
 # Zoek vergelijkbare images (threshold=10)
 troostwatch images duplicates --threshold 10 --show-paths
+```
+
+### Code Validatie
+
+```bash
+# Valideer en normaliseer extracted codes
+troostwatch images validate-codes --limit 100
+
+# Validatie omvat:
+# - EAN-13/EAN-8: GS1 check digit validatie
+# - UPC-A: GS1 check digit validatie
+# - MAC addresses: Format normalisatie (AA:BB:CC:DD:EE:FF)
+# - UUIDs: Format normalisatie
+# - OCR fout correctie voor EANs (O→0, I→1, etc.)
 ```
 
 ### ML Service

@@ -8,7 +8,7 @@ Troostwatch uses SQLite for local data storage. The canonical schema is defined
 in `schema/schema.sql` and managed via `SchemaMigrator` (see
 [Migration Policy](migration_policy.md)).
 
-**Current schema version:** 2
+**Current schema version:** 7
 
 ## Entity Relationship Diagram
 

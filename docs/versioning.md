@@ -80,7 +80,7 @@ matrix documents which app versions require which minimum schema versions:
 
 | App Version | Min Schema Version | Notes |
 |-------------|-------------------|-------|
-| 0.6.x | 1 | Initial versioned schema |
+| 0.6.x | 7 | Current version with full feature set |
 
 ### Compatibility Rules
 

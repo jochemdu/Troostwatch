@@ -1,13 +1,20 @@
-"""Image analysis using OpenAI Vision API.
+"""Image analysis with multiple backend options.
 
 This module provides functionality to analyze lot images and extract
-product codes, model numbers, and EAN codes using GPT-4 Vision.
+product codes, model numbers, and EAN codes using either:
+- Local OCR (Tesseract) with regex-based code extraction
+- OpenAI GPT-4 Vision API
+
+The local OCR option is free and works offline, while OpenAI provides
+more intelligent extraction but requires an API key.
 """
 
 from __future__ import annotations
 
 import base64
+import io
 import os
+import re
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -38,7 +45,308 @@ class ImageAnalysisResult:
     error: str | None = None
 
 
-class ImageAnalyzer:
+# =============================================================================
+# Code Extraction Patterns
+# =============================================================================
+
+# EAN-13: 13 digits, often starting with country code
+EAN_PATTERN = re.compile(r"\b(\d{13})\b")
+
+# EAN-8: 8 digits
+EAN8_PATTERN = re.compile(r"\b(\d{8})\b")
+
+# UPC-A: 12 digits
+UPC_PATTERN = re.compile(r"\b(\d{12})\b")
+
+# Common product code patterns (letters + numbers, hyphens allowed)
+# Examples: SM-G991B, WM75A, A1-39500, HP-123ABC
+PRODUCT_CODE_PATTERN = re.compile(
+    r"\b([A-Z]{1,4}[-]?[A-Z0-9]{2,10}[-]?[A-Z0-9]{0,10})\b",
+    re.IGNORECASE,
+)
+
+# Model number patterns (more specific formats)
+# Examples: Model: ABC123, Type: XYZ-456
+MODEL_PATTERN = re.compile(
+    r"(?:model|type|art\.?(?:ikel)?(?:nr)?|p/?n|part\s*(?:no|number)?)"
+    r"[:\s]*([A-Z0-9][-A-Z0-9./]{2,20})",
+    re.IGNORECASE,
+)
+
+# Serial number patterns
+# Examples: S/N: ABC123456, Serial: 12345678
+SERIAL_PATTERN = re.compile(
+    r"(?:s/?n|serial(?:\s*(?:no|number|nr))?)[:\s]*([A-Z0-9]{6,20})",
+    re.IGNORECASE,
+)
+
+
+def _validate_ean13(code: str) -> bool:
+    """Validate EAN-13 check digit."""
+    if len(code) != 13 or not code.isdigit():
+        return False
+    total = sum(
+        int(d) * (1 if i % 2 == 0 else 3)
+        for i, d in enumerate(code[:12])
+    )
+    check = (10 - (total % 10)) % 10
+    return int(code[12]) == check
+
+
+def _validate_ean8(code: str) -> bool:
+    """Validate EAN-8 check digit."""
+    if len(code) != 8 or not code.isdigit():
+        return False
+    total = sum(
+        int(d) * (3 if i % 2 == 0 else 1)
+        for i, d in enumerate(code[:7])
+    )
+    check = (10 - (total % 10)) % 10
+    return int(code[7]) == check
+
+
+def _is_likely_product_code(code: str) -> bool:
+    """Check if a string looks like a product code."""
+    # Must have at least one letter and one digit
+    has_letter = any(c.isalpha() for c in code)
+    has_digit = any(c.isdigit() for c in code)
+    # Not too long, not too short
+    length_ok = 4 <= len(code) <= 20
+    # Not all same character
+    not_repetitive = len(set(code.replace("-", ""))) > 2
+    return has_letter and has_digit and length_ok and not_repetitive
+
+
+def extract_codes_from_text(text: str) -> list[ExtractedCode]:
+    """Extract product codes, EANs, and other identifiers from text.
+
+    Uses regex patterns to find various code formats in OCR'd text.
+    """
+    codes: list[ExtractedCode] = []
+    seen: set[str] = set()
+
+    # Extract EAN-13 codes
+    for match in EAN_PATTERN.finditer(text):
+        value = match.group(1)
+        if value not in seen and _validate_ean13(value):
+            seen.add(value)
+            codes.append(ExtractedCode(
+                code_type="ean",
+                value=value,
+                confidence="high",
+                context="EAN-13 barcode",
+            ))
+
+    # Extract EAN-8 codes
+    for match in EAN8_PATTERN.finditer(text):
+        value = match.group(1)
+        if value not in seen and _validate_ean8(value):
+            seen.add(value)
+            codes.append(ExtractedCode(
+                code_type="ean",
+                value=value,
+                confidence="high",
+                context="EAN-8 barcode",
+            ))
+
+    # Extract UPC codes (12 digits, less common in EU)
+    for match in UPC_PATTERN.finditer(text):
+        value = match.group(1)
+        if value not in seen:
+            # UPC validation is complex, mark as medium confidence
+            seen.add(value)
+            codes.append(ExtractedCode(
+                code_type="ean",
+                value=value,
+                confidence="medium",
+                context="UPC-A barcode",
+            ))
+
+    # Extract model numbers (with label)
+    for match in MODEL_PATTERN.finditer(text):
+        value = match.group(1).strip().upper()
+        if value not in seen and len(value) >= 3:
+            seen.add(value)
+            codes.append(ExtractedCode(
+                code_type="model_number",
+                value=value,
+                confidence="high",
+                context="Labeled model number",
+            ))
+
+    # Extract serial numbers
+    for match in SERIAL_PATTERN.finditer(text):
+        value = match.group(1).strip().upper()
+        if value not in seen and len(value) >= 6:
+            seen.add(value)
+            codes.append(ExtractedCode(
+                code_type="serial_number",
+                value=value,
+                confidence="high",
+                context="Labeled serial number",
+            ))
+
+    # Extract product codes (generic pattern)
+    for match in PRODUCT_CODE_PATTERN.finditer(text):
+        value = match.group(1).upper()
+        if value not in seen and _is_likely_product_code(value):
+            seen.add(value)
+            codes.append(ExtractedCode(
+                code_type="product_code",
+                value=value,
+                confidence="medium",
+                context="Product code pattern",
+            ))
+
+    return codes
+
+
+# =============================================================================
+# Local OCR Analyzer (Tesseract)
+# =============================================================================
+
+class LocalOCRAnalyzer:
+    """Analyzes images using local Tesseract OCR."""
+
+    def __init__(self, tesseract_cmd: str | None = None) -> None:
+        """Initialize the local OCR analyzer.
+
+        Args:
+            tesseract_cmd: Path to tesseract executable. Auto-detected if None.
+        """
+        self.tesseract_cmd = tesseract_cmd
+        self._tesseract_available: bool | None = None
+
+    def _check_tesseract(self) -> bool:
+        """Check if Tesseract is available."""
+        if self._tesseract_available is not None:
+            return self._tesseract_available
+
+        try:
+            import pytesseract
+            if self.tesseract_cmd:
+                pytesseract.pytesseract.tesseract_cmd = self.tesseract_cmd
+            # Test that tesseract works
+            pytesseract.get_tesseract_version()
+            self._tesseract_available = True
+        except Exception as e:
+            logger.warning("Tesseract not available: %s", str(e))
+            self._tesseract_available = False
+
+        return self._tesseract_available
+
+    async def analyze_image_url(self, image_url: str) -> ImageAnalysisResult:
+        """Analyze an image URL using local OCR.
+
+        Args:
+            image_url: URL of the image to analyze.
+
+        Returns:
+            ImageAnalysisResult with extracted codes.
+        """
+        if not self._check_tesseract():
+            return ImageAnalysisResult(
+                image_url=image_url,
+                error="Tesseract OCR niet geïnstalleerd. "
+                      "Installeer met: pip install pytesseract && "
+                      "apt-get install tesseract-ocr tesseract-ocr-nld",
+            )
+
+        try:
+            import pytesseract
+            from PIL import Image
+
+            # Download the image
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(image_url)
+                response.raise_for_status()
+                image_data = response.content
+
+            # Load image
+            image = Image.open(io.BytesIO(image_data))
+
+            # Run OCR with English and Dutch language support
+            try:
+                text = pytesseract.image_to_string(image, lang="eng+nld")
+            except pytesseract.TesseractError:
+                # Fallback to English only if Dutch not available
+                text = pytesseract.image_to_string(image, lang="eng")
+
+            # Extract codes from text
+            codes = extract_codes_from_text(text)
+
+            return ImageAnalysisResult(
+                image_url=image_url,
+                codes=codes,
+                raw_text=text.strip() if text.strip() else None,
+            )
+
+        except httpx.HTTPStatusError as e:
+            logger.error("Failed to download image: %s", str(e))
+            return ImageAnalysisResult(
+                image_url=image_url,
+                error=f"Afbeelding downloaden mislukt: {e.response.status_code}",
+            )
+        except Exception as e:
+            logger.error("OCR analysis failed: %s", str(e))
+            return ImageAnalysisResult(
+                image_url=image_url,
+                error=f"OCR mislukt: {str(e)}",
+            )
+
+    async def analyze_image_bytes(
+        self, image_data: bytes, image_url: str = "bytes"
+    ) -> ImageAnalysisResult:
+        """Analyze image bytes using local OCR."""
+        if not self._check_tesseract():
+            return ImageAnalysisResult(
+                image_url=image_url,
+                error="Tesseract OCR niet geïnstalleerd",
+            )
+
+        try:
+            import pytesseract
+            from PIL import Image
+
+            image = Image.open(io.BytesIO(image_data))
+            try:
+                text = pytesseract.image_to_string(image, lang="eng+nld")
+            except pytesseract.TesseractError:
+                text = pytesseract.image_to_string(image, lang="eng")
+            codes = extract_codes_from_text(text)
+
+            return ImageAnalysisResult(
+                image_url=image_url,
+                codes=codes,
+                raw_text=text.strip() if text.strip() else None,
+            )
+        except Exception as e:
+            logger.error("OCR analysis failed: %s", str(e))
+            return ImageAnalysisResult(
+                image_url=image_url,
+                error=f"OCR mislukt: {str(e)}",
+            )
+
+    async def analyze_multiple(
+        self, image_urls: list[str]
+    ) -> list[ImageAnalysisResult]:
+        """Analyze multiple images."""
+        results = []
+        for url in image_urls:
+            result = await self.analyze_image_url(url)
+            results.append(result)
+        return results
+
+    async def close(self) -> None:
+        """No cleanup needed for local OCR."""
+        pass
+
+
+# =============================================================================
+# OpenAI Vision Analyzer
+# =============================================================================
+
+class OpenAIAnalyzer:
     """Analyzes images using OpenAI's GPT-4 Vision API."""
 
     def __init__(
@@ -47,7 +355,7 @@ class ImageAnalyzer:
         model: str = "gpt-4o",
         timeout: float = 30.0,
     ) -> None:
-        """Initialize the image analyzer.
+        """Initialize the OpenAI analyzer.
 
         Args:
             api_key: OpenAI API key. Defaults to OPENAI_API_KEY env var.
@@ -72,18 +380,11 @@ class ImageAnalyzer:
             self._client = None
 
     async def analyze_image_url(self, image_url: str) -> ImageAnalysisResult:
-        """Analyze an image URL for product codes.
-
-        Args:
-            image_url: URL of the image to analyze.
-
-        Returns:
-            ImageAnalysisResult with extracted codes.
-        """
+        """Analyze an image URL for product codes."""
         if not self.api_key:
             return ImageAnalysisResult(
                 image_url=image_url,
-                error="OpenAI API key not configured",
+                error="OpenAI API key niet geconfigureerd (set OPENAI_API_KEY)",
             )
 
         prompt = """Analyseer deze afbeelding van een veilingitem en zoek naar:
@@ -155,27 +456,19 @@ Wees nauwkeurig - alleen codes die je duidelijk kunt lezen."""
             )
             return ImageAnalysisResult(
                 image_url=image_url,
-                error=f"API error: {e.response.status_code}",
+                error=f"API fout: {e.response.status_code}",
             )
         except Exception as e:
             logger.error("Image analysis failed: %s", str(e))
             return ImageAnalysisResult(
                 image_url=image_url,
-                error=f"Analysis failed: {str(e)}",
+                error=f"Analyse mislukt: {str(e)}",
             )
 
     async def analyze_image_bytes(
         self, image_data: bytes, mime_type: str = "image/jpeg"
     ) -> ImageAnalysisResult:
-        """Analyze image bytes for product codes.
-
-        Args:
-            image_data: Raw image bytes.
-            mime_type: MIME type of the image.
-
-        Returns:
-            ImageAnalysisResult with extracted codes.
-        """
+        """Analyze image bytes for product codes."""
         base64_image = base64.b64encode(image_data).decode("utf-8")
         data_url = f"data:{mime_type};base64,{base64_image}"
         return await self.analyze_image_url(data_url)
@@ -183,14 +476,7 @@ Wees nauwkeurig - alleen codes die je duidelijk kunt lezen."""
     async def analyze_multiple(
         self, image_urls: list[str]
     ) -> list[ImageAnalysisResult]:
-        """Analyze multiple images.
-
-        Args:
-            image_urls: List of image URLs to analyze.
-
-        Returns:
-            List of ImageAnalysisResult objects.
-        """
+        """Analyze multiple images."""
         results = []
         for url in image_urls:
             result = await self.analyze_image_url(url)
@@ -237,5 +523,69 @@ Wees nauwkeurig - alleen codes die je duidelijk kunt lezen."""
             logger.warning("Failed to parse GPT response: %s", str(e))
             return ImageAnalysisResult(
                 image_url=image_url,
-                error=f"Failed to parse response: {str(e)}",
+                error=f"Response parsen mislukt: {str(e)}",
             )
+
+
+# =============================================================================
+# Unified Image Analyzer
+# =============================================================================
+
+class ImageAnalyzer:
+    """Unified image analyzer with multiple backend options.
+
+    Supports:
+    - 'local': Tesseract OCR with regex extraction (free, offline)
+    - 'openai': OpenAI GPT-4 Vision (requires API key)
+    """
+
+    def __init__(
+        self,
+        backend: Literal["local", "openai"] = "local",
+        api_key: str | None = None,
+        model: str = "gpt-4o",
+        timeout: float = 30.0,
+    ) -> None:
+        """Initialize the image analyzer.
+
+        Args:
+            backend: Which backend to use ('local' or 'openai').
+            api_key: OpenAI API key (only needed for 'openai' backend).
+            model: OpenAI model to use (only for 'openai' backend).
+            timeout: Request timeout in seconds.
+        """
+        self.backend = backend
+
+        if backend == "openai":
+            self._analyzer: LocalOCRAnalyzer | OpenAIAnalyzer = OpenAIAnalyzer(
+                api_key=api_key,
+                model=model,
+                timeout=timeout,
+            )
+        else:
+            self._analyzer = LocalOCRAnalyzer()
+
+    async def analyze_image_url(self, image_url: str) -> ImageAnalysisResult:
+        """Analyze an image URL for product codes."""
+        return await self._analyzer.analyze_image_url(image_url)
+
+    async def analyze_multiple(
+        self, image_urls: list[str]
+    ) -> list[ImageAnalysisResult]:
+        """Analyze multiple images."""
+        return await self._analyzer.analyze_multiple(image_urls)
+
+    async def close(self) -> None:
+        """Close any open connections."""
+        await self._analyzer.close()
+
+
+# Keep old name for backwards compatibility
+__all__ = [
+    "ExtractedCode",
+    "ImageAnalysisResult",
+    "ImageAnalyzer",
+    "LocalOCRAnalyzer",
+    "OpenAIAnalyzer",
+    "extract_codes_from_text",
+]

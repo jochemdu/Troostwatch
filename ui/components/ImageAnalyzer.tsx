@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ImageAnalysisResponse, ExtractedCode } from '../lib/api';
+import type { ImageAnalysisResponse, ExtractedCode, ImageAnalysisBackend } from '../lib/api';
 import { analyzeImages } from '../lib/api';
 
 interface ImageAnalyzerProps {
@@ -21,8 +21,14 @@ const confidenceColors: Record<string, string> = {
   low: '#f87171',
 };
 
+const backendDescriptions: Record<ImageAnalysisBackend, string> = {
+  local: '🖥️ Lokale OCR (Tesseract) - Gratis, offline',
+  openai: '🤖 OpenAI GPT-4 Vision - Slimmer, vereist API key',
+};
+
 export default function ImageAnalyzer({ initialUrls = [], onCodeFound }: ImageAnalyzerProps) {
   const [urlInput, setUrlInput] = useState(initialUrls.join('\n'));
+  const [backend, setBackend] = useState<ImageAnalysisBackend>('local');
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState<ImageAnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +53,7 @@ export default function ImageAnalyzer({ initialUrls = [], onCodeFound }: ImageAn
     setResults(null);
 
     try {
-      const response = await analyzeImages(imageUrls);
+      const response = await analyzeImages(imageUrls, backend);
       setResults(response);
       
       // Notify parent of found codes
@@ -70,6 +76,32 @@ export default function ImageAnalyzer({ initialUrls = [], onCodeFound }: ImageAn
 
   return (
     <div className="image-analyzer">
+      <div className="backend-selector">
+        <label>Analyse methode:</label>
+        <div className="backend-options">
+          <label className={`backend-option ${backend === 'local' ? 'selected' : ''}`}>
+            <input
+              type="radio"
+              name="backend"
+              value="local"
+              checked={backend === 'local'}
+              onChange={() => setBackend('local')}
+            />
+            <span className="backend-label">{backendDescriptions.local}</span>
+          </label>
+          <label className={`backend-option ${backend === 'openai' ? 'selected' : ''}`}>
+            <input
+              type="radio"
+              name="backend"
+              value="openai"
+              checked={backend === 'openai'}
+              onChange={() => setBackend('openai')}
+            />
+            <span className="backend-label">{backendDescriptions.openai}</span>
+          </label>
+        </div>
+      </div>
+
       <div className="url-input-section">
         <label htmlFor="image-urls">Afbeelding URLs (één per regel):</label>
         <textarea
@@ -194,6 +226,45 @@ export default function ImageAnalyzer({ initialUrls = [], onCodeFound }: ImageAn
           font-size: 0.8rem;
           color: #666;
           margin: 8px 0 0 0;
+        }
+
+        .backend-selector {
+          margin-bottom: 16px;
+        }
+
+        .backend-selector label {
+          display: block;
+          font-size: 0.9rem;
+          color: #a0a0c0;
+          margin-bottom: 8px;
+        }
+
+        .backend-options {
+          display: flex;
+          gap: 16px;
+        }
+
+        .backend-option {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+        }
+
+        .backend-option input[type="radio"] {
+          accent-color: #6366f1;
+        }
+
+        .backend-option span {
+          color: #fff;
+          font-size: 0.9rem;
+        }
+
+        .backend-info {
+          font-size: 0.8rem;
+          color: #666;
+          margin: 8px 0 0 0;
+          font-style: italic;
         }
 
         .analyzer-header {

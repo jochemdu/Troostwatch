@@ -440,6 +440,11 @@ class ImageAnalysisRequest(BaseModel):
     """Request to analyze images for product codes."""
 
     image_urls: list[str] = Field(..., min_length=1, max_length=10)
+    backend: str = Field(
+        default="local",
+        pattern="^(local|openai)$",
+        description="Backend to use: 'local' (Tesseract OCR) or 'openai' (GPT-4 Vision)",
+    )
 
 
 class ImageAnalysisResponse(BaseModel):
@@ -1606,10 +1611,15 @@ async def analyze_images(
 ) -> ImageAnalysisResponse:
     """Analyze images for product codes, model numbers, and EAN codes.
 
-    Uses OpenAI Vision API to extract text and codes from lot images.
-    Requires OPENAI_API_KEY environment variable to be set.
+    Supports two backends:
+    - 'local': Uses Tesseract OCR with regex extraction (free, offline)
+    - 'openai': Uses GPT-4 Vision API (requires OPENAI_API_KEY)
+
+    The local backend requires pytesseract and tesseract-ocr to be installed.
     """
-    analyzer = ImageAnalyzer()
+    # Validate backend and cast to Literal type
+    backend = "openai" if request.backend == "openai" else "local"
+    analyzer = ImageAnalyzer(backend=backend)  # type: ignore[arg-type]
     try:
         results = await analyzer.analyze_multiple(request.image_urls)
         return ImageAnalysisResponse(

@@ -9,3 +9,7 @@ uvicorn>=0.38
 websockets>=15.0
 pytest>=9.0
 pydantic>=2.12
+httpx>=0.28
+openai>=1.0
+pillow>=10.0
+pytesseract>=0.3

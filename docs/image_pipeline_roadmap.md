@@ -153,7 +153,22 @@ De pipeline bestaat uit drie blokken:
   - Auto-approves high-confidence OpenAI results (approved_by='openai')
   - CLI: `images openai-analyze --limit 50`
   - Requires OPENAI_API_KEY environment variable
-- [ ] Export naar product database
+- [x] Export naar product database
+  - `promote_codes_to_lots()` in ImageAnalysisService
+  - Writes approved codes to product_specs table
+  - Tracks promotion status to avoid duplicates
+  - CLI: `images promote --limit 100`
+
+---
+
+## Iteratie 3: Status
+
+Iteratie 3 is nu **voltooid**. Alle features zijn geïmplementeerd:
+- ✅ Image deduplicatie via pHash
+- ✅ Automatische EAN validatie met GS1 check digit
+- ✅ Code normalisatie
+- ✅ OpenAI Vision fallback
+- ✅ Export naar product database
 
 ---
 
@@ -177,11 +192,11 @@ De pipeline bestaat uit drie blokken:
 | 13. Batch optimizations | ✅ Done | 2025-11-28 |
 | 14. Metrics & monitoring | ✅ Done | 2025-11-28 |
 | **Iteratie 3** | | |
-| 15. Image deduplicatie | ✅ Done | 2025-01-XX |
-| 16. EAN validatie | ✅ Done | 2025-01-XX |
-| 17. Code normalisatie | ✅ Done | 2025-01-XX |
-| 18. OpenAI fallback | ⬜ Todo | |
-| 19. Product DB export | ⬜ Todo | |
+| 15. Image deduplicatie | ✅ Done | 2025-01-18 |
+| 16. EAN validatie | ✅ Done | 2025-01-18 |
+| 17. Code normalisatie | ✅ Done | 2025-01-18 |
+| 18. OpenAI fallback | ✅ Done | 2025-01-18 |
+| 19. Product DB export | ✅ Done | 2025-01-18 |
 
 **Legenda:** ⬜ Todo | 🔄 In progress | ✅ Done
 
@@ -203,6 +218,10 @@ troostwatch images review
 
 # Re-analyze met OpenAI Vision voor betere resultaten
 troostwatch images review --promote-to-openai --limit 50
+
+# OpenAI Vision analyse voor needs_review images
+export OPENAI_API_KEY=sk-...
+troostwatch images openai-analyze --limit 50
 
 # Retry eerder gefaalde images
 troostwatch images reprocess-failed --limit 100

@@ -30,6 +30,7 @@ class LotImage:
     analysis_backend: str | None
     analyzed_at: str | None
     error_message: str | None
+    phash: str | None
     created_at: str
     updated_at: str | None
 
@@ -251,6 +252,89 @@ class LotImageRepository(BaseRepository):
             (image_id,),
         )
 
+    def update_phash(self, image_id: int, phash: str) -> None:
+        """Update the perceptual hash for an image."""
+        self.conn.execute(
+            """
+            UPDATE lot_images
+            SET phash = ?,
+                updated_at = datetime('now')
+            WHERE id = ?
+            """,
+            (phash, image_id),
+        )
+
+    def get_by_phash(self, phash: str) -> list[LotImage]:
+        """Get all images with a specific phash (exact match)."""
+        rows = self._fetch_all_as_dicts(
+            """
+            SELECT * FROM lot_images
+            WHERE phash = ?
+            ORDER BY created_at
+            """,
+            (phash,),
+        )
+        return [self._row_to_image(row) for row in rows]
+
+    def get_all_with_phash(self, limit: int | None = None) -> list[LotImage]:
+        """Get all images that have a computed phash."""
+        query = """
+            SELECT * FROM lot_images
+            WHERE phash IS NOT NULL
+            ORDER BY created_at
+        """
+        params: tuple = ()
+        if limit:
+            query += " LIMIT ?"
+            params = (limit,)
+        rows = self._fetch_all_as_dicts(query, params)
+        return [self._row_to_image(row) for row in rows]
+
+    def get_images_without_phash(self, limit: int = 100) -> list[LotImage]:
+        """Get downloaded images that don't have a phash yet."""
+        rows = self._fetch_all_as_dicts(
+            """
+            SELECT * FROM lot_images
+            WHERE download_status = 'downloaded'
+              AND phash IS NULL
+            ORDER BY created_at
+            LIMIT ?
+            """,
+            (limit,),
+        )
+        return [self._row_to_image(row) for row in rows]
+
+    def find_duplicates_by_phash(self) -> list[tuple[str, list[LotImage]]]:
+        """Find groups of images with the same phash (duplicates).
+
+        Returns:
+            List of tuples (phash, list of images with that phash)
+            Only includes phashes that appear more than once.
+        """
+        # First get phashes that appear more than once
+        dup_cursor = self.conn.execute(
+            """
+            SELECT phash, COUNT(*) as cnt
+            FROM lot_images
+            WHERE phash IS NOT NULL
+            GROUP BY phash
+            HAVING cnt > 1
+            ORDER BY cnt DESC
+            """
+        )
+        dup_phashes = [row[0] for row in dup_cursor.fetchall()]
+
+        if not dup_phashes:
+            return []
+
+        # For each duplicate phash, get all images
+        results: list[tuple[str, list[LotImage]]] = []
+        for phash in dup_phashes:
+            images = self.get_by_phash(phash)
+            results.append((phash, images))
+
+        return results
+
     def get_stats(self) -> dict[str, int]:
         """Get counts by status for dashboard display."""
         cur = self.conn.execute(
@@ -292,6 +376,7 @@ class LotImageRepository(BaseRepository):
             analysis_backend=row["analysis_backend"],
             analyzed_at=row["analyzed_at"],
             error_message=row["error_message"],
+            phash=row.get("phash"),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )

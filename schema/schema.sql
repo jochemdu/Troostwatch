@@ -262,6 +262,7 @@ CREATE TABLE IF NOT EXISTS lot_images (
     analysis_backend TEXT,
     analyzed_at TEXT,
     error_message TEXT,
+    phash TEXT,  -- perceptual hash for image deduplication
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT,
     FOREIGN KEY (lot_id) REFERENCES lots (id) ON DELETE CASCADE,
@@ -271,6 +272,7 @@ CREATE TABLE IF NOT EXISTS lot_images (
 CREATE INDEX IF NOT EXISTS idx_lot_images_lot_id ON lot_images (lot_id);
 CREATE INDEX IF NOT EXISTS idx_lot_images_download_status ON lot_images (download_status);
 CREATE INDEX IF NOT EXISTS idx_lot_images_analysis_status ON lot_images (analysis_status);
+CREATE INDEX IF NOT EXISTS idx_lot_images_phash ON lot_images (phash);
 
 -- Table for storing extracted product codes from images
 CREATE TABLE IF NOT EXISTS extracted_codes (

@@ -129,6 +129,21 @@ De pipeline bestaat uit drie blokken:
 
 ---
 
+## Iteratie 3: Productie-ready (huidige focus)
+
+- [x] Image deduplicatie via perceptual hashing (pHash)
+  - `image_hashing.py` met compute_phash, compute_dhash, compute_ahash, hamming_distance
+  - Repository: update_phash, get_by_phash, find_duplicates_by_phash
+  - Service: compute_image_hashes, find_duplicate_images, get_duplicate_stats
+  - CLI: `images hash`, `images duplicates`, `images hash-stats`
+  - Migration: 0010_add_image_phash.sql
+- [ ] Automatische EAN validatie met GS1 check digit
+- [ ] Code normalisatie (whitespace, case, leading zeros)
+- [ ] OpenAI Vision fallback voor low-confidence codes
+- [ ] Export naar product database
+
+---
+
 ## Voortgang
 
 | Stap | Status | Datum voltooid |
@@ -148,6 +163,12 @@ De pipeline bestaat uit drie blokken:
 | 12. UI Review Queue | ✅ Done | 2025-11-28 |
 | 13. Batch optimizations | ✅ Done | 2025-11-28 |
 | 14. Metrics & monitoring | ✅ Done | 2025-11-28 |
+| **Iteratie 3** | | |
+| 15. Image deduplicatie | ✅ Done | 2025-01-XX |
+| 16. EAN validatie | ⬜ Todo | |
+| 17. Code normalisatie | ⬜ Todo | |
+| 18. OpenAI fallback | ⬜ Todo | |
+| 19. Product DB export | ⬜ Todo | |
 
 **Legenda:** ⬜ Todo | 🔄 In progress | ✅ Done
 
@@ -181,6 +202,22 @@ troostwatch images export-tokens --output labeled_data.json --include-reviewed
 
 # Bekijk statistieken van de image pipeline
 troostwatch images stats
+```
+
+### Image Deduplicatie
+
+```bash
+# Bereken perceptual hashes voor gedownloade images
+troostwatch images hash --limit 100
+
+# Bekijk hash statistieken
+troostwatch images hash-stats
+
+# Zoek exacte duplicaten (threshold=0)
+troostwatch images duplicates --threshold 0
+
+# Zoek vergelijkbare images (threshold=10)
+troostwatch images duplicates --threshold 10 --show-paths
 ```
 
 ### ML Service
@@ -229,31 +266,32 @@ python scripts/train_label_classifier.py \
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    CLI: troostwatch images                  │
-│         download | analyze | review | export-tokens         │
+│   download | analyze | review | export-tokens | hash | dup  │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
 │                   ImageAnalysisService                      │
-│    download_pending | analyze_pending | promote_to_openai   │
+│  download_pending | analyze_pending | compute_image_hashes  │
+│              find_duplicate_images | get_stats              │
 └─────────────────────────────────────────────────────────────┘
                               │
-        ┌─────────────────────┴─────────────────────┐
-        │                                           │
-┌───────▼───────┐                         ┌─────────▼─────────┐
-│ ImageDownloader│                         │   ImageAnalyzer   │
-│  (persistence) │                         │  local / openai   │
-└───────┬───────┘                         └─────────┬─────────┘
-        │                                           │
-        │                              ┌────────────┴────────────┐
-        │                              │                         │
-        │                     ┌────────▼────────┐    ┌───────────▼───────────┐
-        │                     │ LocalOCRAnalyzer│    │   label_ocr_api/      │
-        │                     │   (Tesseract)   │    │   (sklearn model)     │
-        │                     └─────────────────┘    └───────────────────────┘
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+┌───────▼───────┐    ┌────────▼────────┐   ┌───────▼───────┐
+│ ImageDownloader│    │  ImageAnalyzer  │   │ image_hashing │
+│  (persistence) │    │ local / openai  │   │ pHash/dHash   │
+└───────┬───────┘    └────────┬────────┘   └───────────────┘
+        │                     │
+        │        ┌────────────┴────────────┐
+        │        │                         │
+        │   ┌────▼────────────┐   ┌────────▼────────────┐
+        │   │ LocalOCRAnalyzer│   │   label_ocr_api/    │
+        │   │   (Tesseract)   │   │   (sklearn model)   │
+        │   └─────────────────┘   └─────────────────────┘
         │
 ┌───────▼───────────────────────────────────────────────────────┐
 │                        Database                                │
-│   lot_images | extracted_codes | ocr_token_data                │
+│   lot_images (+ phash) | extracted_codes | ocr_token_data     │
 └────────────────────────────────────────────────────────────────┘
 ```
 

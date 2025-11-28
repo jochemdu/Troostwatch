@@ -546,4 +546,198 @@ def promote_codes(db_path: str, limit: int, images_dir: str | None) -> None:
     console.print(f"  Product codes: {result.get('product_code', 0)}")
 
 
+@images_cli.command(name="hash")
+@click.option(
+    "--db",
+    "db_path",
+    default="troostwatch.db",
+    help="Path to the SQLite database file.",
+    show_default=True,
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=100,
+    help="Maximum number of images to hash.",
+    show_default=True,
+)
+@click.option(
+    "--images-dir",
+    type=click.Path(),
+    default=None,
+    help="Directory for stored images. Uses config.json if not specified.",
+)
+def compute_hashes(db_path: str, limit: int, images_dir: str | None) -> None:
+    """Compute perceptual hashes for downloaded images.
+
+    Computes pHash values for images that have been downloaded but
+    don't have a hash yet. These hashes are used for duplicate detection.
+
+    Perceptual hashes are robust to minor image differences like
+    resizing, compression artifacts, and small edits.
+    """
+    images_path = Path(images_dir) if images_dir else _get_images_dir()
+
+    console.print("[bold]Computing image hashes...[/bold]")
+    console.print(f"[bold]Database:[/bold] {db_path}")
+    console.print(f"[bold]Limit:[/bold] {limit}")
+    console.print()
+
+    service = ImageAnalysisService.from_sqlite_path(db_path, images_path)
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TextColumn("[cyan]{task.completed}/{task.total}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Computing hashes...", total=None)
+
+        def update_progress(done: int, total: int) -> None:
+            progress.update(task, completed=done, total=total)
+
+        stats = service.compute_image_hashes(
+            limit=limit,
+            progress_callback=update_progress,
+        )
+
+    console.print()
+    console.print("[bold green]Hashing complete![/bold green]")
+    console.print(f"  Processed: {stats.images_processed}")
+    console.print(f"  Hashed: {stats.images_hashed}")
+    console.print(f"  Failed: {stats.images_failed}")
+
+
+@images_cli.command(name="duplicates")
+@click.option(
+    "--db",
+    "db_path",
+    default="troostwatch.db",
+    help="Path to the SQLite database file.",
+    show_default=True,
+)
+@click.option(
+    "--threshold",
+    type=int,
+    default=0,
+    help="Hamming distance threshold (0=exact match, 10=similar).",
+    show_default=True,
+)
+@click.option(
+    "--images-dir",
+    type=click.Path(),
+    default=None,
+    help="Directory for stored images. Uses config.json if not specified.",
+)
+@click.option(
+    "--show-paths",
+    is_flag=True,
+    default=False,
+    help="Show local file paths for each image.",
+)
+def find_duplicates_cmd(
+    db_path: str,
+    threshold: int,
+    images_dir: str | None,
+    show_paths: bool,
+) -> None:
+    """Find duplicate images using perceptual hashing.
+
+    Groups images that are perceptually similar based on their pHash
+    values. Use --threshold to control similarity sensitivity:
+
+    \b
+    - 0: Exact matches only (same hash)
+    - 5: Very similar images
+    - 10: Reasonably similar images
+    - 15+: Loosely similar (may have false positives)
+
+    Only images with computed hashes are considered. Run `images hash`
+    first to compute hashes for downloaded images.
+    """
+    images_path = Path(images_dir) if images_dir else _get_images_dir()
+
+    service = ImageAnalysisService.from_sqlite_path(db_path, images_path)
+
+    console.print("[bold]Finding duplicate images...[/bold]")
+    console.print(f"[bold]Threshold:[/bold] {threshold}")
+    console.print()
+
+    groups = service.find_duplicate_images(threshold=threshold)
+
+    if not groups:
+        console.print("[green]No duplicates found![/green]")
+        return
+
+    console.print(f"[bold]Found {len(groups)} groups of duplicates:[/bold]")
+    console.print()
+
+    for i, group in enumerate(groups, 1):
+        console.print(f"[bold cyan]Group {i}[/bold cyan] ({group.count} images)")
+        console.print(f"  Hash: {group.phash[:16]}...")
+        console.print(f"  Lot IDs: {', '.join(str(lid) for lid in group.lot_ids)}")
+
+        if show_paths:
+            for img in group.images:
+                console.print(f"    - Image {img.id}: {img.local_path or img.url}")
+
+        console.print()
+
+    # Summary
+    total_duplicates = sum(g.count for g in groups)
+    unique_lots = len(set(lid for g in groups for lid in g.lot_ids))
+    console.print(f"[bold]Summary:[/bold]")
+    console.print(f"  Total duplicate images: {total_duplicates}")
+    console.print(f"  Unique lots affected: {unique_lots}")
+    console.print(f"  Duplicate groups: {len(groups)}")
+
+
+@images_cli.command(name="hash-stats")
+@click.option(
+    "--db",
+    "db_path",
+    default="troostwatch.db",
+    help="Path to the SQLite database file.",
+    show_default=True,
+)
+@click.option(
+    "--images-dir",
+    type=click.Path(),
+    default=None,
+    help="Directory for stored images. Uses config.json if not specified.",
+)
+def show_hash_stats(db_path: str, images_dir: str | None) -> None:
+    """Show statistics about image hashing and duplicates.
+
+    Displays counts of images with/without hashes, unique hashes,
+    and detected duplicate groups.
+    """
+    images_path = Path(images_dir) if images_dir else _get_images_dir()
+
+    service = ImageAnalysisService.from_sqlite_path(db_path, images_path)
+    stats = service.get_duplicate_stats()
+
+    table = Table(title="Image Hash Statistics")
+    table.add_column("Metric", style="bold")
+    table.add_column("Value", justify="right")
+
+    table.add_row("Images with pHash", str(stats.get("with_phash", 0)))
+    table.add_row("Images without pHash", str(stats.get("without_phash", 0)))
+    table.add_row("Unique hashes", str(stats.get("unique_hashes", 0)))
+    table.add_row("Duplicate groups", str(stats.get("duplicate_groups", 0)))
+    table.add_row("Duplicate images", str(stats.get("duplicate_images", 0)))
+
+    console.print(table)
+
+    # Calculate duplication rate
+    total = stats.get("with_phash", 0)
+    duplicates = stats.get("duplicate_images", 0)
+    if total > 0:
+        rate = (duplicates / total) * 100
+        console.print()
+        console.print(f"[bold]Duplication rate:[/bold] {rate:.1f}%")
+
+
 __all__ = ["images_cli"]

@@ -6,20 +6,26 @@ This service orchestrates the image analysis pipeline:
 3. Extract and store product codes
 4. Store raw token data for ML training
 5. Handle review queue for low-confidence results
+6. Compute perceptual hashes for deduplication
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Callable, Literal
 
 from troostwatch.infrastructure.ai.image_analyzer import (
     ExtractedCode,
     ImageAnalysisResult,
     LocalOCRAnalyzer,
+)
+from troostwatch.infrastructure.ai.image_hashing import (
+    compute_phash,
+    hamming_distance,
+    PIL_AVAILABLE as HASH_AVAILABLE,
 )
 from troostwatch.infrastructure.db import get_connection
 from troostwatch.infrastructure.db.repositories import (
@@ -63,6 +69,30 @@ class DownloadStats:
     images_downloaded: int = 0
     images_failed: int = 0
     bytes_downloaded: int = 0
+
+
+@dataclass
+class HashStats:
+    """Statistics from a phash computation run."""
+
+    images_processed: int = 0
+    images_hashed: int = 0
+    images_failed: int = 0
+    duplicates_found: int = 0
+
+
+@dataclass
+class DuplicateGroup:
+    """A group of images that are perceptually similar."""
+
+    phash: str
+    images: list[LotImage] = field(default_factory=list)
+    lot_ids: list[int] = field(default_factory=list)
+
+    @property
+    def count(self) -> int:
+        """Number of duplicate images in this group."""
+        return len(self.images)
 
 
 class ImageAnalysisService(BaseService):
@@ -173,7 +203,7 @@ class ImageAnalysisService(BaseService):
         self,
         limit: int = 100,
         concurrency: int = 10,
-        progress_callback: callable | None = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> DownloadStats:
         """Download images concurrently with configurable parallelism.
 
@@ -445,7 +475,7 @@ class ImageAnalysisService(BaseService):
             else:
                 records = token_repo.get_all_for_export(limit=limit)
 
-            export_data = {
+            export_data: dict[str, Any] = {
                 "version": "1.0",
                 "images": [],
             }
@@ -611,6 +641,248 @@ class ImageAnalysisService(BaseService):
         )
         return promoted
 
+    # -------------------------------------------------------------------------
+    # Image Deduplication via Perceptual Hashing
+    # -------------------------------------------------------------------------
+
+    def compute_image_hashes(
+        self,
+        limit: int = 100,
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> HashStats:
+        """Compute perceptual hashes for downloaded images.
+
+        This computes pHash values for images that don't have one yet,
+        enabling later duplicate detection.
+
+        Args:
+            limit: Maximum number of images to process.
+            progress_callback: Optional callback(done, total) for progress.
+
+        Returns:
+            Statistics about the hashing operation.
+        """
+        if not HASH_AVAILABLE:
+            logger.warning("PIL not available, cannot compute image hashes")
+            return HashStats()
+
+        stats = HashStats()
+
+        with self._connection_factory() as conn:
+            image_repo = LotImageRepository(conn)
+            pending = image_repo.get_images_without_phash(limit=limit)
+            stats.images_processed = len(pending)
+
+            for i, image in enumerate(pending):
+                if not image.local_path:
+                    stats.images_failed += 1
+                    continue
+
+                try:
+                    phash = compute_phash(image.local_path)
+                    if phash:
+                        image_repo.update_phash(image.id, phash)
+                        stats.images_hashed += 1
+                    else:
+                        stats.images_failed += 1
+                        logger.warning(
+                            "Failed to compute phash",
+                            extra={"image_id": image.id, "path": image.local_path},
+                        )
+                except Exception as e:
+                    stats.images_failed += 1
+                    logger.error(
+                        "Error computing phash",
+                        extra={"image_id": image.id, "error": str(e)},
+                    )
+
+                if progress_callback:
+                    progress_callback(i + 1, len(pending))
+
+            conn.commit()
+
+        logger.info(
+            "Image hash batch complete",
+            extra={
+                "processed": stats.images_processed,
+                "hashed": stats.images_hashed,
+                "failed": stats.images_failed,
+            },
+        )
+        return stats
+
+    def find_duplicate_images(
+        self,
+        threshold: int = 10,
+    ) -> list[DuplicateGroup]:
+        """Find groups of perceptually similar images.
+
+        Uses Hamming distance on pHash values to identify duplicates.
+        Images within the threshold distance are considered duplicates.
+
+        Args:
+            threshold: Maximum Hamming distance to consider as duplicate.
+                       0 = exact match only, 10 = fairly similar.
+
+        Returns:
+            List of DuplicateGroup objects containing similar images.
+        """
+        if not HASH_AVAILABLE:
+            logger.warning("PIL not available, cannot find duplicates")
+            return []
+
+        with self._connection_factory() as conn:
+            image_repo = LotImageRepository(conn)
+
+            if threshold == 0:
+                # Exact match - use database grouping
+                db_duplicates = image_repo.find_duplicates_by_phash()
+                groups = []
+                for phash, images in db_duplicates:
+                    lot_ids = list(set(img.lot_id for img in images))
+                    groups.append(DuplicateGroup(
+                        phash=phash,
+                        images=images,
+                        lot_ids=lot_ids,
+                    ))
+                return groups
+
+            # Fuzzy matching - need to compare hashes using Hamming distance
+            all_images = image_repo.get_all_with_phash()
+
+            if not all_images:
+                return []
+
+            # Build hash-to-images mapping
+            hash_map: dict[str, list[LotImage]] = {}
+            for img in all_images:
+                if img.phash:
+                    if img.phash not in hash_map:
+                        hash_map[img.phash] = []
+                    hash_map[img.phash].append(img)
+
+            # Find similar hashes using Hamming distance clustering
+            # We use union-find to group similar hashes
+            hashes = list(hash_map.keys())
+
+            # Union-find for clustering
+            parent: dict[str, str] = {h: h for h in hashes}
+
+            def find(x: str) -> str:
+                if parent[x] != x:
+                    parent[x] = find(parent[x])
+                return parent[x]
+
+            def union(x: str, y: str) -> None:
+                px, py = find(x), find(y)
+                if px != py:
+                    parent[px] = py
+
+            # Compare all pairs and union similar ones
+            for i, h1 in enumerate(hashes):
+                for h2 in hashes[i + 1:]:
+                    try:
+                        dist = hamming_distance(h1, h2)
+                        if dist <= threshold:
+                            union(h1, h2)
+                    except ValueError:
+                        # Different length hashes, skip
+                        continue
+
+            # Group hashes by their root
+            clusters: dict[str, list[str]] = {}
+            for h in hashes:
+                root = find(h)
+                if root not in clusters:
+                    clusters[root] = []
+                clusters[root].append(h)
+
+            # Build duplicate groups from clusters with multiple hashes
+            groups = []
+            for root, cluster_hashes in clusters.items():
+                cluster_images = []
+                for h in cluster_hashes:
+                    cluster_images.extend(hash_map.get(h, []))
+
+                if len(cluster_images) > 1:
+                    lot_ids = list(set(img.lot_id for img in cluster_images))
+                    groups.append(DuplicateGroup(
+                        phash=cluster_hashes[0],  # Use first hash as representative
+                        images=cluster_images,
+                        lot_ids=lot_ids,
+                    ))
+
+            # Sort by number of duplicates (most first)
+            groups.sort(key=lambda g: g.count, reverse=True)
+            return groups
+
+    def get_duplicate_stats(self) -> dict[str, int]:
+        """Get statistics about duplicate images.
+
+        Returns:
+            Dictionary with duplicate-related counts.
+        """
+        with self._connection_factory() as conn:
+            image_repo = LotImageRepository(conn)
+
+            # Count images with phash
+            cur = conn.execute(
+                "SELECT COUNT(*) FROM lot_images WHERE phash IS NOT NULL"
+            )
+            with_phash = cur.fetchone()[0]
+
+            # Count images without phash
+            cur = conn.execute(
+                """
+                SELECT COUNT(*) FROM lot_images
+                WHERE download_status = 'downloaded' AND phash IS NULL
+                """
+            )
+            without_phash = cur.fetchone()[0]
+
+            # Count unique hashes
+            cur = conn.execute(
+                "SELECT COUNT(DISTINCT phash) FROM lot_images WHERE phash IS NOT NULL"
+            )
+            unique_hashes = cur.fetchone()[0]
+
+            # Count exact duplicates (same phash appears multiple times)
+            cur = conn.execute(
+                """
+                SELECT COUNT(*) FROM (
+                    SELECT phash, COUNT(*) as cnt
+                    FROM lot_images
+                    WHERE phash IS NOT NULL
+                    GROUP BY phash
+                    HAVING cnt > 1
+                )
+                """
+            )
+            duplicate_groups = cur.fetchone()[0]
+
+            # Count images that are duplicates
+            cur = conn.execute(
+                """
+                SELECT SUM(cnt) FROM (
+                    SELECT phash, COUNT(*) as cnt
+                    FROM lot_images
+                    WHERE phash IS NOT NULL
+                    GROUP BY phash
+                    HAVING cnt > 1
+                )
+                """
+            )
+            row = cur.fetchone()
+            duplicate_images = row[0] if row[0] else 0
+
+        return {
+            "with_phash": with_phash,
+            "without_phash": without_phash,
+            "unique_hashes": unique_hashes,
+            "duplicate_groups": duplicate_groups,
+            "duplicate_images": duplicate_images,
+        }
+
     def _calculate_confidence(self, codes: list[ExtractedCode]) -> float:
         """Calculate average confidence score from extracted codes.
 
@@ -645,5 +917,7 @@ class ImageAnalysisService(BaseService):
 __all__ = [
     "AnalysisStats",
     "DownloadStats",
+    "DuplicateGroup",
+    "HashStats",
     "ImageAnalysisService",
 ]

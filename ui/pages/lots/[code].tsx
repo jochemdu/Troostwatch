@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '../../components/Layout';
 import LotEditModal from '../../components/LotEditModal';
+import ImageAnalyzer from '../../components/ImageAnalyzer';
 import type { LotDetailResponse, SpecTemplate, BidHistoryEntry } from '../../lib/api';
 import { fetchLotDetail, fetchSpecTemplates, fetchBidHistory } from '../../lib/api';
 import { buildSpecTree, getDepthColor, type SpecNode } from '../../lib/specs';
@@ -234,6 +235,20 @@ export default function LotDetailPage() {
           </div>
         )}
 
+        {/* Image Analysis */}
+        <div className="section">
+          <h2>🔍 Afbeelding Analyse</h2>
+          <p className="section-description">
+            Analyseer afbeeldingen van dit lot om productcodes, modelnummers en EAN-codes te vinden.
+          </p>
+          <ImageAnalyzer 
+            onCodeFound={(code) => {
+              console.log('Found code:', code);
+              // TODO: Auto-fill EAN or add to specs
+            }}
+          />
+        </div>
+
         {/* Bid History */}
         {bidHistory.length > 0 && (
           <div className="section">
@@ -289,6 +304,7 @@ export default function LotDetailPage() {
         
         .section { background: #1a1a2e; border: 1px solid #333; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
         .section h2 { margin: 0 0 16px 0; font-size: 1.1rem; color: #fff; }
+        .section-description { color: #888; font-size: 0.9rem; margin: 0 0 16px 0; }
         .empty { color: #666; font-style: italic; margin: 0; }
         
         .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }

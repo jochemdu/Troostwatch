@@ -125,6 +125,37 @@ export interface ReferencePriceUpdateRequest {
 }
 
 // =============================================================================
+// Image Analysis Types
+// =============================================================================
+
+/**
+ * A code extracted from an image.
+ */
+export interface ExtractedCode {
+  code_type: 'product_code' | 'model_number' | 'ean' | 'serial_number' | 'other';
+  value: string;
+  confidence: 'high' | 'medium' | 'low';
+  context?: string | null;
+}
+
+/**
+ * Result of analyzing a single image.
+ */
+export interface ImageAnalysisResult {
+  image_url: string;
+  codes: ExtractedCode[];
+  raw_text?: string | null;
+  error?: string | null;
+}
+
+/**
+ * Response with analyzed image results.
+ */
+export interface ImageAnalysisResponse {
+  results: ImageAnalysisResult[];
+}
+
+// =============================================================================
 // UI-specific Types (not in OpenAPI, used for local state/props)
 // =============================================================================
 
@@ -883,4 +914,22 @@ export interface BuyerSummaryReport {
 export async function fetchBuyerSummary(buyerLabel: string): Promise<BuyerSummaryReport> {
   const response = await fetch(`${API_BASE}/reports/buyer/${encodeURIComponent(buyerLabel)}`);
   return handleResponse<BuyerSummaryReport>(response);
+}
+
+// =============================================================================
+// Image Analysis Endpoints
+// =============================================================================
+
+/**
+ * Analyze images for product codes, model numbers, and EAN codes.
+ * Uses OpenAI Vision API to extract text and codes from lot images.
+ * @see POST /images/analyze in troostwatch/app/api.py
+ */
+export async function analyzeImages(imageUrls: string[]): Promise<ImageAnalysisResponse> {
+  const response = await fetch(`${API_BASE}/images/analyze`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image_urls: imageUrls }),
+  });
+  return handleResponse<ImageAnalysisResponse>(response);
 }

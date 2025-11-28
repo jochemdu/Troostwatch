@@ -46,6 +46,7 @@ from troostwatch.services.reporting import ReportingService
 from troostwatch.services.sync_service import SyncService
 from troostwatch.services.dto import BuyerCreateDTO
 from troostwatch.services.positions import PositionUpdateData
+from troostwatch.infrastructure.ai import ImageAnalyzer
 
 
 class LotEventBus:
@@ -415,6 +416,36 @@ class LotDetailResponse(BaseModel):
     notes: str | None = None
     specs: list[LotSpecResponse] = Field(default_factory=list)
     reference_prices: list[ReferencePriceResponse] = Field(default_factory=list)
+
+
+class ExtractedCodeResponse(BaseModel):
+    """A code extracted from an image."""
+
+    code_type: str  # product_code, model_number, ean, serial_number, other
+    value: str
+    confidence: str  # high, medium, low
+    context: str | None = None
+
+
+class ImageAnalysisResultResponse(BaseModel):
+    """Result of analyzing a single image."""
+
+    image_url: str
+    codes: list[ExtractedCodeResponse] = Field(default_factory=list)
+    raw_text: str | None = None
+    error: str | None = None
+
+
+class ImageAnalysisRequest(BaseModel):
+    """Request to analyze images for product codes."""
+
+    image_urls: list[str] = Field(..., min_length=1, max_length=10)
+
+
+class ImageAnalysisResponse(BaseModel):
+    """Response with analyzed image results."""
+
+    results: list[ImageAnalysisResultResponse] = Field(default_factory=list)
 
 
 class LotCreateResponse(BaseModel):
@@ -1567,3 +1598,38 @@ async def lot_updates(websocket: WebSocket) -> None:
                 break
     finally:
         await event_bus.unsubscribe(websocket)
+
+
+@app.post("/images/analyze", response_model=ImageAnalysisResponse)
+async def analyze_images(
+    request: ImageAnalysisRequest,
+) -> ImageAnalysisResponse:
+    """Analyze images for product codes, model numbers, and EAN codes.
+
+    Uses OpenAI Vision API to extract text and codes from lot images.
+    Requires OPENAI_API_KEY environment variable to be set.
+    """
+    analyzer = ImageAnalyzer()
+    try:
+        results = await analyzer.analyze_multiple(request.image_urls)
+        return ImageAnalysisResponse(
+            results=[
+                ImageAnalysisResultResponse(
+                    image_url=r.image_url,
+                    codes=[
+                        ExtractedCodeResponse(
+                            code_type=c.code_type,
+                            value=c.value,
+                            confidence=c.confidence,
+                            context=c.context,
+                        )
+                        for c in r.codes
+                    ],
+                    raw_text=r.raw_text,
+                    error=r.error,
+                )
+                for r in results
+            ]
+        )
+    finally:
+        await analyzer.close()

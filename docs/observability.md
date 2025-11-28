@@ -116,18 +116,72 @@ increment_counter("bids_total", labels={"outcome": "success"})
 observe_histogram("sync_run_duration_seconds", duration, labels={"auction": code})
 ```
 
-## Tracing (Future)
+## Tracing
 
-Distributed tracing via OpenTelemetry is not yet implemented. When complexity
-warrants it (e.g., debugging async chains or cross-service calls), a POC branch
-should:
+Distributed tracing is available via OpenTelemetry. Tracing is **optional** and
+disabled by default. Install the tracing extras to enable:
 
-1. Instrument FastAPI with OpenTelemetry middleware
-2. Add spans to key service functions (sync, bidding)
-3. Export traces to a local collector (e.g., Jaeger, Tempo)
+```bash
+pip install troostwatch[tracing]
+```
 
-Until then, structured logs with correlation IDs (`request_id`, `sync_run_id`)
-provide sufficient traceability.
+### Configuration
+
+Configure tracing at application startup:
+
+```python
+from troostwatch.infrastructure.observability import configure_tracing
+
+# Enable tracing with OTLP exporter
+configure_tracing(
+    service_name="troostwatch-api",
+    endpoint="http://localhost:4317",  # Jaeger/Tempo OTLP endpoint
+    sample_rate=1.0,  # Sample all traces (reduce in production)
+)
+```
+
+Environment variables:
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: Default OTLP endpoint
+- `OTEL_TRACES_CONSOLE=true`: Print traces to console (debugging)
+
+### Using Traces
+
+```python
+from troostwatch.infrastructure.observability import trace_span, traced
+
+# Context manager for spans
+with trace_span("sync_auction", auction_code="ABC123"):
+    # ... operation ...
+
+# Decorator for functions
+@traced("fetch_lot_details")
+async def fetch_lot_details(lot_id: int) -> LotDetail:
+    ...
+
+# Add events and attributes to current span
+from troostwatch.infrastructure.observability import add_span_event, set_span_attribute
+
+add_span_event("page_fetched", page=1, lots=25)
+set_span_attribute("total_lots", 150)
+```
+
+### Log Correlation
+
+When tracing is enabled, trace and span IDs are available for log correlation:
+
+```python
+from troostwatch.infrastructure.observability import get_trace_context
+
+ctx = get_trace_context()
+# {"trace_id": "abc123...", "span_id": "def456..."}
+```
+
+### Viewing Traces
+
+Export traces to:
+- **Jaeger**: `http://localhost:16686` (default UI)
+- **Grafana Tempo**: Via Grafana datasource
+- **Console**: Set `OTEL_TRACES_CONSOLE=true` for debugging
 
 ## Dashboards
 

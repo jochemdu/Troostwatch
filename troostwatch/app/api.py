@@ -29,6 +29,11 @@ from troostwatch.app.dependencies import (
     AuctionRepositoryDep,
     BidRepositoryDep,
 )
+from troostwatch.app.ws_messages import (
+    ConnectionReadyMessage,
+    MESSAGE_FORMAT_VERSION,
+    create_message,
+)
 from troostwatch.services import positions as position_service
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
 from troostwatch.services.lots import (
@@ -44,22 +49,55 @@ from troostwatch.services.positions import PositionUpdateData
 
 
 class LotEventBus:
-    """Simple in-memory broadcaster for lot updates."""
+    """Simple in-memory broadcaster for lot updates.
+
+    Messages are sent in the v1 wire format:
+        {
+            "version": "1",
+            "type": "<event_type>",
+            "timestamp": "<ISO8601>",
+            "payload": { ... }
+        }
+
+    Use `create_message()` or typed message classes from `ws_messages`
+    to construct messages.
+    """
 
     def __init__(self) -> None:
         self._subscribers: set[WebSocket] = set()
         self._lock = asyncio.Lock()
 
     async def subscribe(self, websocket: WebSocket) -> None:
+        """Subscribe a WebSocket and send connection ready message."""
         await websocket.accept()
         async with self._lock:
             self._subscribers.add(websocket)
+
+        # Send connection ready message
+        ready_msg = ConnectionReadyMessage(
+            server_version=__version__,
+            message_format_version=MESSAGE_FORMAT_VERSION,
+        )
+        try:
+            await websocket.send_json(ready_msg.to_wire())
+        except Exception:
+            pass
 
     async def unsubscribe(self, websocket: WebSocket) -> None:
         async with self._lock:
             self._subscribers.discard(websocket)
 
     async def publish(self, payload: dict[str, Any]) -> None:
+        """Publish a message to all subscribers.
+
+        If `payload` already has a 'version' field, it's sent as-is.
+        Otherwise, it's wrapped in the v1 wire format using the 'type' field.
+        """
+        # Wrap legacy payloads in v1 format
+        if "version" not in payload and "type" in payload:
+            msg_type = payload.pop("type")
+            payload = create_message(msg_type, **payload)
+
         stale: list[WebSocket] = []
         async with self._lock:
             subscribers = list(self._subscribers)

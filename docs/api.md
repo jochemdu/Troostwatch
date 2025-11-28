@@ -44,7 +44,7 @@ Currently no authentication is required. All endpoints are public.
 | `POST /sync` | **Stable** | Core functionality |
 | `POST /live-sync/*` | Beta | Control interface may change |
 | `GET /live-sync/status` | Beta | Response fields may be added |
-| `WS /ws/lots` | Experimental | Message format under development |
+| `WS /ws/lots` | **Stable** | Message format v1 finalized |
 
 ### Backwards Compatibility Rules
 
@@ -53,11 +53,13 @@ Currently no authentication is required. All endpoints are public.
 - ✅ Adding new optional query parameters
 - ✅ Adding new endpoints
 - ✅ Adding new event types to WebSocket
+- ✅ Adding new fields to WebSocket message payloads
 
 **Requires coordination (breaking):**
 - ⚠️ Removing fields from response bodies
 - ⚠️ Changing field types or semantics
 - ⚠️ Renaming endpoints or parameters
+- ⚠️ Changing WebSocket message structure
 - ⚠️ Changing required/optional status of fields
 - ⚠️ Changing error response formats
 
@@ -356,23 +358,66 @@ Real-time lot update stream.
 
 **Connection:** `ws://localhost:8000/ws/lots`
 
-**Message Format (server → client):**
+**Message Format v1 (server → client):**
+
+All messages follow a consistent envelope structure:
 
 ```json
 {
-  "type": "lot_updated",
-  "lot_code": "LOT001",
-  "auction_code": "ABC123",
-  "current_bid_eur": 1600.00,
-  "bid_count": 13
+  "version": "1",
+  "type": "<event_type>",
+  "timestamp": "2025-11-28T12:00:00Z",
+  "payload": { ... }
 }
 ```
 
-Events include:
-- `lot_updated` – Lot data changed
-- `sync_completed` – Sync run finished
-- `buyer_created` / `buyer_deleted` – Buyer changes
-- `positions_updated` – Position batch update
+**Connection Ready (sent on connect):**
+
+```json
+{
+  "version": "1",
+  "type": "connection_ready",
+  "timestamp": "2025-11-28T12:00:00Z",
+  "payload": {
+    "server_version": "0.7.1",
+    "message_format_version": "1"
+  }
+}
+```
+
+**Lot Updated:**
+
+```json
+{
+  "version": "1",
+  "type": "lot_updated",
+  "timestamp": "2025-11-28T12:00:00Z",
+  "payload": {
+    "lot_code": "LOT001",
+    "auction_code": "ABC123",
+    "current_bid_eur": 1600.00,
+    "bid_count": 13,
+    "state": "running"
+  }
+}
+```
+
+**Event Types:**
+
+| Type | Description | Payload Fields |
+|------|-------------|----------------|
+| `connection_ready` | Initial connection established | `server_version`, `message_format_version` |
+| `lot_updated` | Lot data changed | `lot_code`, `auction_code`, `current_bid_eur`, `bid_count`, `state`, etc. |
+| `lot_closed` | Lot closed | `lot_code`, `auction_code`, `final_bid_eur`, `winner_label` |
+| `sync_started` | Sync run beginning | `auction_code`, `max_pages`, `dry_run` |
+| `sync_completed` | Sync run finished | `auction_code`, `status`, `pages_scanned`, `lots_scanned`, `lots_updated` |
+| `sync_error` | Sync run failed | `auction_code`, `error`, `error_count` |
+| `buyer_created` | New buyer registered | `buyer_label`, `name` |
+| `buyer_deleted` | Buyer removed | `buyer_label` |
+| `position_updated` | Single position updated | `buyer_label`, `lot_code`, `auction_code` |
+| `positions_updated` | Position batch update | `updated_count`, `created_count`, `positions` |
+| `bid_placed` | Bid was placed | `lot_code`, `auction_code`, `buyer_label`, `amount_eur` |
+| `heartbeat` | Keep-alive | (empty payload) |
 
 ---
 

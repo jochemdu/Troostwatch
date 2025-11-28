@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **OpenTelemetry tracing support**: Optional distributed tracing via OpenTelemetry.
+  Install with `pip install troostwatch[tracing]`. Configure with `configure_tracing()`.
+  - `trace_span()` context manager for creating spans
+  - `@traced` decorator for functions
+  - Trace context available for log correlation via `get_trace_context()`
+  - Exports to OTLP endpoints (Jaeger, Tempo, etc.)
+
+- **WebSocket message format v1**: Standardized message envelope for all WebSocket events.
+  - All messages now include `version`, `type`, `timestamp`, and `payload` fields
+  - New `connection_ready` message sent on WebSocket connect
+  - Typed Pydantic models for all message types in `troostwatch.app.ws_messages`
+  - Backwards compatible: legacy payloads automatically wrapped in v1 format
+
+### Changed
+
+- WebSocket endpoint `WS /ws/lots` promoted from **Experimental** to **Stable**.
+
 ## [0.7.1] – 2025-11-28
 
 ### Changed

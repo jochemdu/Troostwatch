@@ -72,6 +72,12 @@ dev = [
 docs = [
   "markdown-it-py>=2.2",  # used for rendering markdown in documentation builds
 ]
+# Optional tracing support via OpenTelemetry. Install with: pip install troostwatch[tracing]
+tracing = [
+  "opentelemetry-api>=1.20.0",
+  "opentelemetry-sdk>=1.20.0",
+  "opentelemetry-exporter-otlp>=1.20.0",
+]
 
 [project.scripts]
 # Console script entry points.  These expose the CLI subcommands defined

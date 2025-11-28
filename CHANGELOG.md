@@ -8,6 +8,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Image Pipeline Iteration 3 complete**: Production-ready enhancements.
+  - Image deduplication via perceptual hashing (pHash/dHash/aHash).
+  - Comprehensive code validation with GS1 check digits for EAN-13/8, UPC-A, GTIN-14.
+  - ISBN-10/13 validation with proper check digit algorithms.
+  - MAC address and UUID format validation and normalization.
+  - OCR error correction for common digit misreads (O→0, I→1, S→5, B→8).
+  - OpenAI Vision fallback for low-confidence codes via GPT-4 Vision API.
+  - Code normalization (whitespace, case, leading zeros).
+
+- **New CLI commands**:
+  - `troostwatch images hash` – Compute perceptual hashes for downloaded images.
+  - `troostwatch images duplicates` – Find duplicate/similar images by hash.
+  - `troostwatch images hash-stats` – Show hash computation statistics.
+  - `troostwatch images validate-codes` – Validate and normalize extracted codes.
+  - `troostwatch images openai-analyze` – Re-analyze needs_review images with OpenAI.
+
+- **Database schema version 10**: Adds `phash` column to `lot_images` table.
+
 - **Image Pipeline Iteration 2 complete**: Full image analysis pipeline with vendor support.
   - Vendor-specific code extraction profiles for 7 manufacturers:
     HP, Lenovo, Ubiquiti, Dell, Apple, Samsung, Cisco.

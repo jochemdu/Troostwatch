@@ -27,6 +27,14 @@ from troostwatch.infrastructure.ai.image_hashing import (
     hamming_distance,
     PIL_AVAILABLE as HASH_AVAILABLE,
 )
+from troostwatch.infrastructure.ai.code_validation import (
+    CodeType,
+    ValidationResult,
+    detect_code_type,
+    normalize_code,
+    validate_code,
+    validate_and_correct_ean,
+)
 from troostwatch.infrastructure.db import get_connection
 from troostwatch.infrastructure.db.repositories import (
     ExtractedCodeRepository,
@@ -912,6 +920,143 @@ class ImageAnalysisService(BaseService):
             return None
         columns = [c[0] for c in cur.description]
         return dict(zip(columns, row))
+
+    # -------------------------------------------------------------------------
+    # Code Validation and Normalization
+    # -------------------------------------------------------------------------
+
+    def validate_extracted_code(
+        self,
+        code_type: str,
+        value: str,
+    ) -> tuple[str, str, bool]:
+        """Validate and normalize an extracted code.
+
+        Args:
+            code_type: The type of code ('ean', 'serial_number', etc.)
+            value: The extracted code value.
+
+        Returns:
+            Tuple of (normalized_value, updated_code_type, is_valid).
+        """
+        # Map internal code types to validation CodeType
+        type_mapping = {
+            "ean": None,  # Auto-detect EAN-8 vs EAN-13
+            "serial_number": CodeType.SERIAL_NUMBER,
+            "model_number": CodeType.MODEL_NUMBER,
+            "product_code": CodeType.PRODUCT_CODE,
+            "mac": CodeType.MAC_ADDRESS,
+            "uuid": CodeType.UUID,
+        }
+
+        normalized = normalize_code(value)
+
+        # Handle EAN specially - try validation and correction
+        if code_type == "ean":
+            result = validate_and_correct_ean(value)
+            if result.is_valid:
+                return result.normalized_code, code_type, True
+            else:
+                # Still return the normalized code, but mark as invalid
+                return normalized, code_type, False
+
+        # Handle MAC addresses
+        if code_type == "mac":
+            result = validate_code(value, CodeType.MAC_ADDRESS)
+            return result.normalized_code, code_type, result.is_valid
+
+        # Handle UUIDs
+        if code_type == "uuid":
+            result = validate_code(value, CodeType.UUID)
+            return result.normalized_code, code_type, result.is_valid
+
+        # For other types, just normalize
+        return normalized, code_type, True
+
+    def validate_pending_codes(self, limit: int = 100) -> dict[str, int]:
+        """Validate and normalize pending extracted codes.
+
+        Goes through unapproved codes and validates them. Invalid codes
+        are marked with low confidence. Valid codes get their normalized
+        values updated.
+
+        Args:
+            limit: Maximum number of codes to process.
+
+        Returns:
+            Statistics about the validation run.
+        """
+        stats = {
+            "processed": 0,
+            "valid": 0,
+            "invalid": 0,
+            "corrected": 0,
+        }
+
+        with self._connection_factory() as conn:
+            code_repo = ExtractedCodeRepository(conn)
+
+            # Get unapproved codes
+            codes = code_repo.get_unapproved(limit=limit)
+            stats["processed"] = len(codes)
+
+            for code in codes:
+                normalized, code_type, is_valid = self.validate_extracted_code(
+                    code.code_type, code.value
+                )
+
+                # Check if the value was corrected
+                was_corrected = normalized != code.value and is_valid
+
+                if is_valid:
+                    stats["valid"] += 1
+                    if was_corrected:
+                        stats["corrected"] += 1
+                        # Update the code with corrected value
+                        conn.execute(
+                            """
+                            UPDATE extracted_codes
+                            SET value = ?, code_type = ?
+                            WHERE id = ?
+                            """,
+                            (normalized, code_type, code.id),
+                        )
+                        logger.info(
+                            "Corrected code value",
+                            extra={
+                                "code_id": code.id,
+                                "original": code.value,
+                                "corrected": normalized,
+                            },
+                        )
+                else:
+                    stats["invalid"] += 1
+                    # Lower confidence for invalid codes
+                    if code.confidence != "low":
+                        conn.execute(
+                            """
+                            UPDATE extracted_codes
+                            SET confidence = 'low'
+                            WHERE id = ?
+                            """,
+                            (code.id,),
+                        )
+                        logger.info(
+                            "Marked code as low confidence (invalid)",
+                            extra={
+                                "code_id": code.id,
+                                "code_type": code.code_type,
+                                "value": code.value,
+                            },
+                        )
+
+            conn.commit()
+
+        logger.info(
+            "Code validation complete",
+            extra=stats,
+        )
+        return stats
 
 
 __all__ = [

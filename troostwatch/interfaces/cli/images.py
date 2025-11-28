@@ -740,4 +740,59 @@ def show_hash_stats(db_path: str, images_dir: str | None) -> None:
         console.print(f"[bold]Duplication rate:[/bold] {rate:.1f}%")
 
 
+@images_cli.command(name="validate-codes")
+@click.option(
+    "--db",
+    "db_path",
+    default="troostwatch.db",
+    help="Path to the SQLite database file.",
+    show_default=True,
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=100,
+    help="Maximum number of codes to validate.",
+    show_default=True,
+)
+@click.option(
+    "--images-dir",
+    type=click.Path(),
+    default=None,
+    help="Directory for stored images. Uses config.json if not specified.",
+)
+def validate_codes_cmd(db_path: str, limit: int, images_dir: str | None) -> None:
+    """Validate and normalize extracted product codes.
+
+    Validates EAN codes using GS1 check digit, normalizes MAC addresses
+    and UUIDs, and attempts to correct common OCR errors.
+
+    Invalid codes are marked with low confidence. Valid codes that
+    were corrected have their values updated.
+
+    \b
+    Validation includes:
+    - EAN-13/EAN-8: GS1 check digit validation
+    - MAC addresses: Format normalization
+    - UUIDs: Format normalization
+    - OCR error correction for EANs (O→0, I→1, etc.)
+    """
+    images_path = Path(images_dir) if images_dir else _get_images_dir()
+
+    console.print("[bold]Validating extracted codes...[/bold]")
+    console.print(f"[bold]Database:[/bold] {db_path}")
+    console.print(f"[bold]Limit:[/bold] {limit}")
+    console.print()
+
+    service = ImageAnalysisService.from_sqlite_path(db_path, images_path)
+    stats = service.validate_pending_codes(limit=limit)
+
+    console.print()
+    console.print("[bold green]Validation complete![/bold green]")
+    console.print(f"  Processed: {stats.get('processed', 0)}")
+    console.print(f"  [green]Valid: {stats.get('valid', 0)}[/green]")
+    console.print(f"  [red]Invalid: {stats.get('invalid', 0)}[/red]")
+    console.print(f"  [cyan]Corrected (OCR fixes): {stats.get('corrected', 0)}[/cyan]")
+
+
 __all__ = ["images_cli"]

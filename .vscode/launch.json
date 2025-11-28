@@ -6,6 +6,15 @@
     "configurations": [
         
         {
+            "name": "Launch Chrome",
+            "request": "launch",
+            "type": "chrome",
+            "url": "http://localhost:8080",
+            "webRoot": "${workspaceFolder}"
+        },
+        
+        
+        {
             "name": "Attach to Chrome",
             "port": 9222,
             "request": "attach",
@@ -14,7 +23,7 @@
         },
         {
             "name": "Python Debugger: Python File",
-            "type": "debugpy",
+            "type": "debugpy",s
             "request": "launch",
             "program": "${file}"
         }

@@ -172,7 +172,8 @@ def parse_lot_detail(
 
         brand = _parse_brand(lot)
         bid_history = _parse_bid_history(lot)
-        image_urls = _parse_image_urls(soup)
+        # Try to get images from JSON first (more reliable), fall back to DOM parsing
+        image_urls = _parse_image_urls_from_json(lot) or _parse_image_urls(soup)
 
         # Determine the lot code - prefer displayId from the API data
         # The displayId contains the full lot code (e.g., "A1-39500-1802" or "03T-SMD-1")
@@ -273,6 +274,18 @@ def _parse_bid_history(lot: dict) -> list[BidHistoryEntry]:
             )
 
     return entries
+
+
+def _parse_image_urls_from_json(lot: dict) -> list[str]:
+    """Extract image URLs from the lot JSON data.
+
+    Images are stored in lot.images as a list of objects with 'url' and 'order' keys.
+    URL pattern: https://media.tbauctions.com/image-media/{uuid}/file
+    """
+    images = lot.get("images") or []
+    # Sort by order if available, then extract URLs
+    sorted_images = sorted(images, key=lambda x: x.get("order", 0))
+    return [img.get("url") for img in sorted_images if img.get("url")]
 
 
 def _parse_image_urls(soup: BeautifulSoup) -> list[str]:

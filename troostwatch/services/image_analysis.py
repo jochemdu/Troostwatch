@@ -2,24 +2,43 @@
 
 This service orchestrates the image analysis pipeline:
 1. Download pending images from URLs to local storage
-2. Analyze images with OCR (local or OpenAI)
+2. Analyze images with OCR (local, OpenAI, or ML service)
 3. Extract and store product codes
 4. Store raw token data for ML training
 5. Handle review queue for low-confidence results
+6. Compute perceptual hashes for deduplication
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Callable, Literal
 
 from troostwatch.infrastructure.ai.image_analyzer import (
     ExtractedCode,
     ImageAnalysisResult,
     LocalOCRAnalyzer,
+    OpenAIAnalyzer,
+)
+from troostwatch.infrastructure.ai.label_api_client import (
+    LabelAPIClient,
+    ParseLabelResult,
+)
+from troostwatch.infrastructure.ai.image_hashing import (
+    compute_phash,
+    hamming_distance,
+    PIL_AVAILABLE as HASH_AVAILABLE,
+)
+from troostwatch.infrastructure.ai.code_validation import (
+    CodeType,
+    ValidationResult,
+    detect_code_type,
+    normalize_code,
+    validate_code,
+    validate_and_correct_ean,
 )
 from troostwatch.infrastructure.db import get_connection
 from troostwatch.infrastructure.db.repositories import (
@@ -63,6 +82,30 @@ class DownloadStats:
     images_downloaded: int = 0
     images_failed: int = 0
     bytes_downloaded: int = 0
+
+
+@dataclass
+class HashStats:
+    """Statistics from a phash computation run."""
+
+    images_processed: int = 0
+    images_hashed: int = 0
+    images_failed: int = 0
+    duplicates_found: int = 0
+
+
+@dataclass
+class DuplicateGroup:
+    """A group of images that are perceptually similar."""
+
+    phash: str
+    images: list[LotImage] = field(default_factory=list)
+    lot_ids: list[int] = field(default_factory=list)
+
+    @property
+    def count(self) -> int:
+        """Number of duplicate images in this group."""
+        return len(self.images)
 
 
 class ImageAnalysisService(BaseService):
@@ -173,7 +216,7 @@ class ImageAnalysisService(BaseService):
         self,
         limit: int = 100,
         concurrency: int = 10,
-        progress_callback: callable | None = None,
+        progress_callback: Callable[[int, int], None] | None = None,
     ) -> DownloadStats:
         """Download images concurrently with configurable parallelism.
 
@@ -254,6 +297,57 @@ class ImageAnalysisService(BaseService):
         )
         return stats
 
+    def _analyze_with_ml(self, image_path: str) -> ImageAnalysisResult:
+        """Analyze an image using the ML Label OCR API service.
+
+        Args:
+            image_path: Path to the local image file.
+
+        Returns:
+            ImageAnalysisResult with extracted codes.
+        """
+        async def _run() -> ParseLabelResult:
+            async with LabelAPIClient() as client:
+                return await client.parse_label_file(image_path)
+
+        try:
+            ml_result = asyncio.run(_run())
+        except Exception as e:
+            logger.error("ML analysis failed: %s", str(e))
+            return ImageAnalysisResult(
+                image_url=image_path,
+                error=f"ML service error: {str(e)}",
+            )
+
+        if ml_result.error:
+            return ImageAnalysisResult(
+                image_url=image_path,
+                error=ml_result.error,
+            )
+
+        # Convert ML codes to standard ExtractedCode format
+        codes = []
+        for ml_code in ml_result.codes:
+            # Map ML code types to standard types
+            code_type = ml_code.code_type
+            if code_type == "part_number":
+                code_type = "product_code"
+
+            codes.append(
+                ExtractedCode(
+                    code_type=code_type,
+                    value=ml_code.value,
+                    confidence=ml_code.confidence,
+                    context=ml_code.context,
+                )
+            )
+
+        return ImageAnalysisResult(
+            image_url=image_path,
+            codes=codes,
+            raw_text=ml_result.raw_text,
+        )
+
     def analyze_pending_images(
         self,
         backend: Literal["local", "openai", "ml"] = "local",
@@ -299,8 +393,12 @@ class ImageAnalysisService(BaseService):
                     continue
 
                 try:
-                    # Analyze the image
-                    result = self._ocr.analyze_local_image(image.local_path)
+                    # Analyze the image using the specified backend
+                    if backend == "ml":
+                        result = self._analyze_with_ml(image.local_path)
+                    else:
+                        # Use local OCR (default)
+                        result = self._ocr.analyze_local_image(image.local_path)
                     duration = time.perf_counter() - start_time
 
                     if result.error:
@@ -393,10 +491,123 @@ class ImageAnalysisService(BaseService):
         Returns:
             Statistics about the operation.
         """
-        # TODO: Implement OpenAI re-analysis
-        # This would use the OpenAIAnalyzer class
-        logger.warning("OpenAI promotion not yet implemented")
-        return AnalysisStats()
+        import os
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            logger.warning("OPENAI_API_KEY not set, cannot promote to OpenAI")
+            return AnalysisStats()
+
+        stats = AnalysisStats()
+
+        with self._connection_factory() as conn:
+            image_repo = LotImageRepository(conn)
+            code_repo = ExtractedCodeRepository(conn)
+
+            # Get images that need review
+            images = image_repo.get_needs_review(limit=limit)
+            if not images:
+                logger.info("No images need OpenAI analysis")
+                return stats
+
+            stats.images_processed = len(images)
+            logger.info(
+                "Starting OpenAI analysis",
+                extra={"count": len(images)},
+            )
+
+            # Run async analysis in sync context
+            async def analyze_batch() -> list[tuple[LotImage, ImageAnalysisResult]]:
+                analyzer = OpenAIAnalyzer(api_key=api_key)
+                results: list[tuple[LotImage, ImageAnalysisResult]] = []
+                try:
+                    for image in images:
+                        # Use local path if available, otherwise URL
+                        if image.local_path and Path(image.local_path).exists():
+                            with open(image.local_path, "rb") as f:
+                                image_data = f.read()
+                            result = await analyzer.analyze_image_bytes(
+                                image_data, mime_type="image/jpeg"
+                            )
+                        else:
+                            result = await analyzer.analyze_image_url(image.url)
+                        results.append((image, result))
+                finally:
+                    await analyzer.close()
+                return results
+
+            # Run the async analysis
+            try:
+                batch_results = asyncio.run(analyze_batch())
+            except Exception as e:
+                logger.error("OpenAI batch analysis failed: %s", str(e))
+                return stats
+
+            # Process results
+            for image, result in batch_results:
+                if result.error:
+                    logger.warning(
+                        "OpenAI analysis failed",
+                        extra={"image_id": image.id, "error": result.error},
+                    )
+                    stats.images_failed += 1
+                    continue
+
+                # Calculate confidence
+                avg_confidence = self._calculate_confidence(result.codes)
+
+                # OpenAI results are generally higher quality, so we use a lower threshold
+                if avg_confidence >= 0.5 or not result.codes:
+                    status = "analyzed"
+                    stats.images_analyzed += 1
+                else:
+                    status = "needs_review"
+                    stats.images_needs_review += 1
+
+                # Mark image as analyzed by OpenAI
+                image_repo.mark_analyzed(image.id, "openai", status)
+
+                # Store extracted codes (replace old codes)
+                if result.codes:
+                    code_repo.delete_by_image_id(image.id)
+                    for code in result.codes:
+                        code_repo.insert_code(
+                            lot_image_id=image.id,
+                            code_type=code.code_type,
+                            value=code.value,
+                            confidence=code.confidence,
+                            context=code.context,
+                        )
+                        stats.codes_extracted += 1
+
+                    # Auto-approve high/medium confidence codes from OpenAI
+                    if avg_confidence >= 0.6:
+                        approved_count = code_repo.approve_codes_by_image(
+                            image.id, approved_by="openai"
+                        )
+                        if approved_count > 0:
+                            stats.codes_auto_approved += approved_count
+                            for code in result.codes:
+                                record_code_approval("openai", code.code_type)
+
+                record_image_analysis(
+                    "openai", status, 0.0, len(result.codes)
+                )
+
+            conn.commit()
+
+        logger.info(
+            "OpenAI analysis complete",
+            extra={
+                "processed": stats.images_processed,
+                "analyzed": stats.images_analyzed,
+                "needs_review": stats.images_needs_review,
+                "failed": stats.images_failed,
+                "codes_extracted": stats.codes_extracted,
+                "codes_auto_approved": stats.codes_auto_approved,
+            },
+        )
+        return stats
 
     def reprocess_failed(self, limit: int = 100) -> AnalysisStats:
         """Retry analysis for previously failed images.
@@ -445,7 +656,7 @@ class ImageAnalysisService(BaseService):
             else:
                 records = token_repo.get_all_for_export(limit=limit)
 
-            export_data = {
+            export_data: dict[str, Any] = {
                 "version": "1.0",
                 "images": [],
             }
@@ -611,6 +822,248 @@ class ImageAnalysisService(BaseService):
         )
         return promoted
 
+    # -------------------------------------------------------------------------
+    # Image Deduplication via Perceptual Hashing
+    # -------------------------------------------------------------------------
+
+    def compute_image_hashes(
+        self,
+        limit: int = 100,
+        progress_callback: Callable[[int, int], None] | None = None,
+    ) -> HashStats:
+        """Compute perceptual hashes for downloaded images.
+
+        This computes pHash values for images that don't have one yet,
+        enabling later duplicate detection.
+
+        Args:
+            limit: Maximum number of images to process.
+            progress_callback: Optional callback(done, total) for progress.
+
+        Returns:
+            Statistics about the hashing operation.
+        """
+        if not HASH_AVAILABLE:
+            logger.warning("PIL not available, cannot compute image hashes")
+            return HashStats()
+
+        stats = HashStats()
+
+        with self._connection_factory() as conn:
+            image_repo = LotImageRepository(conn)
+            pending = image_repo.get_images_without_phash(limit=limit)
+            stats.images_processed = len(pending)
+
+            for i, image in enumerate(pending):
+                if not image.local_path:
+                    stats.images_failed += 1
+                    continue
+
+                try:
+                    phash = compute_phash(image.local_path)
+                    if phash:
+                        image_repo.update_phash(image.id, phash)
+                        stats.images_hashed += 1
+                    else:
+                        stats.images_failed += 1
+                        logger.warning(
+                            "Failed to compute phash",
+                            extra={"image_id": image.id, "path": image.local_path},
+                        )
+                except Exception as e:
+                    stats.images_failed += 1
+                    logger.error(
+                        "Error computing phash",
+                        extra={"image_id": image.id, "error": str(e)},
+                    )
+
+                if progress_callback:
+                    progress_callback(i + 1, len(pending))
+
+            conn.commit()
+
+        logger.info(
+            "Image hash batch complete",
+            extra={
+                "processed": stats.images_processed,
+                "hashed": stats.images_hashed,
+                "failed": stats.images_failed,
+            },
+        )
+        return stats
+
+    def find_duplicate_images(
+        self,
+        threshold: int = 10,
+    ) -> list[DuplicateGroup]:
+        """Find groups of perceptually similar images.
+
+        Uses Hamming distance on pHash values to identify duplicates.
+        Images within the threshold distance are considered duplicates.
+
+        Args:
+            threshold: Maximum Hamming distance to consider as duplicate.
+                       0 = exact match only, 10 = fairly similar.
+
+        Returns:
+            List of DuplicateGroup objects containing similar images.
+        """
+        if not HASH_AVAILABLE:
+            logger.warning("PIL not available, cannot find duplicates")
+            return []
+
+        with self._connection_factory() as conn:
+            image_repo = LotImageRepository(conn)
+
+            if threshold == 0:
+                # Exact match - use database grouping
+                db_duplicates = image_repo.find_duplicates_by_phash()
+                groups = []
+                for phash, images in db_duplicates:
+                    lot_ids = list(set(img.lot_id for img in images))
+                    groups.append(DuplicateGroup(
+                        phash=phash,
+                        images=images,
+                        lot_ids=lot_ids,
+                    ))
+                return groups
+
+            # Fuzzy matching - need to compare hashes using Hamming distance
+            all_images = image_repo.get_all_with_phash()
+
+            if not all_images:
+                return []
+
+            # Build hash-to-images mapping
+            hash_map: dict[str, list[LotImage]] = {}
+            for img in all_images:
+                if img.phash:
+                    if img.phash not in hash_map:
+                        hash_map[img.phash] = []
+                    hash_map[img.phash].append(img)
+
+            # Find similar hashes using Hamming distance clustering
+            # We use union-find to group similar hashes
+            hashes = list(hash_map.keys())
+
+            # Union-find for clustering
+            parent: dict[str, str] = {h: h for h in hashes}
+
+            def find(x: str) -> str:
+                if parent[x] != x:
+                    parent[x] = find(parent[x])
+                return parent[x]
+
+            def union(x: str, y: str) -> None:
+                px, py = find(x), find(y)
+                if px != py:
+                    parent[px] = py
+
+            # Compare all pairs and union similar ones
+            for i, h1 in enumerate(hashes):
+                for h2 in hashes[i + 1:]:
+                    try:
+                        dist = hamming_distance(h1, h2)
+                        if dist <= threshold:
+                            union(h1, h2)
+                    except ValueError:
+                        # Different length hashes, skip
+                        continue
+
+            # Group hashes by their root
+            clusters: dict[str, list[str]] = {}
+            for h in hashes:
+                root = find(h)
+                if root not in clusters:
+                    clusters[root] = []
+                clusters[root].append(h)
+
+            # Build duplicate groups from clusters with multiple hashes
+            groups = []
+            for root, cluster_hashes in clusters.items():
+                cluster_images = []
+                for h in cluster_hashes:
+                    cluster_images.extend(hash_map.get(h, []))
+
+                if len(cluster_images) > 1:
+                    lot_ids = list(set(img.lot_id for img in cluster_images))
+                    groups.append(DuplicateGroup(
+                        phash=cluster_hashes[0],  # Use first hash as representative
+                        images=cluster_images,
+                        lot_ids=lot_ids,
+                    ))
+
+            # Sort by number of duplicates (most first)
+            groups.sort(key=lambda g: g.count, reverse=True)
+            return groups
+
+    def get_duplicate_stats(self) -> dict[str, int]:
+        """Get statistics about duplicate images.
+
+        Returns:
+            Dictionary with duplicate-related counts.
+        """
+        with self._connection_factory() as conn:
+            image_repo = LotImageRepository(conn)
+
+            # Count images with phash
+            cur = conn.execute(
+                "SELECT COUNT(*) FROM lot_images WHERE phash IS NOT NULL"
+            )
+            with_phash = cur.fetchone()[0]
+
+            # Count images without phash
+            cur = conn.execute(
+                """
+                SELECT COUNT(*) FROM lot_images
+                WHERE download_status = 'downloaded' AND phash IS NULL
+                """
+            )
+            without_phash = cur.fetchone()[0]
+
+            # Count unique hashes
+            cur = conn.execute(
+                "SELECT COUNT(DISTINCT phash) FROM lot_images WHERE phash IS NOT NULL"
+            )
+            unique_hashes = cur.fetchone()[0]
+
+            # Count exact duplicates (same phash appears multiple times)
+            cur = conn.execute(
+                """
+                SELECT COUNT(*) FROM (
+                    SELECT phash, COUNT(*) as cnt
+                    FROM lot_images
+                    WHERE phash IS NOT NULL
+                    GROUP BY phash
+                    HAVING cnt > 1
+                )
+                """
+            )
+            duplicate_groups = cur.fetchone()[0]
+
+            # Count images that are duplicates
+            cur = conn.execute(
+                """
+                SELECT SUM(cnt) FROM (
+                    SELECT phash, COUNT(*) as cnt
+                    FROM lot_images
+                    WHERE phash IS NOT NULL
+                    GROUP BY phash
+                    HAVING cnt > 1
+                )
+                """
+            )
+            row = cur.fetchone()
+            duplicate_images = row[0] if row[0] else 0
+
+        return {
+            "with_phash": with_phash,
+            "without_phash": without_phash,
+            "unique_hashes": unique_hashes,
+            "duplicate_groups": duplicate_groups,
+            "duplicate_images": duplicate_images,
+        }
+
     def _calculate_confidence(self, codes: list[ExtractedCode]) -> float:
         """Calculate average confidence score from extracted codes.
 
@@ -641,9 +1094,148 @@ class ImageAnalysisService(BaseService):
         columns = [c[0] for c in cur.description]
         return dict(zip(columns, row))
 
+    # -------------------------------------------------------------------------
+    # Code Validation and Normalization
+    # -------------------------------------------------------------------------
+
+    def validate_extracted_code(
+        self,
+        code_type: str,
+        value: str,
+    ) -> tuple[str, str, bool]:
+        """Validate and normalize an extracted code.
+
+        Args:
+            code_type: The type of code ('ean', 'serial_number', etc.)
+            value: The extracted code value.
+
+        Returns:
+            Tuple of (normalized_value, updated_code_type, is_valid).
+        """
+        # Map internal code types to validation CodeType
+        type_mapping = {
+            "ean": None,  # Auto-detect EAN-8 vs EAN-13
+            "serial_number": CodeType.SERIAL_NUMBER,
+            "model_number": CodeType.MODEL_NUMBER,
+            "product_code": CodeType.PRODUCT_CODE,
+            "mac": CodeType.MAC_ADDRESS,
+            "uuid": CodeType.UUID,
+        }
+
+        normalized = normalize_code(value)
+
+        # Handle EAN specially - try validation and correction
+        if code_type == "ean":
+            result = validate_and_correct_ean(value)
+            if result.is_valid:
+                return result.normalized_code, code_type, True
+            else:
+                # Still return the normalized code, but mark as invalid
+                return normalized, code_type, False
+
+        # Handle MAC addresses
+        if code_type == "mac":
+            result = validate_code(value, CodeType.MAC_ADDRESS)
+            return result.normalized_code, code_type, result.is_valid
+
+        # Handle UUIDs
+        if code_type == "uuid":
+            result = validate_code(value, CodeType.UUID)
+            return result.normalized_code, code_type, result.is_valid
+
+        # For other types, just normalize
+        return normalized, code_type, True
+
+    def validate_pending_codes(self, limit: int = 100) -> dict[str, int]:
+        """Validate and normalize pending extracted codes.
+
+        Goes through unapproved codes and validates them. Invalid codes
+        are marked with low confidence. Valid codes get their normalized
+        values updated.
+
+        Args:
+            limit: Maximum number of codes to process.
+
+        Returns:
+            Statistics about the validation run.
+        """
+        stats = {
+            "processed": 0,
+            "valid": 0,
+            "invalid": 0,
+            "corrected": 0,
+        }
+
+        with self._connection_factory() as conn:
+            code_repo = ExtractedCodeRepository(conn)
+
+            # Get unapproved codes
+            codes = code_repo.get_unapproved(limit=limit)
+            stats["processed"] = len(codes)
+
+            for code in codes:
+                normalized, code_type, is_valid = self.validate_extracted_code(
+                    code.code_type, code.value
+                )
+
+                # Check if the value was corrected
+                was_corrected = normalized != code.value and is_valid
+
+                if is_valid:
+                    stats["valid"] += 1
+                    if was_corrected:
+                        stats["corrected"] += 1
+                        # Update the code with corrected value
+                        conn.execute(
+                            """
+                            UPDATE extracted_codes
+                            SET value = ?, code_type = ?
+                            WHERE id = ?
+                            """,
+                            (normalized, code_type, code.id),
+                        )
+                        logger.info(
+                            "Corrected code value",
+                            extra={
+                                "code_id": code.id,
+                                "original": code.value,
+                                "corrected": normalized,
+                            },
+                        )
+                else:
+                    stats["invalid"] += 1
+                    # Lower confidence for invalid codes
+                    if code.confidence != "low":
+                        conn.execute(
+                            """
+                            UPDATE extracted_codes
+                            SET confidence = 'low'
+                            WHERE id = ?
+                            """,
+                            (code.id,),
+                        )
+                        logger.info(
+                            "Marked code as low confidence (invalid)",
+                            extra={
+                                "code_id": code.id,
+                                "code_type": code.code_type,
+                                "value": code.value,
+                            },
+                        )
+
+            conn.commit()
+
+        logger.info(
+            "Code validation complete",
+            extra=stats,
+        )
+        return stats
+
 
 __all__ = [
     "AnalysisStats",
     "DownloadStats",
+    "DuplicateGroup",
+    "HashStats",
     "ImageAnalysisService",
 ]

@@ -97,25 +97,28 @@ De pipeline bestaat uit drie blokken:
 - [ ] `label_ocr_api/` directory structuur
 - [ ] FastAPI app met `/parse-label` en `/health` endpoints
 - [ ] `ocr_engine.py` met `parse_label_ml()` functie
-- [ ] Client helper in troostwatch
+- [x] Client helper in troostwatch
+  - `LabelAPIClient` async client for ML service communication
+  - `parse_label_url()`, `parse_label_file()`, `parse_label_bytes()` methods
+  - Health check and availability detection
+  - Graceful fallback when service unavailable
 
 **Bestanden:**
-- `label_ocr_api/app/main.py` (nieuw)
-- `label_ocr_api/app/ocr_engine.py` (nieuw)
-- `label_ocr_api/requirements.txt` (nieuw)
-- `troostwatch/infrastructure/ai/label_api_client.py` (nieuw)
+- `label_ocr_api/main.py` ✅
+- `label_ocr_api/requirements.txt` ✅
+- `troostwatch/infrastructure/ai/label_api_client.py` ✅
 
 ---
 
 ### Stap 9: ML training script en documentatie
-- [ ] Training script voor sklearn classifier
-- [ ] Feature engineering (token lengte, regex, positie, context)
-- [ ] Model export naar joblib
-- [ ] Documentatie met workflow
+- [x] Training script voor sklearn classifier
+- [x] Feature engineering (token lengte, regex, positie, context)
+- [x] Model export naar joblib
+- [x] Documentatie met workflow
 
 **Bestanden:**
-- `scripts/train_label_classifier.py` (nieuw)
-- `docs/ml_training.md` (nieuw)
+- `scripts/train_label_classifier.py` ✅
+- `docs/ml_training.md` ✅
 
 ---
 
@@ -126,6 +129,49 @@ De pipeline bestaat uit drie blokken:
 - [x] UI component voor handmatige review queue
 - [x] Batch processing optimalisaties (parallel downloads, bulk inserts, progress bars)
 - [x] Metrics en monitoring voor analyse pipeline
+
+---
+
+## Iteratie 3: Productie-ready (huidige focus)
+
+- [x] Image deduplicatie via perceptual hashing (pHash)
+  - `image_hashing.py` met compute_phash, compute_dhash, compute_ahash, hamming_distance
+  - Repository: update_phash, get_by_phash, find_duplicates_by_phash
+  - Service: compute_image_hashes, find_duplicate_images, get_duplicate_stats
+  - CLI: `images hash`, `images duplicates`, `images hash-stats`
+  - Migration: 0010_add_image_phash.sql
+- [x] Automatische EAN validatie met GS1 check digit
+  - `code_validation.py` met validators voor EAN-13, EAN-8, UPC-A, GTIN-14, ISBN, MAC, UUID
+  - OCR error correction: O→0, I→1, S→5, B→8
+  - Service: validate_extracted_code(), validate_pending_codes()
+  - CLI: `images validate-codes`
+  - Test suite: 39 tests
+- [x] Code normalisatie (whitespace, case, leading zeros)
+  - Integrated in code_validation.py normalize_code()
+  - Automatic leading zero padding for short EANs
+- [x] OpenAI Vision fallback voor low-confidence codes
+  - `promote_to_openai()` in ImageAnalysisService
+  - Uses OpenAIAnalyzer class with GPT-4 Vision
+  - Re-analyzes `needs_review` images with higher accuracy
+  - Auto-approves high-confidence OpenAI results (approved_by='openai')
+  - CLI: `images openai-analyze --limit 50`
+  - Requires OPENAI_API_KEY environment variable
+- [x] Export naar product database
+  - `promote_codes_to_lots()` in ImageAnalysisService
+  - Writes approved codes to product_specs table
+  - Tracks promotion status to avoid duplicates
+  - CLI: `images promote --limit 100`
+
+---
+
+## Iteratie 3: Status
+
+Iteratie 3 is nu **voltooid**. Alle features zijn geïmplementeerd:
+- ✅ Image deduplicatie via pHash
+- ✅ Automatische EAN validatie met GS1 check digit
+- ✅ Code normalisatie
+- ✅ OpenAI Vision fallback
+- ✅ Export naar product database
 
 ---
 
@@ -148,6 +194,12 @@ De pipeline bestaat uit drie blokken:
 | 12. UI Review Queue | ✅ Done | 2025-11-28 |
 | 13. Batch optimizations | ✅ Done | 2025-11-28 |
 | 14. Metrics & monitoring | ✅ Done | 2025-11-28 |
+| **Iteratie 3** | | |
+| 15. Image deduplicatie | ✅ Done | 2025-01-18 |
+| 16. EAN validatie | ✅ Done | 2025-01-18 |
+| 17. Code normalisatie | ✅ Done | 2025-01-18 |
+| 18. OpenAI fallback | ✅ Done | 2025-01-18 |
+| 19. Product DB export | ✅ Done | 2025-01-18 |
 
 **Legenda:** ⬜ Todo | 🔄 In progress | ✅ Done
 
@@ -170,6 +222,10 @@ troostwatch images review
 # Re-analyze met OpenAI Vision voor betere resultaten
 troostwatch images review --promote-to-openai --limit 50
 
+# OpenAI Vision analyse voor needs_review images
+export OPENAI_API_KEY=sk-...
+troostwatch images openai-analyze --limit 50
+
 # Retry eerder gefaalde images
 troostwatch images reprocess-failed --limit 100
 
@@ -181,6 +237,36 @@ troostwatch images export-tokens --output labeled_data.json --include-reviewed
 
 # Bekijk statistieken van de image pipeline
 troostwatch images stats
+```
+
+### Image Deduplicatie
+
+```bash
+# Bereken perceptual hashes voor gedownloade images
+troostwatch images hash --limit 100
+
+# Bekijk hash statistieken
+troostwatch images hash-stats
+
+# Zoek exacte duplicaten (threshold=0)
+troostwatch images duplicates --threshold 0
+
+# Zoek vergelijkbare images (threshold=10)
+troostwatch images duplicates --threshold 10 --show-paths
+```
+
+### Code Validatie
+
+```bash
+# Valideer en normaliseer extracted codes
+troostwatch images validate-codes --limit 100
+
+# Validatie omvat:
+# - EAN-13/EAN-8: GS1 check digit validatie
+# - UPC-A: GS1 check digit validatie
+# - MAC addresses: Format normalisatie (AA:BB:CC:DD:EE:FF)
+# - UUIDs: Format normalisatie
+# - OCR fout correctie voor EANs (O→0, I→1, etc.)
 ```
 
 ### ML Service
@@ -229,31 +315,32 @@ python scripts/train_label_classifier.py \
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    CLI: troostwatch images                  │
-│         download | analyze | review | export-tokens         │
+│   download | analyze | review | export-tokens | hash | dup  │
 └─────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────┐
 │                   ImageAnalysisService                      │
-│    download_pending | analyze_pending | promote_to_openai   │
+│  download_pending | analyze_pending | compute_image_hashes  │
+│              find_duplicate_images | get_stats              │
 └─────────────────────────────────────────────────────────────┘
                               │
-        ┌─────────────────────┴─────────────────────┐
-        │                                           │
-┌───────▼───────┐                         ┌─────────▼─────────┐
-│ ImageDownloader│                         │   ImageAnalyzer   │
-│  (persistence) │                         │  local / openai   │
-└───────┬───────┘                         └─────────┬─────────┘
-        │                                           │
-        │                              ┌────────────┴────────────┐
-        │                              │                         │
-        │                     ┌────────▼────────┐    ┌───────────▼───────────┐
-        │                     │ LocalOCRAnalyzer│    │   label_ocr_api/      │
-        │                     │   (Tesseract)   │    │   (sklearn model)     │
-        │                     └─────────────────┘    └───────────────────────┘
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+┌───────▼───────┐    ┌────────▼────────┐   ┌───────▼───────┐
+│ ImageDownloader│    │  ImageAnalyzer  │   │ image_hashing │
+│  (persistence) │    │ local / openai  │   │ pHash/dHash   │
+└───────┬───────┘    └────────┬────────┘   └───────────────┘
+        │                     │
+        │        ┌────────────┴────────────┐
+        │        │                         │
+        │   ┌────▼────────────┐   ┌────────▼────────────┐
+        │   │ LocalOCRAnalyzer│   │   label_ocr_api/    │
+        │   │   (Tesseract)   │   │   (sklearn model)   │
+        │   └─────────────────┘   └─────────────────────┘
         │
 ┌───────▼───────────────────────────────────────────────────────┐
 │                        Database                                │
-│   lot_images | extracted_codes | ocr_token_data                │
+│   lot_images (+ phash) | extracted_codes | ocr_token_data     │
 └────────────────────────────────────────────────────────────────┘
 ```
 

@@ -24,6 +24,7 @@ def ensure_schema(conn) -> None:
     _ensure_lots_columns(conn, migrator)
     _ensure_hash_columns(conn)
     _ensure_bid_history_table(conn)
+    _ensure_lot_images_phash(conn, migrator)
     conn.executescript(SCHEMA_BUYERS_SQL)
     conn.executescript(SCHEMA_POSITIONS_SQL)
     conn.executescript(SCHEMA_MY_BIDS_SQL)
@@ -128,4 +129,28 @@ def _ensure_bid_history_table(conn) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_bid_history_lot_id ON bid_history (lot_id);
     """
+    )
+
+
+def _ensure_lot_images_phash(conn, migrator: SchemaMigrator) -> None:
+    """Add phash column to lot_images if it doesn't exist."""
+    cur = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='lot_images'"
+    )
+    if cur.fetchone() is None:
+        return
+
+    existing = {
+        row[1] for row in conn.execute("PRAGMA table_info(lot_images)").fetchall()
+    }
+
+    if "phash" not in existing:
+        conn.execute("ALTER TABLE lot_images ADD COLUMN phash TEXT")
+        migration_name = "add_lot_images_phash_v1"
+        if not migrator.has_migration(migration_name):
+            migrator.record(migration_name, "phash")
+
+    # Ensure index exists
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_lot_images_phash ON lot_images(phash)"
     )

@@ -97,25 +97,28 @@ De pipeline bestaat uit drie blokken:
 - [ ] `label_ocr_api/` directory structuur
 - [ ] FastAPI app met `/parse-label` en `/health` endpoints
 - [ ] `ocr_engine.py` met `parse_label_ml()` functie
-- [ ] Client helper in troostwatch
+- [x] Client helper in troostwatch
+  - `LabelAPIClient` async client for ML service communication
+  - `parse_label_url()`, `parse_label_file()`, `parse_label_bytes()` methods
+  - Health check and availability detection
+  - Graceful fallback when service unavailable
 
 **Bestanden:**
-- `label_ocr_api/app/main.py` (nieuw)
-- `label_ocr_api/app/ocr_engine.py` (nieuw)
-- `label_ocr_api/requirements.txt` (nieuw)
-- `troostwatch/infrastructure/ai/label_api_client.py` (nieuw)
+- `label_ocr_api/main.py` ✅
+- `label_ocr_api/requirements.txt` ✅
+- `troostwatch/infrastructure/ai/label_api_client.py` ✅
 
 ---
 
 ### Stap 9: ML training script en documentatie
-- [ ] Training script voor sklearn classifier
-- [ ] Feature engineering (token lengte, regex, positie, context)
-- [ ] Model export naar joblib
-- [ ] Documentatie met workflow
+- [x] Training script voor sklearn classifier
+- [x] Feature engineering (token lengte, regex, positie, context)
+- [x] Model export naar joblib
+- [x] Documentatie met workflow
 
 **Bestanden:**
-- `scripts/train_label_classifier.py` (nieuw)
-- `docs/ml_training.md` (nieuw)
+- `scripts/train_label_classifier.py` ✅
+- `docs/ml_training.md` ✅
 
 ---
 

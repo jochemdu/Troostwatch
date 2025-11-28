@@ -24,6 +24,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `troostwatch images validate-codes` – Validate and normalize extracted codes.
   - `troostwatch images openai-analyze` – Re-analyze needs_review images with OpenAI.
 
+- **ML service client**: `LabelAPIClient` for communicating with `label_ocr_api` microservice.
+  - Async client with context manager support.
+  - Methods: `parse_label_url()`, `parse_label_file()`, `parse_label_bytes()`.
+  - Health check and service availability detection.
+  - Integrated into `ImageAnalysisService` via `backend="ml"` option.
+
 - **Database schema version 10**: Adds `phash` column to `lot_images` table.
 
 - **Image Pipeline Iteration 2 complete**: Full image analysis pipeline with vendor support.

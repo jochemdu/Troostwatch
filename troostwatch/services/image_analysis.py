@@ -2,7 +2,7 @@
 
 This service orchestrates the image analysis pipeline:
 1. Download pending images from URLs to local storage
-2. Analyze images with OCR (local or OpenAI)
+2. Analyze images with OCR (local, OpenAI, or ML service)
 3. Extract and store product codes
 4. Store raw token data for ML training
 5. Handle review queue for low-confidence results
@@ -22,6 +22,10 @@ from troostwatch.infrastructure.ai.image_analyzer import (
     ImageAnalysisResult,
     LocalOCRAnalyzer,
     OpenAIAnalyzer,
+)
+from troostwatch.infrastructure.ai.label_api_client import (
+    LabelAPIClient,
+    ParseLabelResult,
 )
 from troostwatch.infrastructure.ai.image_hashing import (
     compute_phash,
@@ -293,6 +297,57 @@ class ImageAnalysisService(BaseService):
         )
         return stats
 
+    def _analyze_with_ml(self, image_path: str) -> ImageAnalysisResult:
+        """Analyze an image using the ML Label OCR API service.
+
+        Args:
+            image_path: Path to the local image file.
+
+        Returns:
+            ImageAnalysisResult with extracted codes.
+        """
+        async def _run() -> ParseLabelResult:
+            async with LabelAPIClient() as client:
+                return await client.parse_label_file(image_path)
+
+        try:
+            ml_result = asyncio.run(_run())
+        except Exception as e:
+            logger.error("ML analysis failed: %s", str(e))
+            return ImageAnalysisResult(
+                image_url=image_path,
+                error=f"ML service error: {str(e)}",
+            )
+
+        if ml_result.error:
+            return ImageAnalysisResult(
+                image_url=image_path,
+                error=ml_result.error,
+            )
+
+        # Convert ML codes to standard ExtractedCode format
+        codes = []
+        for ml_code in ml_result.codes:
+            # Map ML code types to standard types
+            code_type = ml_code.code_type
+            if code_type == "part_number":
+                code_type = "product_code"
+
+            codes.append(
+                ExtractedCode(
+                    code_type=code_type,
+                    value=ml_code.value,
+                    confidence=ml_code.confidence,
+                    context=ml_code.context,
+                )
+            )
+
+        return ImageAnalysisResult(
+            image_url=image_path,
+            codes=codes,
+            raw_text=ml_result.raw_text,
+        )
+
     def analyze_pending_images(
         self,
         backend: Literal["local", "openai", "ml"] = "local",
@@ -338,8 +393,12 @@ class ImageAnalysisService(BaseService):
                     continue
 
                 try:
-                    # Analyze the image
-                    result = self._ocr.analyze_local_image(image.local_path)
+                    # Analyze the image using the specified backend
+                    if backend == "ml":
+                        result = self._analyze_with_ml(image.local_path)
+                    else:
+                        # Use local OCR (default)
+                        result = self._ocr.analyze_local_image(image.local_path)
                     duration = time.perf_counter() - start_time
 
                     if result.error:

@@ -34,5 +34,6 @@ This document summarises the current implementation status of capabilities that 
 - **Code normalization**: Whitespace removal, case normalization, leading zero padding for short EANs.
 - **OpenAI Vision fallback**: Re-analyze low-confidence images using GPT-4 Vision API for improved accuracy.
 - **Product database export**: Promote approved codes to `product_specs` table with deduplication.
+- **ML service integration**: `LabelAPIClient` for communication with `label_ocr_api` microservice (`troostwatch/infrastructure/ai/label_api_client.py`).
 
 Overall, the previously identified gaps around authentication, bidding, schema completeness, parsing robustness and incremental/rate-limited sync have been addressed in the current codebase.

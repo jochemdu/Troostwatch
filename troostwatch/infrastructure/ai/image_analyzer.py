@@ -337,6 +337,124 @@ class LocalOCRAnalyzer:
             results.append(result)
         return results
 
+    def get_token_data(self, image_path: str) -> dict | None:
+        """Extract token-level OCR data for ML training.
+
+        Uses pytesseract.image_to_data() to get detailed token information
+        including bounding boxes, confidence scores, and text for each word.
+
+        Args:
+            image_path: Path to the local image file.
+
+        Returns:
+            Dictionary with token data suitable for ML training, or None on error.
+            Format:
+            {
+                "text": ["word1", "word2", ...],
+                "conf": [95, 80, ...],  # confidence scores
+                "left": [10, 50, ...],  # x position
+                "top": [100, 100, ...],  # y position
+                "width": [40, 60, ...],
+                "height": [20, 20, ...],
+                "level": [5, 5, ...],  # hierarchy level
+                "block_num": [1, 1, ...],
+                "par_num": [1, 1, ...],
+                "line_num": [1, 1, ...],
+                "word_num": [1, 2, ...]
+            }
+        """
+        if not self._check_tesseract():
+            logger.warning("Tesseract not available for token extraction")
+            return None
+
+        try:
+            import pytesseract
+            from PIL import Image
+
+            image = Image.open(image_path)
+
+            try:
+                data = pytesseract.image_to_data(
+                    image,
+                    lang="eng+nld",
+                    output_type=pytesseract.Output.DICT,
+                )
+            except pytesseract.TesseractError:
+                # Fallback to English only
+                data = pytesseract.image_to_data(
+                    image,
+                    lang="eng",
+                    output_type=pytesseract.Output.DICT,
+                )
+
+            # Filter out empty tokens and tokens with -1 confidence
+            filtered_data: dict = {
+                "text": [],
+                "conf": [],
+                "left": [],
+                "top": [],
+                "width": [],
+                "height": [],
+                "level": [],
+                "block_num": [],
+                "par_num": [],
+                "line_num": [],
+                "word_num": [],
+            }
+
+            for i, text in enumerate(data["text"]):
+                # Skip empty tokens and low-confidence tokens
+                if text.strip() and data["conf"][i] >= 0:
+                    for key in filtered_data:
+                        filtered_data[key].append(data[key][i])
+
+            return filtered_data
+
+        except Exception as e:
+            logger.error("Token extraction failed: %s", str(e))
+            return None
+
+    def analyze_local_image(self, image_path: str) -> ImageAnalysisResult:
+        """Analyze a local image file synchronously.
+
+        Args:
+            image_path: Path to the local image file.
+
+        Returns:
+            ImageAnalysisResult with extracted codes.
+        """
+        if not self._check_tesseract():
+            return ImageAnalysisResult(
+                image_url=image_path,
+                error="Tesseract OCR niet geïnstalleerd",
+            )
+
+        try:
+            import pytesseract
+            from PIL import Image
+
+            image = Image.open(image_path)
+
+            try:
+                text = pytesseract.image_to_string(image, lang="eng+nld")
+            except pytesseract.TesseractError:
+                text = pytesseract.image_to_string(image, lang="eng")
+
+            codes = extract_codes_from_text(text)
+
+            return ImageAnalysisResult(
+                image_url=image_path,
+                codes=codes,
+                raw_text=text.strip() if text.strip() else None,
+            )
+
+        except Exception as e:
+            logger.error("Local OCR analysis failed: %s", str(e))
+            return ImageAnalysisResult(
+                image_url=image_path,
+                error=f"OCR mislukt: {str(e)}",
+            )
+
     async def close(self) -> None:
         """No cleanup needed for local OCR."""
         pass

@@ -4,7 +4,8 @@
     "db_path": "troostwatch.db",
     "snapshots_root": "snapshots",
     "lot_cards_dir": "snapshots/lot_cards",
-    "lot_details_dir": "snapshots/lot_details"
+    "lot_details_dir": "snapshots/lot_details",
+    "images_dir": "data/images"
   },
   "sync": {
     "delay_seconds": 0.5,

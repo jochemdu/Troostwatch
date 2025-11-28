@@ -479,7 +479,12 @@ class LotRepository(BaseRepository):
         detail_hash: str,
         last_seen_at: str,
         detail_last_seen_at: str,
-    ) -> None:
+    ) -> int:
+        """Upsert a lot from parsed card and detail data.
+
+        Returns:
+            The lot ID (either newly inserted or existing).
+        """
         lot_title = detail.title or card.title
         lot_url = detail.url or card.url
         lot_state = detail.state or card.state
@@ -564,9 +569,17 @@ class LotRepository(BaseRepository):
             ),
         )
 
+        # Get the lot_id (either newly inserted or existing)
+        lot_id = self._fetch_scalar(
+            "SELECT id FROM lots WHERE lot_code = ? AND auction_id = ?",
+            (card.lot_code, auction_id),
+        )
+
         # Upsert bid history if available
         if detail.bid_history:
             self._upsert_bid_history(card.lot_code, auction_id, detail.bid_history)
+
+        return lot_id
 
     def _upsert_bid_history(
         self,

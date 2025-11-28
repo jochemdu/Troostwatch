@@ -324,9 +324,17 @@ def _upsert_lot(
     last_seen_at: str,
     detail_last_seen_at: str,
     repository: LotRepository | None = None,
-) -> None:
+    image_repository: "LotImageRepository | None" = None,
+) -> int | None:
+    """Upsert a lot and its images.
+
+    Returns:
+        The lot ID if successful, None otherwise.
+    """
+    from troostwatch.infrastructure.db.repositories import LotImageRepository
+
     repo = repository or LotRepository(conn)
-    repo.upsert_from_parsed(
+    lot_id = repo.upsert_from_parsed(
         auction_id,
         card,
         detail,
@@ -335,6 +343,13 @@ def _upsert_lot(
         last_seen_at=last_seen_at,
         detail_last_seen_at=detail_last_seen_at,
     )
+
+    # Store image URLs if available
+    if lot_id and detail.image_urls:
+        img_repo = image_repository or LotImageRepository(conn)
+        img_repo.insert_images(lot_id, detail.image_urls)
+
+    return lot_id
 
 
 def sync_auction_to_db(

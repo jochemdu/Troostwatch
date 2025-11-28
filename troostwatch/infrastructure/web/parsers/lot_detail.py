@@ -47,6 +47,7 @@ class LotDetailData:
     seller_allocation_note: str | None = None
     brand: str | None = None
     bid_history: list[BidHistoryEntry] = field(default_factory=list)
+    image_urls: list[str] = field(default_factory=list)
 
 
 def _strip_html_tags(text: str) -> str:
@@ -171,6 +172,7 @@ def parse_lot_detail(
 
         brand = _parse_brand(lot)
         bid_history = _parse_bid_history(lot)
+        image_urls = _parse_image_urls(soup)
 
         # Determine the lot code - prefer displayId from the API data
         # The displayId contains the full lot code (e.g., "A1-39500-1802" or "03T-SMD-1")
@@ -197,6 +199,7 @@ def parse_lot_detail(
             seller_allocation_note=seller_allocation_note,
             brand=brand,
             bid_history=bid_history,
+            image_urls=image_urls,
         )
     except Exception as exc:
         utils.record_parsing_error(logger, "lot_detail.dom", str(soup), exc)
@@ -270,6 +273,45 @@ def _parse_bid_history(lot: dict) -> list[BidHistoryEntry]:
             )
 
     return entries
+
+
+def _parse_image_urls(soup: BeautifulSoup) -> list[str]:
+    """Extract image URLs from the lot detail carousel.
+
+    Images are stored in <img data-cy="image"> elements within the carousel.
+    The srcset contains multiple sizes; we extract the base URL (without size params)
+    for the highest quality version.
+
+    URL pattern: https://media.tbauctions.com/image-media/{uuid}/file
+    """
+    image_urls: list[str] = []
+    seen_uuids: set[str] = set()
+
+    # Find the image carousel container
+    carousel = soup.find("div", attrs={"data-cy": "item-details-image"})
+    if not carousel:
+        return image_urls
+
+    # Find all images with data-cy="image"
+    for img in carousel.find_all("img", attrs={"data-cy": "image"}):
+        # Get srcset or src attribute
+        srcset = img.get("srcset", "") or img.get("src", "")
+
+        # Extract UUID from the URL pattern
+        # Pattern: https://media.tbauctions.com/image-media/{uuid}/file
+        uuid_match = re.search(
+            r"media\.tbauctions\.com/image-media/([a-f0-9-]{36})/file",
+            srcset,
+        )
+        if uuid_match:
+            uuid = uuid_match.group(1)
+            if uuid not in seen_uuids:
+                seen_uuids.add(uuid)
+                # Store the base URL without size parameters for highest quality
+                base_url = f"https://media.tbauctions.com/image-media/{uuid}/file"
+                image_urls.append(base_url)
+
+    return image_urls
 
 
 __all__ = ["BidHistoryEntry", "LotDetailData", "parse_lot_detail"]

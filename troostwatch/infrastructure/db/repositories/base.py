@@ -27,7 +27,7 @@ class BaseRepository:
         self.conn = conn
 
     def _fetch_all_as_dicts(
-        self, query: str, params: tuple[Any, ... | None] = None
+        self, query: str, params: tuple[Any, ...] | None = None
     ) -> list[dict[str, Any]]:
         """Execute query and return all rows as dictionaries.
 
@@ -51,7 +51,7 @@ class BaseRepository:
         return [dict(zip(columns, row)) for row in cur.fetchall()]
 
     def _fetch_one_as_dict(
-        self, query: str, params: tuple[Any, ... | None] = None
+        self, query: str, params: tuple[Any, ...] | None = None
     ) -> dict[str, Any | None]:
         """Execute query and return first row as dictionary.
 
@@ -77,7 +77,7 @@ class BaseRepository:
         columns = [c[0] for c in cur.description]
         return dict(zip(columns, row))
 
-    def _fetch_scalar(self, query: str, params: tuple[Any, ... | None] = None) -> Any:
+    def _fetch_scalar(self, query: str, params: tuple[Any, ...] | None = None) -> Any:
         """Execute query and return first column of first row.
 
         Args:

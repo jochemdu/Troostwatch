@@ -295,7 +295,8 @@ def _parse_image_urls(soup: BeautifulSoup) -> list[str]:
     # Find all images with data-cy="image"
     for img in carousel.find_all("img", attrs={"data-cy": "image"}):
         # Get srcset or src attribute
-        srcset = img.get("srcset", "") or img.get("src", "")
+        srcset_raw = img.get("srcset", "") or img.get("src", "")
+        srcset = str(srcset_raw) if srcset_raw else ""
 
         # Extract UUID from the URL pattern
         # Pattern: https://media.tbauctions.com/image-media/{uuid}/file

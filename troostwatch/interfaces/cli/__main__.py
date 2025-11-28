@@ -9,16 +9,17 @@ for compatibility but will be removed in a future release.
 
 import click
 
+from .add_lot import add_lot
+from .bid import bid
 from .buyer import buyer
-from .sync import sync
-from .sync_multi import sync_multi
+from .debug import debug
+from .images import images_cli
+from .menu import menu
 from .positions import positions
 from .report import report
-from .debug import debug
+from .sync import sync
+from .sync_multi import sync_multi
 from .view import view
-from .menu import menu
-from .bid import bid
-from .add_lot import add_lot
 
 
 @click.group(
@@ -43,6 +44,7 @@ cli.add_command(view)
 cli.add_command(bid)
 cli.add_command(add_lot)
 cli.add_command(menu)
+cli.add_command(images_cli, name="images")
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ from .add_lot import add_lot
 from .bid import bid
 from .buyer import buyer
 from .debug import debug
+from .images import images_cli
 from .menu import menu
 from .positions import positions
 from .report import report
@@ -24,6 +25,7 @@ __all__ = [
     "buyer",
     "cli",
     "debug",
+    "images_cli",
     "menu",
     "positions",
     "report",

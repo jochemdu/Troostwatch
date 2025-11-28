@@ -133,17 +133,88 @@ De pipeline bestaat uit drie blokken:
 
 | Stap | Status | Datum voltooid |
 |------|--------|----------------|
-| 1. Database schema | ⬜ Todo | |
-| 2. Parser uitbreiden | ⬜ Todo | |
-| 3. Image download | ⬜ Todo | |
-| 4. OCR token data | ⬜ Todo | |
-| 5. Repository laag | ⬜ Todo | |
-| 6. ImageAnalysisService | ⬜ Todo | |
-| 7. CLI commando's | ⬜ Todo | |
-| 8. ML-service | ⬜ Todo | |
-| 9. Training script/docs | ⬜ Todo | |
+| 1. Database schema | ✅ Done | 2025-11-28 |
+| 2. Parser uitbreiden | ✅ Done | 2025-11-28 |
+| 3. Image download | ✅ Done | 2025-11-28 |
+| 4. OCR token data | ✅ Done | 2025-11-28 |
+| 5. Repository laag | ✅ Done | 2025-11-28 |
+| 6. ImageAnalysisService | ✅ Done | 2025-11-28 |
+| 7. CLI commando's | ✅ Done | 2025-11-28 |
+| 8. ML-service | ✅ Done | 2025-11-28 |
+| 9. Training script/docs | ✅ Done | 2025-11-28 |
 
 **Legenda:** ⬜ Todo | 🔄 In progress | ✅ Done
+
+---
+
+## CLI Commando's
+
+### Image Download & Analyse
+
+```bash
+# Download images die nog niet lokaal zijn opgeslagen
+troostwatch images download --db troostwatch.db --limit 100
+
+# Analyseer gedownloade images met OCR
+troostwatch images analyze --backend local --save-tokens --confidence-threshold 0.6 --limit 100
+
+# Bekijk images die handmatige review nodig hebben
+troostwatch images review
+
+# Re-analyze met OpenAI Vision voor betere resultaten
+troostwatch images review --promote-to-openai --limit 50
+
+# Retry eerder gefaalde images
+troostwatch images reprocess-failed --limit 100
+
+# Exporteer OCR token data voor ML training
+troostwatch images export-tokens --output training_data.json
+
+# Alleen gelabelde data exporteren
+troostwatch images export-tokens --output labeled_data.json --include-reviewed
+
+# Bekijk statistieken van de image pipeline
+troostwatch images stats
+```
+
+### ML Service
+
+```bash
+# Start de ML service (aparte terminal)
+cd label_ocr_api
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8001
+
+# Test de service
+curl http://localhost:8001/health
+
+# Parse een image via URL
+curl -X POST "http://localhost:8001/parse-label/url" \
+  -H "Content-Type: application/json" \
+  -d '{"image_url": "https://example.com/image.jpg"}'
+
+# Parse een lokale image
+curl -X POST "http://localhost:8001/parse-label" \
+  -F "file=@path/to/image.jpg"
+```
+
+### ML Model Trainen
+
+```bash
+# 1. Exporteer token data
+troostwatch images export-tokens -o training_data.json
+
+# 2. Voeg labels toe aan training_data.json (handmatig)
+#    Voeg per image een "labels" dict toe:
+#    "labels": {"5": "ean", "12": "serial_number", "15": "model_number"}
+
+# 3. Train het model
+python scripts/train_label_classifier.py \
+  --input training_data.json \
+  --output label_ocr_api/models/label_classifier.pkl
+
+# 4. Herstart de ML service om het nieuwe model te laden
+```
 
 ---
 

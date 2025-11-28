@@ -1,14 +1,14 @@
 ## pyproject.toml for the Troostwatch package
 
-# This file follows the [PEP 621](https://peps.python.org/pep-0621/) specification for
+# This file follows the [PEP 621](https://peps.python.org/pep-0621/) specification for
 # Python project metadata.  It describes the Troostwatch package as it exists
-# today at version 0.6.2.  The project scrapes auction data from the
+# today at version 0.7.1.  The project scrapes auction data from the
 # Troostwijk website, stores it in a SQLite database, calculates bidding
 # exposure and provides several command‑line interfaces.
 
 [build-system]
 # Setuptools is used to build the package; a recent version is required for
-# PEP 621 and pyproject support.  Wheel is included to generate a wheel
+# PEP 621 and pyproject support.  Wheel is included to generate a wheel
 # distribution when building.
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
@@ -18,7 +18,7 @@ build-backend = "setuptools.build_meta"
 # publish the package; change this if a different name is needed.
 name = "troostwatch"
 # The version number is the single source of truth; read at runtime via importlib.metadata.
-version = "0.7.0"
+version = "0.7.1"
 # A short, one‑line summary of what the project does.
 description = "Scrape Troostwijk auctions, track bids, analyse exposure and view results via a CLI."
 # A longer description taken from the README file.  When distributed, this

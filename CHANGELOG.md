@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.7.1] – 2025-11-28
+
+### Changed
+
+- **Documentation refresh**: Updated all docs to reflect current codebase state.
+  - Fixed schema version references (now correctly shows version 7).
+  - Updated architecture docs to reflect Level 3 enforcement (full compliance).
+  - Fixed outdated file paths in feature_status.md.
+  - Expanded docs/README.md with comprehensive documentation index.
+  - Updated version compatibility matrix in versioning.md.
+
+## [0.6.3]
+
 ### Changed
 
 - **Python 3.11+ required**: Minimum Python version bumped from 3.10 to 3.11. Python 3.14 is supported.

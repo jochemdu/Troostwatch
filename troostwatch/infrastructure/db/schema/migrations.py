@@ -9,7 +9,7 @@ from .tables import SCHEMA_MIGRATIONS_SQL, SCHEMA_VERSION_SQL
 
 # Current schema version - increment when making structural changes.
 # This must match the version comment in schema/schema.sql.
-CURRENT_SCHEMA_VERSION = 8
+CURRENT_SCHEMA_VERSION = 9
 
 
 class SchemaMigrator:

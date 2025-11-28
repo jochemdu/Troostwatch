@@ -10,10 +10,12 @@ Commands for downloading, analyzing, and managing lot images:
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import click
 from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TaskProgressColumn
 from rich.table import Table
 
 from troostwatch.app.config import load_config
@@ -59,21 +61,70 @@ def images_cli() -> None:
     default=None,
     help="Directory for storing downloaded images. Uses config.json if not specified.",
 )
-def download_images(db_path: str, limit: int, images_dir: str | None) -> None:
+@click.option(
+    "--parallel/--sequential",
+    default=True,
+    help="Use parallel downloads for better performance.",
+    show_default=True,
+)
+@click.option(
+    "--concurrency",
+    type=int,
+    default=10,
+    help="Maximum concurrent downloads (only with --parallel).",
+    show_default=True,
+)
+def download_images(
+    db_path: str,
+    limit: int,
+    images_dir: str | None,
+    parallel: bool,
+    concurrency: int,
+) -> None:
     """Download pending images from URLs to local storage.
 
     Downloads images that have been collected during sync but not yet
     stored locally. Images are saved to data/images/{lot_id}/{position}.jpg
+
+    Use --parallel (default) for faster downloads with concurrent requests.
     """
     images_path = Path(images_dir) if images_dir else _get_images_dir()
 
     console.print(f"[bold]Downloading images to:[/bold] {images_path}")
     console.print(f"[bold]Database:[/bold] {db_path}")
     console.print(f"[bold]Limit:[/bold] {limit}")
+    if parallel:
+        console.print(f"[bold]Mode:[/bold] Parallel ({concurrency} concurrent)")
+    else:
+        console.print("[bold]Mode:[/bold] Sequential")
     console.print()
 
     service = ImageAnalysisService.from_sqlite_path(db_path, images_path)
-    stats = service.download_pending_images(limit=limit)
+
+    if parallel:
+        # Use async parallel downloads with progress bar
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TextColumn("[cyan]{task.completed}/{task.total}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Downloading images...", total=None)
+
+            def update_progress(done: int, total: int) -> None:
+                progress.update(task, completed=done, total=total)
+
+            stats = asyncio.run(
+                service.download_pending_images_async(
+                    limit=limit,
+                    concurrency=concurrency,
+                    progress_callback=update_progress,
+                )
+            )
+    else:
+        stats = service.download_pending_images(limit=limit)
 
     console.print()
     console.print("[bold green]Download complete![/bold green]")
@@ -112,6 +163,19 @@ def download_images(db_path: str, limit: int, images_dir: str | None) -> None:
     show_default=True,
 )
 @click.option(
+    "--auto-approve-threshold",
+    type=float,
+    default=0.85,
+    help="Threshold for auto-approving codes (0.0-1.0).",
+    show_default=True,
+)
+@click.option(
+    "--auto-approve/--no-auto-approve",
+    default=True,
+    help="Automatically approve high-confidence codes.",
+    show_default=True,
+)
+@click.option(
     "--limit",
     type=int,
     default=100,
@@ -129,6 +193,8 @@ def analyze_images(
     backend: str,
     save_tokens: bool,
     confidence_threshold: float,
+    auto_approve_threshold: float,
+    auto_approve: bool,
     limit: int,
     images_dir: str | None,
 ) -> None:
@@ -139,6 +205,8 @@ def analyze_images(
 
     Low-confidence results are marked as 'needs_review' for manual
     verification or OpenAI re-analysis.
+
+    High-confidence codes can be auto-approved with --auto-approve.
     """
     images_path = Path(images_dir) if images_dir else _get_images_dir()
 
@@ -146,6 +214,7 @@ def analyze_images(
     console.print(f"[bold]Database:[/bold] {db_path}")
     console.print(f"[bold]Save tokens:[/bold] {save_tokens}")
     console.print(f"[bold]Confidence threshold:[/bold] {confidence_threshold}")
+    console.print(f"[bold]Auto-approve:[/bold] {auto_approve} (threshold: {auto_approve_threshold})")
     console.print(f"[bold]Limit:[/bold] {limit}")
     console.print()
 
@@ -154,6 +223,8 @@ def analyze_images(
         backend=backend,  # type: ignore
         save_tokens=save_tokens,
         confidence_threshold=confidence_threshold,
+        auto_approve_threshold=auto_approve_threshold,
+        auto_approve=auto_approve,
         limit=limit,
     )
 
@@ -164,6 +235,7 @@ def analyze_images(
     console.print(f"  Needs review: {stats.images_needs_review}")
     console.print(f"  Failed: {stats.images_failed}")
     console.print(f"  Codes extracted: {stats.codes_extracted}")
+    console.print(f"  [green]Codes auto-approved: {stats.codes_auto_approved}[/green]")
     console.print(f"  Tokens saved: {stats.tokens_saved}")
 
 
@@ -396,6 +468,22 @@ def show_stats(db_path: str, images_dir: str | None) -> None:
     console.print(img_table)
     console.print()
 
+    # Code statistics
+    code_stats = stats.get("codes", {})
+    code_table = Table(title="Extracted Codes Statistics")
+    code_table.add_column("Metric", style="bold")
+    code_table.add_column("Value", justify="right")
+
+    code_table.add_row("Total Codes", str(code_stats.get("total", 0)))
+    code_table.add_row("[green]Approved[/green]", str(code_stats.get("approved", 0)))
+    code_table.add_row("[yellow]Pending Approval[/yellow]", str(code_stats.get("pending", 0)))
+    code_table.add_row("[cyan]Auto-approved[/cyan]", str(code_stats.get("auto_approved", 0)))
+    code_table.add_row("[blue]Manually Approved[/blue]", str(code_stats.get("manually_approved", 0)))
+    code_table.add_row("Promoted to Lots", str(code_stats.get("promoted", 0)))
+
+    console.print(code_table)
+    console.print()
+
     # Token statistics
     token_stats = stats.get("tokens", {})
     token_table = Table(title="Token Data Statistics")
@@ -407,6 +495,55 @@ def show_stats(db_path: str, images_dir: str | None) -> None:
     token_table.add_row("Total Tokens", f"{token_stats.get('total_tokens', 0):,}")
 
     console.print(token_table)
+
+
+@images_cli.command(name="promote")
+@click.option(
+    "--db",
+    "db_path",
+    default="troostwatch.db",
+    help="Path to the SQLite database file.",
+    show_default=True,
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=100,
+    help="Maximum number of codes to promote.",
+    show_default=True,
+)
+@click.option(
+    "--images-dir",
+    type=click.Path(),
+    default=None,
+    help="Directory for stored images. Uses config.json if not specified.",
+)
+def promote_codes(db_path: str, limit: int, images_dir: str | None) -> None:
+    """Promote approved codes to lot records.
+
+    Takes approved extracted codes (EAN, serial numbers, model numbers)
+    and writes them to the product_specs table for the corresponding lots.
+
+    Only codes that have been approved (auto or manual) and not yet
+    promoted will be processed.
+    """
+    images_path = Path(images_dir) if images_dir else _get_images_dir()
+
+    console.print("[bold]Promoting approved codes to lots...[/bold]")
+    console.print(f"[bold]Database:[/bold] {db_path}")
+    console.print(f"[bold]Limit:[/bold] {limit}")
+    console.print()
+
+    service = ImageAnalysisService.from_sqlite_path(db_path, images_path)
+    result = service.promote_codes_to_lots(limit=limit)
+
+    console.print()
+    console.print("[bold green]Promotion complete![/bold green]")
+    console.print(f"  Total promoted: {result.get('total', 0)}")
+    console.print(f"  EAN codes: {result.get('ean', 0)}")
+    console.print(f"  Serial numbers: {result.get('serial_number', 0)}")
+    console.print(f"  Model numbers: {result.get('model_number', 0)}")
+    console.print(f"  Product codes: {result.get('product_code', 0)}")
 
 
 __all__ = ["images_cli"]

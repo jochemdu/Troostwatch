@@ -96,6 +96,13 @@ are required for basic operation.
 | `sync_run_duration_seconds` | Histogram | Duration of sync runs |
 | `sync_lots_processed` | Counter | Lots synced per run |
 | `bids_total` | Counter | Bid attempts by outcome |
+| `image_downloads_total` | Counter | Image downloads by status |
+| `image_download_duration_seconds` | Histogram | Download latency |
+| `image_downloads_bytes_total` | Counter | Total bytes downloaded |
+| `image_analysis_total` | Counter | Analyses by backend and status |
+| `image_analysis_duration_seconds` | Histogram | Analysis latency by backend |
+| `extracted_codes_total` | Counter | Codes extracted by backend |
+| `code_approvals_total` | Counter | Approvals by type and code type |
 
 ### Accessing Metrics
 
@@ -114,6 +121,38 @@ from troostwatch.infrastructure.observability.metrics import (
 
 increment_counter("bids_total", labels={"outcome": "success"})
 observe_histogram("sync_run_duration_seconds", duration, labels={"auction": code})
+```
+
+### Image Pipeline Metrics
+
+The image analysis pipeline has dedicated metrics for monitoring OCR operations:
+
+```python
+from troostwatch.infrastructure.observability.metrics import (
+    record_image_download,
+    record_image_analysis,
+    record_code_approval,
+    get_image_pipeline_stats,
+)
+
+# Record a download (automatically called by ImageAnalysisService)
+record_image_download("success", duration_seconds, bytes_downloaded)
+
+# Record an analysis operation
+record_image_analysis("local", "success", duration_seconds, codes_extracted=3)
+
+# Record code approval events
+record_code_approval("auto", "ean")
+record_code_approval("manual", "serial_number")
+
+# Get summary statistics for dashboards
+stats = get_image_pipeline_stats()
+# {
+#     "downloads": {"success": 150, "failed": 5},
+#     "analysis": {"local_success": 120, "local_review": 25, "local_failed": 5},
+#     "codes_extracted": {"local": 280, "openai": 15},
+#     "approvals": {"auto": 240, "manual": 30, "rejected": 10}
+# }
 ```
 
 ## Tracing

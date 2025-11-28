@@ -118,6 +118,7 @@ def add_position(
     auction_code: str,
     lot_code: str,
     track_active: bool = True,
+    max_budget_total_eur: float | None = None,
     connection_factory: ConnectionFactory | None = None,
 ) -> None:
     """Add or update a tracked position using a SQLite-backed service."""
@@ -135,6 +136,7 @@ def add_position(
 def list_positions(
     *,
     db_path: str,
+    buyer_label: str | None = None,
     connection_factory: ConnectionFactory | None = None,
 ) -> list[PositionDTO]:
     """Return tracked positions using a SQLite-backed service."""
@@ -148,6 +150,7 @@ def delete_position(
     db_path: str,
     buyer_label: str,
     auction_code: str,
+    lot_code: str,
     connection_factory: ConnectionFactory | None = None,
 ) -> None:
     """Delete a tracked position using a SQLite-backed service."""

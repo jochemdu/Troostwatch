@@ -18,7 +18,7 @@ class LotRepository(BaseRepository):
         query = "SELECT l.id FROM lots l JOIN auctions a ON l.auction_id = a.id WHERE l.lot_code = ?"
 
         def _lookup(code: str) -> int | None:
-            params: List = [code]
+            params: list = [code]
             local_query = query
             if auction_code is not None:
                 local_query += " AND a.auction_code = ?"
@@ -35,6 +35,28 @@ class LotRepository(BaseRepository):
         ):
             lot_id = _lookup(f"{auction_code}-{lot_code}")
         return lot_id
+
+    def get_lot_by_id(self, lot_id: int) -> Any | None:
+        """Get a lot by its database ID. Returns a simple object with lot_code."""
+        row = self._fetch_one_as_dict(
+            """
+            SELECT l.id, l.lot_code, a.auction_code
+            FROM lots l
+            JOIN auctions a ON l.auction_id = a.id
+            WHERE l.id = ?
+            """,
+            (lot_id,),
+        )
+        if not row or row.get("id") is None:
+            return None
+        # Return a simple object with lot_code
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            id=row["id"],
+            lot_code=row["lot_code"],
+            auction_code=row["auction_code"],
+        )
 
     def list_lot_codes_by_auction(self, auction_code: str) -> list[str]:
         rows = self.conn.execute(

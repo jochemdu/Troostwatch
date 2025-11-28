@@ -8,6 +8,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 
+- **Image Pipeline Iteration 2 complete**: Full image analysis pipeline with vendor support.
+  - Vendor-specific code extraction profiles for 7 manufacturers:
+    HP, Lenovo, Ubiquiti, Dell, Apple, Samsung, Cisco.
+  - Confidence-based auto-approve for high-confidence extracted codes (threshold 0.85).
+  - UI review queue for manual code approval with bulk actions.
+  - Parallel image downloads with configurable concurrency (default 10).
+  - Rich progress bars for CLI batch operations.
+  - Prometheus-compatible metrics for image pipeline monitoring.
+
+- **Review Queue API endpoints**:
+  - `GET /review/codes/pending` – Paginated list of codes awaiting review.
+  - `POST /review/codes/{id}/approve` – Approve a single code.
+  - `POST /review/codes/{id}/reject` – Reject a single code.
+  - `POST /review/codes/bulk` – Bulk approve/reject multiple codes.
+  - `GET /review/stats` – Review queue statistics.
+
+- **Image pipeline metrics**:
+  - `image_downloads_total` – Downloads by status (success/failed).
+  - `image_download_duration_seconds` – Download latency histogram.
+  - `image_analysis_total` – Analyses by backend and status.
+  - `image_analysis_duration_seconds` – Analysis latency by backend.
+  - `extracted_codes_total` – Codes extracted by backend.
+  - `code_approvals_total` – Approvals by type and code category.
+
+- **CLI enhancements**:
+  - `troostwatch images download --parallel --concurrency N` for faster downloads.
+  - `troostwatch images promote-codes` to promote approved codes to lot records.
+  - Progress bars with live updates for batch operations.
+
 - **OpenTelemetry tracing support**: Optional distributed tracing via OpenTelemetry.
   Install with `pip install troostwatch[tracing]`. Configure with `configure_tracing()`.
   - `trace_span()` context manager for creating spans
@@ -24,6 +53,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 
 - WebSocket endpoint `WS /ws/lots` promoted from **Experimental** to **Stable**.
+- Schema version bumped to 9 (adds approval columns to `extracted_codes` table).
+- `ImageAnalysisService` now records metrics for all operations.
 
 ## [0.7.1] – 2025-11-28
 

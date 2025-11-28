@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: '/bids', label: 'Biedingen' },
   { href: '/buyers', label: 'Kopers' },
   { href: '/templates', label: 'Templates' },
+  { href: '/review', label: 'Code Review' },
   { href: '/reports', label: 'Rapportage' },
   { href: '/add-lot', label: 'Lot toevoegen' },
   { href: '/debug', label: 'Debug' }

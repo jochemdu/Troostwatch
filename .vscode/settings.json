@@ -3,5 +3,14 @@
     "python-envs.pythonProjects": [],
     "github.copilot.chat.pullRequestDescriptionGeneration.instructions": [
         
-    ]
+    ],
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        "./tests",
+        "-p",
+        "*test*.py"
+    ],
+    "python.testing.pytestEnabled": false,
+    "python.testing.unittestEnabled": true
 }

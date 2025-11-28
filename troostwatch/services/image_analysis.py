@@ -10,6 +10,7 @@ This service orchestrates the image analysis pipeline:
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +29,12 @@ from troostwatch.infrastructure.db.repositories import (
     OcrTokenRepository,
 )
 from troostwatch.infrastructure.observability import get_logger
+from troostwatch.infrastructure.observability.metrics import (
+    record_image_download,
+    record_image_analysis,
+    record_code_approval,
+    Timer,
+)
 from troostwatch.infrastructure.persistence.images import ImageDownloader
 
 from .base import BaseService, ConnectionFactory
@@ -44,6 +51,7 @@ class AnalysisStats:
     images_needs_review: int = 0
     images_failed: int = 0
     codes_extracted: int = 0
+    codes_auto_approved: int = 0
     tokens_saved: int = 0
 
 
@@ -66,6 +74,8 @@ class ImageAnalysisService(BaseService):
 
     # Confidence threshold below which images go to needs_review
     DEFAULT_CONFIDENCE_THRESHOLD = 0.6
+    # Confidence threshold above which codes are auto-approved
+    DEFAULT_AUTO_APPROVE_THRESHOLD = 0.85
 
     def __init__(
         self,
@@ -112,6 +122,8 @@ class ImageAnalysisService(BaseService):
         Returns:
             Statistics about the download operation.
         """
+        import time
+
         stats = DownloadStats()
 
         with self._connection_factory() as conn:
@@ -120,7 +132,9 @@ class ImageAnalysisService(BaseService):
             stats.images_processed = len(pending)
 
             for image in pending:
+                start_time = time.perf_counter()
                 local_path, error = self._downloader.download_lot_image(image)
+                duration = time.perf_counter() - start_time
 
                 if local_path:
                     image_repo.mark_downloaded(image.id, local_path)
@@ -128,12 +142,15 @@ class ImageAnalysisService(BaseService):
 
                     # Track file size
                     try:
-                        stats.bytes_downloaded += Path(local_path).stat().st_size
+                        file_size = Path(local_path).stat().st_size
+                        stats.bytes_downloaded += file_size
+                        record_image_download("success", duration, file_size)
                     except Exception:
-                        pass
+                        record_image_download("success", duration)
                 else:
                     image_repo.mark_download_failed(image.id, error or "Unknown error")
                     stats.images_failed += 1
+                    record_image_download("failed", duration)
                     logger.warning(
                         "Failed to download image",
                         extra={"image_id": image.id, "url": image.url, "error": error},
@@ -152,11 +169,98 @@ class ImageAnalysisService(BaseService):
         )
         return stats
 
+    async def download_pending_images_async(
+        self,
+        limit: int = 100,
+        concurrency: int = 10,
+        progress_callback: callable | None = None,
+    ) -> DownloadStats:
+        """Download images concurrently with configurable parallelism.
+
+        Uses asyncio for parallel downloads, significantly faster than
+        sequential downloading for large batches.
+
+        Args:
+            limit: Maximum number of images to download.
+            concurrency: Maximum concurrent downloads.
+            progress_callback: Optional callback(done, total) for progress.
+
+        Returns:
+            Statistics about the download operation.
+        """
+        stats = DownloadStats()
+        semaphore = asyncio.Semaphore(concurrency)
+
+        # Get pending images
+        with self._connection_factory() as conn:
+            image_repo = LotImageRepository(conn)
+            pending = image_repo.get_pending_download(limit=limit)
+            stats.images_processed = len(pending)
+
+        if not pending:
+            return stats
+
+        async def download_one(image: LotImage) -> tuple[int, str | None, str | None]:
+            """Download a single image with semaphore."""
+            async with semaphore:
+                local_path, error = await self._downloader.download_lot_image_async(
+                    image
+                )
+                return image.id, local_path, error
+
+        # Download all concurrently
+        tasks = [download_one(img) for img in pending]
+        results = []
+        done_count = 0
+
+        for coro in asyncio.as_completed(tasks):
+            result = await coro
+            results.append(result)
+            done_count += 1
+            if progress_callback:
+                progress_callback(done_count, len(tasks))
+
+        # Update database with results
+        with self._connection_factory() as conn:
+            image_repo = LotImageRepository(conn)
+
+            for image_id, local_path, error in results:
+                if local_path:
+                    image_repo.mark_downloaded(image_id, local_path)
+                    stats.images_downloaded += 1
+                    try:
+                        stats.bytes_downloaded += Path(local_path).stat().st_size
+                    except Exception:
+                        pass
+                else:
+                    image_repo.mark_download_failed(image_id, error or "Unknown error")
+                    stats.images_failed += 1
+                    logger.warning(
+                        "Failed to download image",
+                        extra={"image_id": image_id, "error": error},
+                    )
+
+            conn.commit()
+
+        logger.info(
+            "Async download batch complete",
+            extra={
+                "processed": stats.images_processed,
+                "downloaded": stats.images_downloaded,
+                "failed": stats.images_failed,
+                "bytes": stats.bytes_downloaded,
+                "concurrency": concurrency,
+            },
+        )
+        return stats
+
     def analyze_pending_images(
         self,
         backend: Literal["local", "openai", "ml"] = "local",
         save_tokens: bool = True,
         confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
+        auto_approve_threshold: float = DEFAULT_AUTO_APPROVE_THRESHOLD,
+        auto_approve: bool = True,
         limit: int = 100,
     ) -> AnalysisStats:
         """Analyze downloaded images that haven't been analyzed yet.
@@ -165,11 +269,15 @@ class ImageAnalysisService(BaseService):
             backend: Analysis backend to use.
             save_tokens: Whether to save raw OCR token data for ML training.
             confidence_threshold: Below this, mark as needs_review.
+            auto_approve_threshold: Above this, auto-approve extracted codes.
+            auto_approve: Whether to auto-approve high-confidence codes.
             limit: Maximum number of images to analyze.
 
         Returns:
             Statistics about the analysis operation.
         """
+        import time
+
         stats = AnalysisStats()
 
         with self._connection_factory() as conn:
@@ -181,19 +289,24 @@ class ImageAnalysisService(BaseService):
             stats.images_processed = len(pending)
 
             for image in pending:
+                start_time = time.perf_counter()
+
                 if not image.local_path:
                     # Should not happen, but handle gracefully
                     image_repo.mark_analysis_failed(image.id, "No local path")
                     stats.images_failed += 1
+                    record_image_analysis(backend, "failed", 0.0)
                     continue
 
                 try:
                     # Analyze the image
                     result = self._ocr.analyze_local_image(image.local_path)
+                    duration = time.perf_counter() - start_time
 
                     if result.error:
                         image_repo.mark_analysis_failed(image.id, result.error)
                         stats.images_failed += 1
+                        record_image_analysis(backend, "failed", duration)
                         continue
 
                     # Calculate average confidence of extracted codes
@@ -203,9 +316,15 @@ class ImageAnalysisService(BaseService):
                     if avg_confidence < confidence_threshold and result.codes:
                         status = "needs_review"
                         stats.images_needs_review += 1
+                        record_image_analysis(
+                            backend, "needs_review", duration, len(result.codes)
+                        )
                     else:
                         status = "analyzed"
                         stats.images_analyzed += 1
+                        record_image_analysis(
+                            backend, "success", duration, len(result.codes)
+                        )
 
                     # Mark image as analyzed
                     image_repo.mark_analyzed(image.id, backend, status)
@@ -222,6 +341,17 @@ class ImageAnalysisService(BaseService):
                                 context=code.context,
                             )
                             stats.codes_extracted += 1
+
+                        # Auto-approve high-confidence codes
+                        if auto_approve and avg_confidence >= auto_approve_threshold:
+                            approved_count = code_repo.approve_codes_by_image(
+                                image.id, approved_by="auto"
+                            )
+                            if approved_count > 0:
+                                stats.codes_auto_approved += approved_count
+                                # Record metrics for each approved code type
+                                for code in result.codes:
+                                    record_code_approval("auto", code.code_type)
 
                     # Save token data for ML training
                     if save_tokens:
@@ -356,12 +486,130 @@ class ImageAnalysisService(BaseService):
         """
         with self._connection_factory() as conn:
             image_repo = LotImageRepository(conn)
+            code_repo = ExtractedCodeRepository(conn)
             token_repo = OcrTokenRepository(conn)
 
             return {
                 "images": image_repo.get_stats(),
+                "codes": code_repo.get_approval_stats(),
                 "tokens": token_repo.get_stats(),
             }
+
+    def promote_codes_to_lots(self, limit: int = 100) -> dict[str, int]:
+        """Promote approved codes to lot records.
+
+        This updates the lots table with extracted EAN codes, serial numbers,
+        and model numbers from approved extracted_codes.
+
+        Args:
+            limit: Maximum number of codes to process.
+
+        Returns:
+            Dictionary with counts of promoted codes by type.
+        """
+        promoted: dict[str, int] = {
+            "ean": 0,
+            "serial_number": 0,
+            "model_number": 0,
+            "product_code": 0,
+            "total": 0,
+        }
+
+        with self._connection_factory() as conn:
+            code_repo = ExtractedCodeRepository(conn)
+
+            # Get approved codes that haven't been promoted
+            codes = code_repo.get_approved_for_promotion(limit=limit)
+
+            for code in codes:
+                # Get the lot_id for this image
+                lot_info = self._fetch_one_as_dict(
+                    conn,
+                    "SELECT lot_id FROM lot_images WHERE id = ?",
+                    (code.lot_image_id,),
+                )
+                if not lot_info:
+                    continue
+
+                lot_id = lot_info["lot_id"]
+
+                # Update the lot based on code type
+                if code.code_type == "ean":
+                    # Check if lot already has this EAN in specs
+                    existing = self._fetch_one_as_dict(
+                        conn,
+                        "SELECT id FROM product_specs WHERE lot_id = ? AND key = 'ean' AND value = ?",
+                        (lot_id, code.value),
+                    )
+                    if not existing:
+                        conn.execute(
+                            """
+                            INSERT INTO product_specs (lot_id, key, value, source)
+                            VALUES (?, 'ean', ?, 'ocr')
+                            """,
+                            (lot_id, code.value),
+                        )
+                        promoted["ean"] += 1
+
+                elif code.code_type == "serial_number":
+                    existing = self._fetch_one_as_dict(
+                        conn,
+                        "SELECT id FROM product_specs WHERE lot_id = ? AND key = 'serial_number' AND value = ?",
+                        (lot_id, code.value),
+                    )
+                    if not existing:
+                        conn.execute(
+                            """
+                            INSERT INTO product_specs (lot_id, key, value, source)
+                            VALUES (?, 'serial_number', ?, 'ocr')
+                            """,
+                            (lot_id, code.value),
+                        )
+                        promoted["serial_number"] += 1
+
+                elif code.code_type == "model_number":
+                    existing = self._fetch_one_as_dict(
+                        conn,
+                        "SELECT id FROM product_specs WHERE lot_id = ? AND key = 'model_number' AND value = ?",
+                        (lot_id, code.value),
+                    )
+                    if not existing:
+                        conn.execute(
+                            """
+                            INSERT INTO product_specs (lot_id, key, value, source)
+                            VALUES (?, 'model_number', ?, 'ocr')
+                            """,
+                            (lot_id, code.value),
+                        )
+                        promoted["model_number"] += 1
+
+                elif code.code_type == "product_code":
+                    existing = self._fetch_one_as_dict(
+                        conn,
+                        "SELECT id FROM product_specs WHERE lot_id = ? AND key = 'product_code' AND value = ?",
+                        (lot_id, code.value),
+                    )
+                    if not existing:
+                        conn.execute(
+                            """
+                            INSERT INTO product_specs (lot_id, key, value, source)
+                            VALUES (?, 'product_code', ?, 'ocr')
+                            """,
+                            (lot_id, code.value),
+                        )
+                        promoted["product_code"] += 1
+
+                # Mark code as promoted
+                code_repo.mark_promoted(code.id)
+                promoted["total"] += 1
+
+            conn.commit()
+
+        logger.info(
+            "Promoted codes to lots",
+            extra=promoted,
+        )
+        return promoted
 
     def _calculate_confidence(self, codes: list[ExtractedCode]) -> float:
         """Calculate average confidence score from extracted codes.

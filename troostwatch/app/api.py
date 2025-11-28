@@ -28,6 +28,8 @@ from troostwatch.app.dependencies import (
     PositionRepositoryDep,
     AuctionRepositoryDep,
     BidRepositoryDep,
+    ExtractedCodeRepositoryDep,
+    LotImageRepositoryDep,
 )
 from troostwatch.app.ws_messages import (
     ConnectionReadyMessage,
@@ -451,6 +453,78 @@ class ImageAnalysisResponse(BaseModel):
     """Response with analyzed image results."""
 
     results: list[ImageAnalysisResultResponse] = Field(default_factory=list)
+
+
+# ============================================================================
+# Review Queue Models
+# ============================================================================
+
+
+class PendingCodeResponse(BaseModel):
+    """An extracted code pending review."""
+
+    id: int
+    lot_image_id: int
+    lot_id: int
+    lot_code: str
+    image_url: str | None = None
+    image_local_path: str | None = None
+    code_type: str
+    value: str
+    confidence: str
+    context: str | None = None
+    created_at: str
+
+
+class PendingCodesListResponse(BaseModel):
+    """List of pending codes for review."""
+
+    codes: list[PendingCodeResponse] = Field(default_factory=list)
+    total: int
+    page: int = 1
+    page_size: int = 20
+
+
+class CodeApprovalRequest(BaseModel):
+    """Request to approve or reject a code."""
+
+    approved: bool
+    reason: str | None = None
+
+
+class CodeApprovalResponse(BaseModel):
+    """Response after approving/rejecting a code."""
+
+    id: int
+    approved: bool
+    approved_by: str | None = None
+    approved_at: str | None = None
+
+
+class BulkApprovalRequest(BaseModel):
+    """Request to approve/reject multiple codes."""
+
+    code_ids: list[int] = Field(..., min_length=1, max_length=100)
+    approved: bool
+    reason: str | None = None
+
+
+class BulkApprovalResponse(BaseModel):
+    """Response after bulk approval/rejection."""
+
+    processed: int
+    approved: int
+    rejected: int
+
+
+class ReviewStatsResponse(BaseModel):
+    """Statistics for the review queue."""
+
+    pending: int
+    approved_auto: int
+    approved_manual: int
+    rejected: int
+    total: int
 
 
 class LotCreateResponse(BaseModel):
@@ -1643,3 +1717,147 @@ async def analyze_images(
         )
     finally:
         await analyzer.close()
+
+
+# ============================================================================
+# Review Queue Endpoints
+# ============================================================================
+
+
+@app.get("/review/codes/pending", response_model=PendingCodesListResponse)
+async def get_pending_codes(
+    code_repo: ExtractedCodeRepositoryDep,
+    image_repo: LotImageRepositoryDep,
+    lot_repo: LotRepositoryDep,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    code_type: str | None = None,
+) -> PendingCodesListResponse:
+    """Get extracted codes pending manual review.
+
+    Returns codes that have not been auto-approved and need human review.
+    """
+    offset = (page - 1) * page_size
+
+    # Get pending codes from repository
+    pending = code_repo.get_pending_approval(limit=page_size, offset=offset)
+    total = code_repo.count_pending_approval()
+
+    codes = []
+    for code in pending:
+        # Get image info
+        image = image_repo.get_by_id(code.lot_image_id)
+        if not image:
+            continue
+
+        # Get lot info
+        lot = lot_repo.get_lot_by_id(image.lot_id)
+        lot_code = lot.lot_code if lot else f"unknown-{image.lot_id}"
+
+        codes.append(
+            PendingCodeResponse(
+                id=code.id,
+                lot_image_id=code.lot_image_id,
+                lot_id=image.lot_id,
+                lot_code=lot_code,
+                image_url=image.url,
+                image_local_path=image.local_path,
+                code_type=code.code_type,
+                value=code.value,
+                confidence=code.confidence,
+                context=code.context,
+                created_at=code.created_at,
+            )
+        )
+
+    return PendingCodesListResponse(
+        codes=codes,
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@app.post("/review/codes/{code_id}/approve", response_model=CodeApprovalResponse)
+async def approve_code(
+    code_id: int,
+    code_repo: ExtractedCodeRepositoryDep,
+) -> CodeApprovalResponse:
+    """Approve an extracted code for promotion to lot record."""
+    code = code_repo.get_by_id(code_id)
+    if not code:
+        raise HTTPException(status_code=404, detail="Code not found")
+
+    code_repo.approve_code(code_id, approved_by="manual")
+
+    # Fetch updated code
+    updated = code_repo.get_by_id(code_id)
+    return CodeApprovalResponse(
+        id=code_id,
+        approved=True,
+        approved_by=updated.approved_by if updated else "manual",
+        approved_at=updated.approved_at if updated else None,
+    )
+
+
+@app.post("/review/codes/{code_id}/reject", response_model=CodeApprovalResponse)
+async def reject_code(
+    code_id: int,
+    code_repo: ExtractedCodeRepositoryDep,
+) -> CodeApprovalResponse:
+    """Reject an extracted code (mark as not approved)."""
+    code = code_repo.get_by_id(code_id)
+    if not code:
+        raise HTTPException(status_code=404, detail="Code not found")
+
+    code_repo.reject_code(code_id)
+
+    return CodeApprovalResponse(
+        id=code_id,
+        approved=False,
+        approved_by=None,
+        approved_at=None,
+    )
+
+
+@app.post("/review/codes/bulk", response_model=BulkApprovalResponse)
+async def bulk_approve_codes(
+    request: BulkApprovalRequest,
+    code_repo: ExtractedCodeRepositoryDep,
+) -> BulkApprovalResponse:
+    """Approve or reject multiple codes at once."""
+    approved_count = 0
+    rejected_count = 0
+
+    for code_id in request.code_ids:
+        code = code_repo.get_by_id(code_id)
+        if not code:
+            continue
+
+        if request.approved:
+            code_repo.approve_code(code_id, approved_by="manual")
+            approved_count += 1
+        else:
+            code_repo.reject_code(code_id)
+            rejected_count += 1
+
+    return BulkApprovalResponse(
+        processed=approved_count + rejected_count,
+        approved=approved_count,
+        rejected=rejected_count,
+    )
+
+
+@app.get("/review/stats", response_model=ReviewStatsResponse)
+async def get_review_stats(
+    code_repo: ExtractedCodeRepositoryDep,
+) -> ReviewStatsResponse:
+    """Get statistics for the review queue."""
+    stats = code_repo.get_approval_stats()
+    return ReviewStatsResponse(
+        pending=stats.get("pending", 0),
+        approved_auto=stats.get("approved_auto", 0),
+        approved_manual=stats.get("approved_manual", 0),
+        rejected=stats.get("rejected", 0),
+        total=stats.get("total", 0),
+    )

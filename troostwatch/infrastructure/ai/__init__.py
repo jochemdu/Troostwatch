@@ -8,6 +8,14 @@ from .image_analyzer import (
     OpenAIAnalyzer,
     extract_codes_from_text,
 )
+from .vendor_profiles import (
+    VendorProfile,
+    CodePattern,
+    VENDOR_PROFILES,
+    detect_vendor,
+    extract_vendor_codes,
+    get_all_vendor_names,
+)
 
 __all__ = [
     "ImageAnalyzer",
@@ -16,4 +24,11 @@ __all__ = [
     "LocalOCRAnalyzer",
     "OpenAIAnalyzer",
     "extract_codes_from_text",
+    # Vendor profiles
+    "VendorProfile",
+    "CodePattern",
+    "VENDOR_PROFILES",
+    "detect_vendor",
+    "extract_vendor_codes",
+    "get_all_vendor_names",
 ]

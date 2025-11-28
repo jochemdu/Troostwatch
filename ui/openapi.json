@@ -83,12 +83,14 @@
               "anyOf": [
                 {
                   "type": "integer",
+                  "maximum": 1000,
                   "minimum": 1
                 },
                 {
                   "type": "null"
                 }
               ],
+              "default": 100,
               "title": "Limit"
             }
           }
@@ -343,6 +345,48 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Lot",
+        "description": "Delete a lot and all related data (specs, bids, reference prices, positions).",
+        "operationId": "delete_lot_lots__lot_code__delete",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "auction_code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Auction code is required to identify the lot",
+              "title": "Auction Code"
+            },
+            "description": "Auction code is required to identify the lot"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -1715,6 +1759,253 @@
           }
         }
       }
+    },
+    "/images/analyze": {
+      "post": {
+        "summary": "Analyze Images",
+        "description": "Analyze images for product codes, model numbers, and EAN codes.\n\nSupports two backends:\n- 'local': Uses Tesseract OCR with regex extraction (free, offline)\n- 'openai': Uses GPT-4 Vision API (requires OPENAI_API_KEY)\n\nThe local backend requires pytesseract and tesseract-ocr to be installed.",
+        "operationId": "analyze_images_images_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageAnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageAnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/codes/pending": {
+      "get": {
+        "summary": "Get Pending Codes",
+        "description": "Get extracted codes pending manual review.\n\nReturns codes that have not been auto-approved and need human review.",
+        "operationId": "get_pending_codes_review_codes_pending_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "code_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingCodesListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/codes/{code_id}/approve": {
+      "post": {
+        "summary": "Approve Code",
+        "description": "Approve an extracted code for promotion to lot record.",
+        "operationId": "approve_code_review_codes__code_id__approve_post",
+        "parameters": [
+          {
+            "name": "code_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Code Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeApprovalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/codes/{code_id}/reject": {
+      "post": {
+        "summary": "Reject Code",
+        "description": "Reject an extracted code (mark as not approved).",
+        "operationId": "reject_code_review_codes__code_id__reject_post",
+        "parameters": [
+          {
+            "name": "code_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Code Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeApprovalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/codes/bulk": {
+      "post": {
+        "summary": "Bulk Approve Codes",
+        "description": "Approve or reject multiple codes at once.",
+        "operationId": "bulk_approve_codes_review_codes_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkApprovalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkApprovalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/stats": {
+      "get": {
+        "summary": "Get Review Stats",
+        "description": "Get statistics for the review queue.",
+        "operationId": "get_review_stats_review_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewStatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1773,50 +2064,6 @@
           "auction_code": {
             "type": "string",
             "title": "Auction Code"
-          },
-          "title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Title"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Url"
-          },
-          "starts_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Starts At"
-          },
-          "ends_at_planned": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ends At Planned"
           },
           "lot_count": {
             "type": "integer",
@@ -2073,17 +2320,6 @@
           "placed_at": {
             "type": "string",
             "title": "Placed At"
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note"
           }
         },
         "type": "object",
@@ -2098,33 +2334,70 @@
         "title": "BidResponse",
         "description": "A recorded bid."
       },
+      "BulkApprovalRequest": {
+        "properties": {
+          "code_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Code Ids"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code_ids",
+          "approved"
+        ],
+        "title": "BulkApprovalRequest",
+        "description": "Request to approve/reject multiple codes."
+      },
+      "BulkApprovalResponse": {
+        "properties": {
+          "processed": {
+            "type": "integer",
+            "title": "Processed"
+          },
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "processed",
+          "approved",
+          "rejected"
+        ],
+        "title": "BulkApprovalResponse",
+        "description": "Response after bulk approval/rejection."
+      },
       "BuyerCreateRequest": {
         "properties": {
           "label": {
             "type": "string",
             "title": "Label"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "notes": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
           }
         },
         "type": "object",
@@ -2244,6 +2517,47 @@
         "title": "BuyerSummaryResponse",
         "description": "Buyer exposure and position summary."
       },
+      "CodeApprovalResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "approved"
+        ],
+        "title": "CodeApprovalResponse",
+        "description": "Response after approving/rejecting a code."
+      },
       "DashboardStatsResponse": {
         "properties": {
           "total_auctions": {
@@ -2298,6 +2612,41 @@
         "title": "DashboardStatsResponse",
         "description": "Dashboard statistics overview."
       },
+      "ExtractedCodeResponse": {
+        "properties": {
+          "code_type": {
+            "type": "string",
+            "title": "Code Type"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "confidence": {
+            "type": "string",
+            "title": "Confidence"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code_type",
+          "value",
+          "confidence"
+        ],
+        "title": "ExtractedCodeResponse",
+        "description": "A code extracted from an image."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2310,6 +2659,89 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "ImageAnalysisRequest": {
+        "properties": {
+          "image_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Image Urls"
+          },
+          "backend": {
+            "type": "string",
+            "pattern": "^(local|openai)$",
+            "title": "Backend",
+            "description": "Backend to use: 'local' (Tesseract OCR) or 'openai' (GPT-4 Vision)",
+            "default": "local"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_urls"
+        ],
+        "title": "ImageAnalysisRequest",
+        "description": "Request to analyze images for product codes."
+      },
+      "ImageAnalysisResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ImageAnalysisResultResponse"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "title": "ImageAnalysisResponse",
+        "description": "Response with analyzed image results."
+      },
+      "ImageAnalysisResultResponse": {
+        "properties": {
+          "image_url": {
+            "type": "string",
+            "title": "Image Url"
+          },
+          "codes": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractedCodeResponse"
+            },
+            "type": "array",
+            "title": "Codes"
+          },
+          "raw_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Text"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_url"
+        ],
+        "title": "ImageAnalysisResultResponse",
+        "description": "Result of analyzing a single image."
       },
       "LiveSyncControlResponse": {
         "properties": {
@@ -3112,6 +3544,119 @@
         "title": "LotView",
         "description": "DTO representing a lot summary suitable for API responses."
       },
+      "PendingCodeResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "lot_image_id": {
+            "type": "integer",
+            "title": "Lot Image Id"
+          },
+          "lot_id": {
+            "type": "integer",
+            "title": "Lot Id"
+          },
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "image_local_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Local Path"
+          },
+          "code_type": {
+            "type": "string",
+            "title": "Code Type"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "confidence": {
+            "type": "string",
+            "title": "Confidence"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "lot_image_id",
+          "lot_id",
+          "lot_code",
+          "code_type",
+          "value",
+          "confidence",
+          "created_at"
+        ],
+        "title": "PendingCodeResponse",
+        "description": "An extracted code pending review."
+      },
+      "PendingCodesListResponse": {
+        "properties": {
+          "codes": {
+            "items": {
+              "$ref": "#/components/schemas/PendingCodeResponse"
+            },
+            "type": "array",
+            "title": "Codes"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "default": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "default": 20
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "PendingCodesListResponse",
+        "description": "List of pending codes for review."
+      },
       "PositionBatchRequest": {
         "properties": {
           "updates": {
@@ -3156,10 +3701,6 @@
       },
       "PositionResponse": {
         "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
           "buyer_label": {
             "type": "string",
             "title": "Buyer Label"
@@ -3179,6 +3720,11 @@
             ],
             "title": "Auction Code"
           },
+          "track_active": {
+            "type": "boolean",
+            "title": "Track Active",
+            "default": true
+          },
           "max_budget_total_eur": {
             "anyOf": [
               {
@@ -3190,7 +3736,7 @@
             ],
             "title": "Max Budget Total Eur"
           },
-          "preferred_bid_eur": {
+          "my_highest_bid_eur": {
             "anyOf": [
               {
                 "type": "number"
@@ -3199,12 +3745,7 @@
                 "type": "null"
               }
             ],
-            "title": "Preferred Bid Eur"
-          },
-          "track_active": {
-            "type": "boolean",
-            "title": "Track Active",
-            "default": true
+            "title": "My Highest Bid Eur"
           },
           "lot_title": {
             "anyOf": [
@@ -3217,6 +3758,17 @@
             ],
             "title": "Lot Title"
           },
+          "lot_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot State"
+          },
           "current_bid_eur": {
             "anyOf": [
               {
@@ -3227,22 +3779,10 @@
               }
             ],
             "title": "Current Bid Eur"
-          },
-          "closing_time": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Closing Time"
           }
         },
         "type": "object",
         "required": [
-          "id",
           "buyer_label",
           "lot_code"
         ],
@@ -3258,17 +3798,6 @@
           "lot_code": {
             "type": "string",
             "title": "Lot Code"
-          },
-          "auction_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Auction Code"
           },
           "max_budget_total_eur": {
             "anyOf": [
@@ -3325,39 +3854,6 @@
             "type": "number",
             "minimum": 0.0,
             "title": "Price Eur"
-          },
-          "source": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Url"
-          },
-          "notes": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
           }
         },
         "type": "object",
@@ -3380,39 +3876,6 @@
           "price_eur": {
             "type": "number",
             "title": "Price Eur"
-          },
-          "source": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source"
-          },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Url"
-          },
-          "notes": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Notes"
           },
           "created_at": {
             "anyOf": [
@@ -3472,17 +3935,6 @@
             ],
             "title": "Source"
           },
-          "url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Url"
-          },
           "notes": {
             "anyOf": [
               {
@@ -3498,6 +3950,40 @@
         "type": "object",
         "title": "ReferencePriceUpdateRequest",
         "description": "Request to update a reference price."
+      },
+      "ReviewStatsResponse": {
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "approved_auto": {
+            "type": "integer",
+            "title": "Approved Auto"
+          },
+          "approved_manual": {
+            "type": "integer",
+            "title": "Approved Manual"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending",
+          "approved_auto",
+          "approved_manual",
+          "rejected",
+          "total"
+        ],
+        "title": "ReviewStatsResponse",
+        "description": "Statistics for the review queue."
       },
       "SearchResultResponse": {
         "properties": {
@@ -3573,39 +4059,6 @@
             "type": "string",
             "title": "Title"
           },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Value"
-          },
-          "ean": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ean"
-          },
-          "price_eur": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price Eur"
-          },
           "parent_id": {
             "anyOf": [
               {
@@ -3616,28 +4069,6 @@
               }
             ],
             "title": "Parent Id"
-          },
-          "release_date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Release Date"
-          },
-          "category": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Category"
           }
         },
         "type": "object",

@@ -198,6 +198,17 @@ def extract_codes_from_text(text: str) -> list[ExtractedCode]:
                 context="Product code pattern",
             ))
 
+    # Try vendor-specific extraction for higher accuracy
+    try:
+        from .vendor_profiles import extract_vendor_codes
+        vendor_codes = extract_vendor_codes(text)
+        for vc in vendor_codes:
+            if vc.value not in seen:
+                seen.add(vc.value)
+                codes.append(vc)
+    except ImportError:
+        pass  # Vendor profiles not available
+
     return codes
 
 

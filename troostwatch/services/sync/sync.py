@@ -10,7 +10,6 @@ import time
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
@@ -21,7 +20,11 @@ from troostwatch.infrastructure.db import (
     get_connection,
     iso_utcnow,
 )
-from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
+from troostwatch.infrastructure.db.repositories import (
+    AuctionRepository,
+    LotImageRepository,
+    LotRepository,
+)
 from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.web.parsers import (
     LotCardData,
@@ -324,15 +327,13 @@ def _upsert_lot(
     last_seen_at: str,
     detail_last_seen_at: str,
     repository: LotRepository | None = None,
-    image_repository: "LotImageRepository | None" = None,
+    image_repository: LotImageRepository | None = None,
 ) -> int | None:
     """Upsert a lot and its images.
 
     Returns:
         The lot ID if successful, None otherwise.
     """
-    from troostwatch.infrastructure.db.repositories import LotImageRepository
-
     repo = repository or LotRepository(conn)
     lot_id = repo.upsert_from_parsed(
         auction_id,

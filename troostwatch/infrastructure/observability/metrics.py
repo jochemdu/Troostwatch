@@ -227,6 +227,15 @@ SYNC_LOTS_PROCESSED = "sync_lots_processed_total"
 # Bidding metrics
 BIDS = "bids_total"
 
+# Image pipeline metrics
+IMAGE_DOWNLOADS = "image_downloads_total"
+IMAGE_DOWNLOAD_DURATION = "image_download_duration_seconds"
+IMAGE_DOWNLOADS_BYTES = "image_downloads_bytes_total"
+IMAGE_ANALYSIS = "image_analysis_total"
+IMAGE_ANALYSIS_DURATION = "image_analysis_duration_seconds"
+EXTRACTED_CODES = "extracted_codes_total"
+CODE_APPROVALS = "code_approvals_total"
+
 
 def record_api_request(
     endpoint: str, method: str, status_code: int, duration: float
@@ -272,6 +281,114 @@ def record_bid(outcome: str, auction_code: str, lot_code: str) -> None:
         labels={"outcome": outcome, "auction_code": auction_code},
         help_text="Total bid attempts",
     )
+
+
+def record_image_download(
+    status: str, duration: float, bytes_downloaded: int = 0
+) -> None:
+    """Record an image download operation.
+
+    Args:
+        status: 'success' or 'failed'
+        duration: Download time in seconds
+        bytes_downloaded: Size of downloaded image
+    """
+    increment_counter(
+        IMAGE_DOWNLOADS,
+        labels={"status": status},
+        help_text="Total image download attempts",
+    )
+    observe_histogram(
+        IMAGE_DOWNLOAD_DURATION,
+        duration,
+        labels={"status": status},
+        help_text="Image download duration in seconds",
+    )
+    if bytes_downloaded > 0:
+        increment_counter(
+            IMAGE_DOWNLOADS_BYTES,
+            value=float(bytes_downloaded),
+            help_text="Total bytes downloaded for images",
+        )
+
+
+def record_image_analysis(
+    backend: str, status: str, duration: float, codes_extracted: int = 0
+) -> None:
+    """Record an image analysis operation.
+
+    Args:
+        backend: 'local', 'openai', or 'ml'
+        status: 'success', 'needs_review', or 'failed'
+        duration: Analysis time in seconds
+        codes_extracted: Number of codes extracted
+    """
+    increment_counter(
+        IMAGE_ANALYSIS,
+        labels={"backend": backend, "status": status},
+        help_text="Total image analysis operations",
+    )
+    observe_histogram(
+        IMAGE_ANALYSIS_DURATION,
+        duration,
+        labels={"backend": backend},
+        help_text="Image analysis duration in seconds",
+    )
+    if codes_extracted > 0:
+        increment_counter(
+            EXTRACTED_CODES,
+            value=float(codes_extracted),
+            labels={"backend": backend},
+            help_text="Total codes extracted from images",
+        )
+
+
+def record_code_approval(approval_type: str, code_type: str) -> None:
+    """Record a code approval event.
+
+    Args:
+        approval_type: 'auto', 'manual', or 'rejected'
+        code_type: 'ean', 'serial_number', 'model_number', 'product_code'
+    """
+    increment_counter(
+        CODE_APPROVALS,
+        labels={"approval_type": approval_type, "code_type": code_type},
+        help_text="Total code approval events",
+    )
+
+
+def get_image_pipeline_stats() -> dict[str, object]:
+    """Get summary statistics for the image pipeline.
+
+    Returns a dictionary suitable for CLI display or API response.
+    """
+    downloads = _registry.counter(IMAGE_DOWNLOADS)
+    analysis = _registry.counter(IMAGE_ANALYSIS)
+    codes = _registry.counter(EXTRACTED_CODES)
+    approvals = _registry.counter(CODE_APPROVALS)
+
+    return {
+        "downloads": {
+            "success": downloads.get({"status": "success"}),
+            "failed": downloads.get({"status": "failed"}),
+        },
+        "analysis": {
+            "local_success": analysis.get({"backend": "local", "status": "success"}),
+            "local_review": analysis.get({"backend": "local", "status": "needs_review"}),
+            "local_failed": analysis.get({"backend": "local", "status": "failed"}),
+            "openai_success": analysis.get({"backend": "openai", "status": "success"}),
+        },
+        "codes_extracted": {
+            "local": codes.get({"backend": "local"}),
+            "openai": codes.get({"backend": "openai"}),
+            "ml": codes.get({"backend": "ml"}),
+        },
+        "approvals": {
+            "auto": approvals.get({"approval_type": "auto"}),
+            "manual": approvals.get({"approval_type": "manual"}),
+            "rejected": approvals.get({"approval_type": "rejected"}),
+        },
+    }
 
 
 # ---------------------------------------------------------------------------

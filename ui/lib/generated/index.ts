@@ -30,3 +30,12 @@ export type PositionBatchRequest = import('./api-types').components['schemas']['
 export type PositionBatchResponse = import('./api-types').components['schemas']['PositionBatchResponse'];
 export type ValidationError = import('./api-types').components['schemas']['ValidationError'];
 export type HTTPValidationError = import('./api-types').components['schemas']['HTTPValidationError'];
+
+// Review Queue types
+export type PendingCodeResponse = import('./api-types').components['schemas']['PendingCodeResponse'];
+export type PendingCodesListResponse = import('./api-types').components['schemas']['PendingCodesListResponse'];
+export type CodeApprovalRequest = import('./api-types').components['schemas']['CodeApprovalRequest'];
+export type CodeApprovalResponse = import('./api-types').components['schemas']['CodeApprovalResponse'];
+export type BulkApprovalRequest = import('./api-types').components['schemas']['BulkApprovalRequest'];
+export type BulkApprovalResponse = import('./api-types').components['schemas']['BulkApprovalResponse'];
+export type ReviewStatsResponse = import('./api-types').components['schemas']['ReviewStatsResponse'];

@@ -45,6 +45,10 @@ class ExtractedCode:
     confidence: str
     context: str | None
     created_at: str
+    approved: bool = False
+    approved_at: str | None = None
+    approved_by: str | None = None  # 'auto', 'manual', 'openai'
+    promoted_to_lot: bool = False
 
 
 @dataclass
@@ -105,6 +109,16 @@ class LotImageRepository(BaseRepository):
             (lot_id,),
         )
         return [self._row_to_image(row) for row in rows]
+
+    def get_by_id(self, image_id: int) -> LotImage | None:
+        """Get a single image by ID."""
+        row = self._fetch_one_as_dict(
+            "SELECT * FROM lot_images WHERE id = ?",
+            (image_id,),
+        )
+        if not row or row.get("id") is None:
+            return None
+        return self._row_to_image(row)
 
     def get_pending_download(self, limit: int = 100) -> list[LotImage]:
         """Get images that need to be downloaded."""
@@ -332,6 +346,32 @@ class ExtractedCodeRepository(BaseRepository):
             inserted_ids.append(code_id)
         return inserted_ids
 
+    def bulk_insert_codes(
+        self,
+        codes: list[tuple[int, str, str, str, str | None]],
+    ) -> int:
+        """Bulk insert extracted codes for maximum performance.
+
+        Uses executemany for efficient batch insertion.
+
+        Args:
+            codes: List of tuples (lot_image_id, code_type, value, confidence, context)
+
+        Returns:
+            Number of codes inserted
+        """
+        if not codes:
+            return 0
+
+        self.conn.executemany(
+            """
+            INSERT INTO extracted_codes (lot_image_id, code_type, value, confidence, context)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            codes,
+        )
+        return len(codes)
+
     def get_by_image_id(self, lot_image_id: int) -> list[ExtractedCode]:
         """Get all codes extracted from an image."""
         rows = self._fetch_all_as_dicts(
@@ -375,6 +415,163 @@ class ExtractedCodeRepository(BaseRepository):
             confidence=row["confidence"],
             context=row["context"],
             created_at=row["created_at"],
+            approved=bool(row.get("approved", 0)),
+            approved_at=row.get("approved_at"),
+            approved_by=row.get("approved_by"),
+            promoted_to_lot=bool(row.get("promoted_to_lot", 0)),
+        )
+
+    def approve_code(
+        self,
+        code_id: int,
+        approved_by: str = "manual",
+    ) -> None:
+        """Mark a code as approved."""
+        self.conn.execute(
+            """
+            UPDATE extracted_codes
+            SET approved = 1,
+                approved_at = datetime('now'),
+                approved_by = ?
+            WHERE id = ?
+            """,
+            (approved_by, code_id),
+        )
+
+    def approve_codes_by_image(
+        self,
+        lot_image_id: int,
+        approved_by: str = "auto",
+    ) -> int:
+        """Approve all codes for an image. Returns count of approved codes."""
+        cur = self.conn.execute(
+            """
+            UPDATE extracted_codes
+            SET approved = 1,
+                approved_at = datetime('now'),
+                approved_by = ?
+            WHERE lot_image_id = ? AND approved = 0
+            """,
+            (approved_by, lot_image_id),
+        )
+        return cur.rowcount
+
+    def get_unapproved(self, limit: int = 100) -> list[ExtractedCode]:
+        """Get codes that need manual approval."""
+        rows = self._fetch_all_as_dicts(
+            """
+            SELECT * FROM extracted_codes
+            WHERE approved = 0
+            ORDER BY created_at
+            LIMIT ?
+            """,
+            (limit,),
+        )
+        return [self._row_to_code(row) for row in rows]
+
+    def get_approved_for_promotion(self, limit: int = 100) -> list[ExtractedCode]:
+        """Get approved codes that haven't been promoted to lots yet."""
+        rows = self._fetch_all_as_dicts(
+            """
+            SELECT * FROM extracted_codes
+            WHERE approved = 1 AND promoted_to_lot = 0
+            ORDER BY created_at
+            LIMIT ?
+            """,
+            (limit,),
+        )
+        return [self._row_to_code(row) for row in rows]
+
+    def mark_promoted(self, code_id: int) -> None:
+        """Mark a code as promoted to the lot record."""
+        self.conn.execute(
+            """
+            UPDATE extracted_codes
+            SET promoted_to_lot = 1
+            WHERE id = ?
+            """,
+            (code_id,),
+        )
+
+    def get_approval_stats(self) -> dict[str, int]:
+        """Get statistics about code approvals."""
+        cur = self.conn.execute(
+            """
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN approved = 1 THEN 1 ELSE 0 END) as approved,
+                SUM(CASE WHEN approved = 0 THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN promoted_to_lot = 1 THEN 1 ELSE 0 END) as promoted,
+                SUM(CASE WHEN approved_by = 'auto' THEN 1 ELSE 0 END) as auto_approved,
+                SUM(CASE WHEN approved_by = 'manual' THEN 1 ELSE 0 END) as manually_approved
+            FROM extracted_codes
+            """
+        )
+        row = cur.fetchone()
+        return {
+            "total": row[0] or 0,
+            "approved": row[1] or 0,
+            "pending": row[2] or 0,
+            "promoted": row[3] or 0,
+            "auto_approved": row[4] or 0,
+            "manually_approved": row[5] or 0,
+            "approved_auto": row[4] or 0,
+            "approved_manual": row[5] or 0,
+            "rejected": 0,  # Not tracked separately yet
+        }
+
+    def get_by_id(self, code_id: int) -> ExtractedCode | None:
+        """Get a single code by ID."""
+        row = self._fetch_one_as_dict(
+            "SELECT * FROM extracted_codes WHERE id = ?",
+            (code_id,),
+        )
+        if not row or row.get("id") is None:
+            return None
+        return self._row_to_code(row)
+
+    def get_pending_approval(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[ExtractedCode]:
+        """Get codes pending approval with pagination."""
+        rows = self._fetch_all_as_dicts(
+            """
+            SELECT * FROM extracted_codes
+            WHERE approved = 0
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset),
+        )
+        return [self._row_to_code(row) for row in rows]
+
+    def count_pending_approval(self) -> int:
+        """Count total codes pending approval."""
+        cur = self.conn.execute(
+            "SELECT COUNT(*) FROM extracted_codes WHERE approved = 0"
+        )
+        row = cur.fetchone()
+        return row[0] if row else 0
+
+    def reject_code(self, code_id: int) -> None:
+        """Reject a code by deleting it or marking it rejected.
+
+        Currently we just leave it as not approved.
+        Future: could add a rejected flag.
+        """
+        # For now, we don't delete - just ensure it stays unapproved
+        # Could add a rejected_at column in future
+        self.conn.execute(
+            """
+            UPDATE extracted_codes
+            SET approved = 0,
+                approved_by = NULL,
+                approved_at = NULL
+            WHERE id = ?
+            """,
+            (code_id,),
         )
 
 

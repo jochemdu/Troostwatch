@@ -121,11 +121,11 @@ De pipeline bestaat uit drie blokken:
 
 ## Iteratie 2: Verfijning (toekomstig)
 
-- [ ] Vendor-specifieke post-processing profielen (HP, Lenovo, Ubiquiti)
-- [ ] Confidence-based auto-approve voor high-confidence codes
-- [ ] UI component voor handmatige review queue
-- [ ] Batch processing optimalisaties
-- [ ] Metrics en monitoring voor analyse pipeline
+- [x] Vendor-specifieke post-processing profielen (HP, Lenovo, Ubiquiti, Dell, Apple, Samsung, Cisco)
+- [x] Confidence-based auto-approve voor high-confidence codes
+- [x] UI component voor handmatige review queue
+- [x] Batch processing optimalisaties (parallel downloads, bulk inserts, progress bars)
+- [x] Metrics en monitoring voor analyse pipeline
 
 ---
 
@@ -142,6 +142,12 @@ De pipeline bestaat uit drie blokken:
 | 7. CLI commando's | ✅ Done | 2025-11-28 |
 | 8. ML-service | ✅ Done | 2025-11-28 |
 | 9. Training script/docs | ✅ Done | 2025-11-28 |
+| **Iteratie 2** | | |
+| 10. Vendor profiles | ✅ Done | 2025-11-28 |
+| 11. Auto-approve | ✅ Done | 2025-11-28 |
+| 12. UI Review Queue | ✅ Done | 2025-11-28 |
+| 13. Batch optimizations | ✅ Done | 2025-11-28 |
+| 14. Metrics & monitoring | ✅ Done | 2025-11-28 |
 
 **Legenda:** ⬜ Todo | 🔄 In progress | ✅ Done
 

@@ -79,7 +79,11 @@ export interface paths {
         get: operations["get_lot_detail_lots__lot_code__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Lot
+         * @description Delete a lot and all related data (specs, bids, reference prices, positions).
+         */
+        delete: operations["delete_lot_lots__lot_code__delete"];
         options?: never;
         head?: never;
         /**
@@ -554,6 +558,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/images/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyze Images
+         * @description Analyze images for product codes, model numbers, and EAN codes.
+         *
+         *     Supports two backends:
+         *     - 'local': Uses Tesseract OCR with regex extraction (free, offline)
+         *     - 'openai': Uses GPT-4 Vision API (requires OPENAI_API_KEY)
+         *
+         *     The local backend requires pytesseract and tesseract-ocr to be installed.
+         */
+        post: operations["analyze_images_images_analyze_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/review/codes/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pending Codes
+         * @description Get extracted codes pending manual review.
+         *
+         *     Returns codes that have not been auto-approved and need human review.
+         */
+        get: operations["get_pending_codes_review_codes_pending_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/review/codes/{code_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Code
+         * @description Approve an extracted code for promotion to lot record.
+         */
+        post: operations["approve_code_review_codes__code_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/review/codes/{code_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Code
+         * @description Reject an extracted code (mark as not approved).
+         */
+        post: operations["reject_code_review_codes__code_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/review/codes/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Approve Codes
+         * @description Approve or reject multiple codes at once.
+         */
+        post: operations["bulk_approve_codes_review_codes_bulk_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/review/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Review Stats
+         * @description Get statistics for the review queue.
+         */
+        get: operations["get_review_stats_review_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -587,14 +719,6 @@ export interface components {
         AuctionDetailResponse: {
             /** Auction Code */
             auction_code: string;
-            /** Title */
-            title?: string | null;
-            /** Url */
-            url?: string | null;
-            /** Starts At */
-            starts_at?: string | null;
-            /** Ends At Planned */
-            ends_at_planned?: string | null;
             /**
              * Lot Count
              * @default 0
@@ -692,17 +816,35 @@ export interface components {
             amount_eur: number;
             /** Placed At */
             placed_at: string;
-            /** Note */
-            note?: string | null;
+        };
+        /**
+         * BulkApprovalRequest
+         * @description Request to approve/reject multiple codes.
+         */
+        BulkApprovalRequest: {
+            /** Code Ids */
+            code_ids: number[];
+            /** Approved */
+            approved: boolean;
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
+         * BulkApprovalResponse
+         * @description Response after bulk approval/rejection.
+         */
+        BulkApprovalResponse: {
+            /** Processed */
+            processed: number;
+            /** Approved */
+            approved: number;
+            /** Rejected */
+            rejected: number;
         };
         /** BuyerCreateRequest */
         BuyerCreateRequest: {
             /** Label */
             label: string;
-            /** Name */
-            name?: string | null;
-            /** Notes */
-            notes?: string | null;
         };
         /** BuyerCreateResponse */
         BuyerCreateResponse: {
@@ -760,6 +902,20 @@ export interface components {
             won_lots?: components["schemas"]["TrackedLotSummaryResponse"][];
         };
         /**
+         * CodeApprovalResponse
+         * @description Response after approving/rejecting a code.
+         */
+        CodeApprovalResponse: {
+            /** Id */
+            id: number;
+            /** Approved */
+            approved: boolean;
+            /** Approved By */
+            approved_by?: string | null;
+            /** Approved At */
+            approved_at?: string | null;
+        };
+        /**
          * DashboardStatsResponse
          * @description Dashboard statistics overview.
          */
@@ -783,10 +939,60 @@ export interface components {
             /** Total Buyers */
             total_buyers: number;
         };
+        /**
+         * ExtractedCodeResponse
+         * @description A code extracted from an image.
+         */
+        ExtractedCodeResponse: {
+            /** Code Type */
+            code_type: string;
+            /** Value */
+            value: string;
+            /** Confidence */
+            confidence: string;
+            /** Context */
+            context?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * ImageAnalysisRequest
+         * @description Request to analyze images for product codes.
+         */
+        ImageAnalysisRequest: {
+            /** Image Urls */
+            image_urls: string[];
+            /**
+             * Backend
+             * @description Backend to use: 'local' (Tesseract OCR) or 'openai' (GPT-4 Vision)
+             * @default local
+             */
+            backend: string;
+        };
+        /**
+         * ImageAnalysisResponse
+         * @description Response with analyzed image results.
+         */
+        ImageAnalysisResponse: {
+            /** Results */
+            results?: components["schemas"]["ImageAnalysisResultResponse"][];
+        };
+        /**
+         * ImageAnalysisResultResponse
+         * @description Result of analyzing a single image.
+         */
+        ImageAnalysisResultResponse: {
+            /** Image Url */
+            image_url: string;
+            /** Codes */
+            codes?: components["schemas"]["ExtractedCodeResponse"][];
+            /** Raw Text */
+            raw_text?: string | null;
+            /** Error */
+            error?: string | null;
         };
         /**
          * LiveSyncControlResponse
@@ -1018,6 +1224,54 @@ export interface components {
             /** Effective Price */
             effective_price?: number | null;
         };
+        /**
+         * PendingCodeResponse
+         * @description An extracted code pending review.
+         */
+        PendingCodeResponse: {
+            /** Id */
+            id: number;
+            /** Lot Image Id */
+            lot_image_id: number;
+            /** Lot Id */
+            lot_id: number;
+            /** Lot Code */
+            lot_code: string;
+            /** Image Url */
+            image_url?: string | null;
+            /** Image Local Path */
+            image_local_path?: string | null;
+            /** Code Type */
+            code_type: string;
+            /** Value */
+            value: string;
+            /** Confidence */
+            confidence: string;
+            /** Context */
+            context?: string | null;
+            /** Created At */
+            created_at: string;
+        };
+        /**
+         * PendingCodesListResponse
+         * @description List of pending codes for review.
+         */
+        PendingCodesListResponse: {
+            /** Codes */
+            codes?: components["schemas"]["PendingCodeResponse"][];
+            /** Total */
+            total: number;
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            /**
+             * Page Size
+             * @default 20
+             */
+            page_size: number;
+        };
         /** PositionBatchRequest */
         PositionBatchRequest: {
             /** Updates */
@@ -1043,29 +1297,27 @@ export interface components {
          * @description A tracked position linking a buyer to a lot.
          */
         PositionResponse: {
-            /** Id */
-            id: number;
             /** Buyer Label */
             buyer_label: string;
             /** Lot Code */
             lot_code: string;
             /** Auction Code */
             auction_code?: string | null;
-            /** Max Budget Total Eur */
-            max_budget_total_eur?: number | null;
-            /** Preferred Bid Eur */
-            preferred_bid_eur?: number | null;
             /**
              * Track Active
              * @default true
              */
             track_active: boolean;
+            /** Max Budget Total Eur */
+            max_budget_total_eur?: number | null;
+            /** My Highest Bid Eur */
+            my_highest_bid_eur?: number | null;
             /** Lot Title */
             lot_title?: string | null;
+            /** Lot State */
+            lot_state?: string | null;
             /** Current Bid Eur */
             current_bid_eur?: number | null;
-            /** Closing Time */
-            closing_time?: string | null;
         };
         /** PositionUpdate */
         PositionUpdate: {
@@ -1073,8 +1325,6 @@ export interface components {
             buyer_label: string;
             /** Lot Code */
             lot_code: string;
-            /** Auction Code */
-            auction_code?: string | null;
             /** Max Budget Total Eur */
             max_budget_total_eur?: number | null;
             /** Preferred Bid Eur */
@@ -1094,12 +1344,6 @@ export interface components {
             condition: string;
             /** Price Eur */
             price_eur: number;
-            /** Source */
-            source?: string | null;
-            /** Url */
-            url?: string | null;
-            /** Notes */
-            notes?: string | null;
         };
         /**
          * ReferencePriceResponse
@@ -1112,12 +1356,6 @@ export interface components {
             condition: string;
             /** Price Eur */
             price_eur: number;
-            /** Source */
-            source?: string | null;
-            /** Url */
-            url?: string | null;
-            /** Notes */
-            notes?: string | null;
             /** Created At */
             created_at?: string | null;
         };
@@ -1132,10 +1370,24 @@ export interface components {
             price_eur?: number | null;
             /** Source */
             source?: string | null;
-            /** Url */
-            url?: string | null;
             /** Notes */
             notes?: string | null;
+        };
+        /**
+         * ReviewStatsResponse
+         * @description Statistics for the review queue.
+         */
+        ReviewStatsResponse: {
+            /** Pending */
+            pending: number;
+            /** Approved Auto */
+            approved_auto: number;
+            /** Approved Manual */
+            approved_manual: number;
+            /** Rejected */
+            rejected: number;
+            /** Total */
+            total: number;
         };
         /**
          * SearchResultResponse
@@ -1164,18 +1416,8 @@ export interface components {
         SpecTemplateCreateRequest: {
             /** Title */
             title: string;
-            /** Value */
-            value?: string | null;
-            /** Ean */
-            ean?: string | null;
-            /** Price Eur */
-            price_eur?: number | null;
             /** Parent Id */
             parent_id?: number | null;
-            /** Release Date */
-            release_date?: string | null;
-            /** Category */
-            category?: string | null;
         };
         /**
          * SpecTemplateResponse
@@ -1461,6 +1703,38 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LotDetailResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_lot_lots__lot_code__delete: {
+        parameters: {
+            query: {
+                /** @description Auction code is required to identify the lot */
+                auction_code: string;
+            };
+            header?: never;
+            path: {
+                lot_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -2463,6 +2737,187 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LiveSyncStatusResponse"];
+                };
+            };
+        };
+    };
+    analyze_images_images_analyze_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageAnalysisRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageAnalysisResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pending_codes_review_codes_pending_get: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                code_type?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingCodesListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_code_review_codes__code_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeApprovalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_code_review_codes__code_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeApprovalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_approve_codes_review_codes_bulk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkApprovalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkApprovalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_review_stats_review_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewStatsResponse"];
                 };
             };
         };

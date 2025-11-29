@@ -119,10 +119,16 @@ event_bus = LotEventBus()
 sync_service = SyncService(event_publisher=event_bus.publish)
 app = FastAPI(title="Troostwatch API", version=__version__)
 
-# Enable CORS for local development (UI on port 3000, API on port 8000)
+# Enable CORS for local development and Chrome extension
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
+    allow_origin_regex=r"^chrome-extension://.*$",  # Allow Chrome extensions
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

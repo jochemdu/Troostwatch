@@ -23,14 +23,10 @@ Usage:
 from __future__ import annotations
 
 import functools
-<<<<<<< HEAD
 from contextlib import AbstractContextManager
-=======
-from contextlib import AbstractContextManager
->>>>>>> main
 from contextvars import ContextVar
-from typing import Any, Callable, Iterator, TypeVar
-
+from typing import Any, Callable, TypeVar
+    
 from .logging import get_logger
 
 logger = get_logger(__name__)
@@ -168,8 +164,6 @@ def configure_tracing(
 # ---------------------------------------------------------------------------
 
 
-<<<<<<< HEAD
-
 class trace_span(AbstractContextManager):
     def __init__(self, name: str, *, kind: str = "internal", **attributes: Any):
         self.name = name
@@ -183,6 +177,7 @@ class trace_span(AbstractContextManager):
             return None
         try:
             from opentelemetry.trace import SpanKind
+
             kind_map = {
                 "internal": SpanKind.INTERNAL,
                 "server": SpanKind.SERVER,
@@ -213,52 +208,6 @@ class trace_span(AbstractContextManager):
         if hasattr(self, "span_ctx"):
             self.span_ctx.__exit__(exc_type, exc_value, traceback)
         return False
-=======
-
-class trace_span(AbstractContextManager):
-    def __init__(self, name: str, *, kind: str = "internal", **attributes: Any):
-        self.name = name
-        self.kind = kind
-        self.attributes = attributes
-        self.span = None
-        self.ctx_token = None
-
-    def __enter__(self):
-        if not _tracing_enabled or _tracer is None:
-            return None
-        try:
-            from opentelemetry.trace import SpanKind
-            kind_map = {
-                "internal": SpanKind.INTERNAL,
-                "server": SpanKind.SERVER,
-                "client": SpanKind.CLIENT,
-                "producer": SpanKind.PRODUCER,
-                "consumer": SpanKind.CONSUMER,
-            }
-            span_kind = kind_map.get(self.kind, SpanKind.INTERNAL)
-            self.span_ctx = _tracer.start_as_current_span(self.name, kind=span_kind)
-            self.span = self.span_ctx.__enter__()
-            for key, value in self.attributes.items():
-                if value is not None:
-                    self.span.set_attribute(key, str(value))
-            ctx = self.span.get_span_context()
-            if ctx.is_valid:
-                self.ctx_token = _trace_context.set({
-                    "trace_id": format(ctx.trace_id, "032x"),
-                    "span_id": format(ctx.span_id, "016x"),
-                })
-            return self.span
-        except Exception as e:
-            logger.debug(f"Tracing error: {e}")
-            return None
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if self.ctx_token is not None:
-            _trace_context.reset(self.ctx_token)
-        if hasattr(self, "span_ctx"):
-            self.span_ctx.__exit__(exc_type, exc_value, traceback)
-        return False
->>>>>>> main
 
 
 def traced(
@@ -363,15 +312,4 @@ def record_exception(exception: BaseException) -> None:
             span.set_status(trace.Status(trace.StatusCode.ERROR))
     except Exception:
         pass
-<<<<<<< HEAD
-=======
-
-
-def my_context_manager():
-    try:
-        # setup
-        yield
-    finally:
-        # cleanup
-        return  # ensures generator stops after yield, even if exception is thrown
->>>>>>> main
+    

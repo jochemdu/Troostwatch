@@ -4,7 +4,17 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
+        {
+            "name": "FastAPI Server",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": ["troostwatch.app.api:app", "--reload", "--port", "8000"],
+            "jinja": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
         {
             "name": "Launch Chrome",
             "request": "launch",
@@ -12,20 +22,25 @@
             "url": "http://localhost:8080",
             "webRoot": "${workspaceFolder}"
         },
-        
-        
         {
-            "name": "Attach to Chrome",
+            "name": "Attach to Chrome (port 9222)",
             "port": 9222,
             "request": "attach",
             "type": "chrome",
             "webRoot": "${workspaceFolder}"
         },
         {
-            "name": "Python Debugger: Python File",
-            "type": "debugpy",s
+            "name": "Python: Current File",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}"
+        },
+        {
+            "name": "Fetch Lots Script",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/fetch_lots_local.py",
+            "args": ["--auction", "A1-39500", "--limit", "5"]
         }
     ]
 }

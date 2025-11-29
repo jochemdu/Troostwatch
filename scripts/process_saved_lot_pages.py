@@ -24,6 +24,7 @@ Usage:
     python scripts/process_saved_lot_pages.py --html-dir ./saved_lots/ --output training_data/real
 """
 
+
 import argparse
 import asyncio
 import hashlib
@@ -32,8 +33,10 @@ import os
 import re
 import sys
 from pathlib import Path
-
 import httpx
+import joblib
+import numpy as np
+from datetime import datetime
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -145,7 +148,7 @@ def classify_token(text: str) -> str:
 
 
 async def process_html_file(
-    html_path: Path, output_dir: Path, client: httpx.AsyncClient
+    html_path: Path, output_dir: Path, client: httpx.AsyncClient, clf=None
 ) -> dict:
     """Process a single HTML file and extract training data."""
     print(f"\nProcessing: {html_path.name}")
@@ -190,13 +193,115 @@ async def process_html_file(
         if tokens:
             print(f"    OCR: {len(tokens)} tokens")
 
+
+
+        # Extra velden: brand, type, category
+        def extract_brand(title):
+            brands = [
+                "LENOVO", "HP", "DELL", "SAMSUNG", "LG", "ACER", "ASUS", "CANON",
+                "EPSON", "BROTHER", "LEXMARK", "FUJITSU", "TOSHIBA", "SONY", "PANASONIC",
+                "PHILIPS", "APPLE", "MICROSOFT", "LOGITECH", "CISCO", "NETGEAR",
+                "THINKPAD", "THINKCENTRE", "OPTIPLEX", "LATITUDE", "PROBOOK", "ELITEBOOK",
+                "IDEAPAD", "PAVILION", "INSPIRON", "VOSTRO", "PRECISION", "AMD", "NVIDIA",
+                "GIGABYTE", "HUAWEI", "UBIQUITI", "WESTERN DIGITAL", "POWERCOLOUR"
+            ]
+            title_up = title.upper()
+            for b in brands:
+                if b in title_up:
+                    return b
+            return None
+
+
+        brand = extract_brand(lot_data.title)
+        auction_code = lot_data.lot_code.split('-')[0] if '-' in lot_data.lot_code else lot_data.lot_code
+        date_captured = datetime.now().isoformat()
+
+        # Detect type/category from OCR tokens only
+        type_keywords = {
+            "laptop": ["LAPTOP", "CHROMEBOOK", "NOTEBOOK", "ELITEBOOK", "PROBOOK", "THINKPAD", "IDEAPAD", "PAVILION", "INSPIRON", "VOSTRO", "PRECISION", "GAMING"],
+            "tablet": ["TABLET", "TAB"],
+            "smartwatch": ["SMARTWATCH", "WATCH"],
+            "videokaart": ["VIDEOKAART", "RTX", "RADEON", "GEFORCE"],
+            "harde schijf": ["HARDE SCHIJF", "HDD", "SSD", "WD", "WESTERN DIGITAL"],
+            "accesspoint": ["ACCESSPOINT", "UBIQUITI", "PRO"],
+            "workstation": ["WORKSTATION"],
+            "desktop": ["DESKTOP"],
+            "monitor": ["MONITOR"],
+            "printer": ["PRINTER"],
+            "router": ["ROUTER"],
+            "server": ["SERVER"],
+            "switch": ["SWITCH"],
+        }
+        category_map = {
+            "laptop": "computer",
+            "tablet": "elektronica",
+            "smartwatch": "accessoires",
+            "videokaart": "computer",
+            "harde schijf": "computer",
+            "accesspoint": "netwerk",
+            "workstation": "computer",
+            "desktop": "computer",
+            "monitor": "beeld",
+            "printer": "print",
+            "router": "netwerk",
+            "server": "computer",
+            "switch": "netwerk",
+        }
+
+        def detect_type_from_tokens(tokens):
+            texts = [t["text"].upper() for t in tokens]
+            for type_name, keywords in type_keywords.items():
+                for kw in keywords:
+                    if any(kw in txt for txt in texts):
+                        return type_name
+            return None
+
+        type_detected = detect_type_from_tokens(tokens)
+        category_detected = category_map.get(type_detected, None) if type_detected else None
+
         # Classify and save
-        for token in tokens:
+        for idx, token in enumerate(tokens):
             token["label"] = classify_token(token["text"])
             token["image_file"] = image_filename
             token["lot_code"] = lot_data.lot_code
             token["lot_title"] = lot_data.title
             token["source_url"] = image_url
+            token["brand"] = brand
+            token["auction_code"] = auction_code
+            token["date_captured"] = date_captured
+            token["type"] = type_detected if type_detected else None
+            token["category"] = category_detected if category_detected else None
+
+        # ML predictie
+        if clf is not None and tokens:
+            # Prepare features for ML model
+            def prepare_features(token, idx, total):
+                text = token["text"]
+                conf = float(token["confidence"])
+                pos_ratio = idx / max(total, 1)
+                features = []
+                features.append(float(len(text)))
+                features.append(min(len(text), 20) / 20.0)
+                if len(text) > 0:
+                    features.append(sum(c.isdigit() for c in text) / len(text))
+                    features.append(sum(c.isupper() for c in text) / len(text))
+                    features.append(sum(c.isalpha() for c in text) / len(text))
+                    features.append(sum(c in "-_/" for c in text) / len(text))
+                else:
+                    features.extend([0.0, 0.0, 0.0, 0.0])
+                features.append(1.0 if re.match(r"^\d{13}$", text) else 0.0)
+                features.append(1.0 if re.match(r"^\d{8}$", text) else 0.0)
+                features.append(1.0 if re.match(r"^[A-Z]{2,3}\d{6,}", text) else 0.0)
+                features.append(1.0 if re.match(r"^[A-Z]{2,4}-?\d{3,6}", text) else 0.0)
+                features.append(1.0 if re.match(r"^\d+[A-Z]+\d*$", text) else 0.0)
+                features.append(conf / 100.0)
+                features.append(pos_ratio)
+                return features
+
+            X = np.array([prepare_features(token, i, len(tokens)) for i, token in enumerate(tokens)])
+            y_pred = clf.predict(X)
+            for i, token in enumerate(tokens):
+                token["ml_label"] = str(y_pred[i])
 
         tokens_path = output_dir / "tokens.jsonl"
         with open(tokens_path, "a", encoding="utf-8") as f:
@@ -222,6 +327,12 @@ async def main():
         type=Path,
         default=Path("training_data/real_labels"),
         help="Output directory",
+    )
+    parser.add_argument(
+        "--predict",
+        type=Path,
+        default=None,
+        help="Path to trained ML model (optional)",
     )
 
     args = parser.parse_args()
@@ -252,9 +363,14 @@ async def main():
 
     total = {"images": 0, "tokens": 0}
 
+    clf = None
+    if args.predict is not None and args.predict.exists():
+        print(f"Loading ML model: {args.predict}")
+        clf = joblib.load(args.predict)
+
     async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
         for html_file in html_files:
-            stats = await process_html_file(html_file, args.output, client)
+            stats = await process_html_file(html_file, args.output, client, clf=clf)
             total["images"] += stats["images"]
             total["tokens"] += stats["tokens"]
 
@@ -268,13 +384,22 @@ async def main():
         print(f"\nTraining data: {tokens_path}")
         # Show label distribution
         labels: dict[str, int] = {}
+        ml_labels: dict[str, int] = {}
         with open(tokens_path) as f:
             for line in f:
-                label = json.loads(line).get("label", "none")
+                obj = json.loads(line)
+                label = obj.get("label", "none")
                 labels[label] = labels.get(label, 0) + 1
+                ml_label = obj.get("ml_label", None)
+                if ml_label:
+                    ml_labels[ml_label] = ml_labels.get(ml_label, 0) + 1
         print("\nLabel distribution:")
         for label, count in sorted(labels.items(), key=lambda x: -x[1]):
             print(f"  {label}: {count}")
+        if ml_labels:
+            print("\nML label distribution:")
+            for label, count in sorted(ml_labels.items(), key=lambda x: -x[1]):
+                print(f"  {label}: {count}")
 
 
 if __name__ == "__main__":

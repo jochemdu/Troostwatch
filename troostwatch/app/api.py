@@ -16,6 +16,10 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
     status,
+    APIRouter,
+    UploadFile,
+    File,
+    Response,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -1934,4 +1938,30 @@ async def capture_training_data(
         images_queued=images_queued,
         message=f"Captured {request.lot_code} with {images_queued} images",
     )
+
+
+router = APIRouter()
+
+UPLOAD_DIR = "training_data/real_training/exports/"
+
+
+@router.post("/upload-tokens")
+async def upload_tokens(file: UploadFile = File(...)):
+    dest_path = os.path.join(UPLOAD_DIR, file.filename)
+    with open(dest_path, "wb") as f:
+        f.write(await file.read())
+    return {"status": "success", "path": dest_path}
+
+
+@router.get("/download-tokens/{filename}")
+async def download_tokens(filename: str):
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.exists(file_path):
+        return Response(status_code=404)
+    with open(file_path, "rb") as f:
+        data = f.read()
+    return Response(content=data, media_type="text/plain")
+
+
+app.include_router(router, prefix="/api")
 

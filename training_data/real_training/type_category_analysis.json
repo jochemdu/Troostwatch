@@ -1,0 +1,72 @@
+[
+  {
+    "type": "accesspoint",
+    "count": 187,
+    "categories": [
+      {
+        "category": "netwerk",
+        "count": 187
+      }
+    ]
+  },
+  {
+    "type": "harde schijf",
+    "count": 164,
+    "categories": [
+      {
+        "category": "computer",
+        "count": 164
+      }
+    ]
+  },
+  {
+    "type": "laptop",
+    "count": 782,
+    "categories": [
+      {
+        "category": "computer",
+        "count": 782
+      }
+    ]
+  },
+  {
+    "type": "smartwatch",
+    "count": 453,
+    "categories": [
+      {
+        "category": "accessoires",
+        "count": 453
+      }
+    ]
+  },
+  {
+    "type": "switch",
+    "count": 18,
+    "categories": [
+      {
+        "category": "netwerk",
+        "count": 18
+      }
+    ]
+  },
+  {
+    "type": "tablet",
+    "count": 615,
+    "categories": [
+      {
+        "category": "elektronica",
+        "count": 615
+      }
+    ]
+  },
+  {
+    "type": "videokaart",
+    "count": 200,
+    "categories": [
+      {
+        "category": "computer",
+        "count": 200
+      }
+    ]
+  }
+]

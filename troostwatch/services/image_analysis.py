@@ -120,6 +120,91 @@ class ImageAnalysisService(BaseService):
     # Confidence threshold above which codes are auto-approved
     DEFAULT_AUTO_APPROVE_THRESHOLD = 0.85
 
+    def record_training_run(self, status: str, model_path: str | None = None, metrics: dict | None = None, notes: str | None = None, created_by: str | None = None, training_data_filter: str | None = None, error_message: str | None = None) -> int:
+        """Record a new ML training run in the database.
+
+        Args:
+            status: Run status ('pending', 'running', 'completed', 'failed').
+            model_path: Path to saved model file.
+            metrics: Training metrics (accuracy, loss, etc.).
+            notes: Optional notes.
+            created_by: User/process that triggered the run.
+            training_data_filter: Description of training data selection/filter.
+            error_message: Error message if failed.
+
+        Returns:
+            ID of the created training run.
+        """
+        with self._connection_factory() as conn:
+            cur = conn.execute(
+                """
+                INSERT INTO ml_training_runs (
+                    started_at, status, model_path, metrics_json, notes, created_by, training_data_filter, error_message, created_at
+                ) VALUES (
+                    datetime('now'), ?, ?, ?, ?, ?, ?, ?, datetime('now')
+                )
+                """,
+                (
+                    status,
+                    model_path,
+                    json.dumps(metrics) if metrics else None,
+                    notes,
+                    created_by,
+                    training_data_filter,
+                    error_message,
+                ),
+            )
+            run_id = cur.lastrowid
+            conn.commit()
+        return run_id
+
+    def update_training_run(self, run_id: int, status: str | None = None, finished_at: str | None = None, model_path: str | None = None, metrics: dict | None = None, notes: str | None = None, error_message: str | None = None) -> None:
+        """Update an existing ML training run record."""
+        fields = []
+        params = []
+        if status:
+            fields.append("status = ?")
+            params.append(status)
+        if finished_at:
+            fields.append("finished_at = ?")
+            params.append(finished_at)
+        if model_path:
+            fields.append("model_path = ?")
+            params.append(model_path)
+        if metrics:
+            fields.append("metrics_json = ?")
+            params.append(json.dumps(metrics))
+        if notes:
+            fields.append("notes = ?")
+            params.append(notes)
+        if error_message:
+            fields.append("error_message = ?")
+            params.append(error_message)
+        fields.append("updated_at = datetime('now')")
+        params.append(run_id)
+        with self._connection_factory() as conn:
+            conn.execute(
+                f"UPDATE ml_training_runs SET {', '.join(fields)} WHERE id = ?",
+                tuple(params),
+            )
+            conn.commit()
+
+    def get_training_runs(self, limit: int = 20, status: str | None = None) -> list[dict]:
+        """Fetch recent ML training runs, optionally filtered by status."""
+        with self._connection_factory() as conn:
+            query = "SELECT * FROM ml_training_runs"
+            params = []
+            if status:
+                query += " WHERE status = ?"
+                params.append(status)
+            query += " ORDER BY started_at DESC LIMIT ?"
+            params.append(limit)
+            cur = conn.execute(query, tuple(params))
+            columns = [c[0] for c in cur.description]
+            return [dict(zip(columns, row)) for row in cur.fetchall()]
+    # Confidence threshold above which codes are auto-approved
+    DEFAULT_AUTO_APPROVE_THRESHOLD = 0.85
+
     def __init__(
         self,
         connection_factory: ConnectionFactory,

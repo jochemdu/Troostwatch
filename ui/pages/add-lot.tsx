@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import Layout from '../components/Layout';
+import ExampleLotEventConsumer from '../components/ExampleLotEventConsumer';
 
 interface Auction {
   auction_code: string;
@@ -358,6 +359,8 @@ export default function AddLotPage() {
             </button>
           </div>
         </form>
+
+        <ExampleLotEventConsumer />
       </div>
     </Layout>
   );

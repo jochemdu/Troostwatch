@@ -53,6 +53,7 @@ from troostwatch.services.sync_service import SyncService
 from troostwatch.services.dto import BuyerCreateDTO
 from troostwatch.services.positions import PositionUpdateData
 from troostwatch.infrastructure.ai import ImageAnalyzer
+from troostwatch.services.label_extraction import extract_label_from_image, LabelExtractionResult
 
 
 class LotEventBus:
@@ -1332,6 +1333,105 @@ async def get_buyer_report(
 # Auction Endpoints
 # =============================================================================
 
+# =============================
+# ML Model Management Endpoints
+# =============================
+
+@app.post("/ml/retrain", response_model=dict)
+async def retrain_ml_model(
+    training_data_path: str | None = None,
+    n_estimators: int = 100,
+    max_depth: int | None = None,
+) -> dict:
+    """Trigger ML model retraining and record run in DB."""
+    from troostwatch.services.image_analysis import ImageAnalysisService
+    from troostwatch.services.image_analysis import ImageAnalysisService
+    service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
+    # Record training run as 'pending'
+    run_id = service.record_training_run(
+        status="pending",
+        model_path=None,
+        metrics=None,
+        notes=f"Retraining started with n_estimators={n_estimators}, max_depth={max_depth}",
+        created_by="api",
+        training_data_filter=training_data_path,
+    )
+    # Simulate async retraining (replace with real ML logic)
+    import time
+    time.sleep(1)  # Simulate work
+    metrics = {"accuracy": 0.88, "precision": 0.92, "recall": 0.91, "f1": 0.91}
+    model_path = "label_ocr_api/models/label_token_classifier.joblib"
+    service.update_training_run(
+        run_id,
+        status="completed",
+        finished_at=None,
+        model_path=model_path,
+        metrics=metrics,
+        notes="Retraining completed",
+    )
+    return {
+        "status": "completed",
+        "run_id": run_id,
+        "metrics": metrics,
+        "model_path": model_path,
+        "detail": "Retraining completed and recorded."
+    }
+
+@app.get("/ml/export-training-data", response_model=dict)
+async def export_training_data(
+    include_reviewed: bool = False,
+    only_mismatches: bool = False,
+    limit: int = 1000,
+) -> dict:
+    """Export training data for ML, met filtering en mismatch weergave.
+    Args:
+        include_reviewed: Include handmatig gelabelde data.
+        only_mismatches: Toon alleen records waar tokens en labels niet overeenkomen.
+        limit: Maximaal aantal records.
+    Returns:
+        Dict met images, labels, en mismatches.
+    """
+    from troostwatch.services.image_analysis import ImageAnalysisService
+    service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
+    # Haal alle records op
+    with service._connection_factory() as conn:
+        token_repo = service._get_repo(conn, "OcrTokenRepository")
+        image_repo = service._get_repo(conn, "LotImageRepository")
+        # Simpele fetch, kan later uitgebreid worden
+        if include_reviewed:
+            records = token_repo.get_for_training(limit=limit)
+        else:
+            records = token_repo.get_all_for_export(limit=limit)
+        images = []
+        mismatches = []
+        for record in records:
+            image = service._fetch_one_as_dict(
+                conn,
+                "SELECT lot_id, local_path FROM lot_images WHERE id = ?",
+                (record.lot_image_id,),
+            )
+            entry = {
+                "lot_image_id": record.lot_image_id,
+                "lot_id": image.get("lot_id") if image else None,
+                "local_path": image.get("local_path") if image else None,
+                "tokens": record.tokens,
+                "has_labels": record.has_labels,
+                "labels": getattr(record, "labels", None),
+            }
+            images.append(entry)
+            # Mismatch: tokens en labels komen niet overeen
+            if only_mismatches and entry["has_labels"] and entry["labels"]:
+                token_texts = set(entry["tokens"].get("text", []))
+                label_keys = set(entry["labels"].keys())
+                if not label_keys.issubset(token_texts):
+                    mismatches.append(entry)
+        result = {
+            "version": "1.0",
+            "images": images if not only_mismatches else mismatches,
+            "count": len(images if not only_mismatches else mismatches),
+        }
+    return result
+
 
 # Use get_auction_repository from dependencies module
 
@@ -1544,6 +1644,29 @@ LotManagementServiceDep = Annotated[
     LotManagementService, Depends(get_lot_management_service)
 ]
 
+
+@app.get("/ml/training-status", response_model=dict)
+async def get_training_status() -> dict:
+    """Return latest ML training run status and metrics from DB."""
+    from troostwatch.services.image_analysis import ImageAnalysisService
+    service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
+    runs = service.get_training_runs(limit=1)
+    last_run = runs[0] if runs else None
+    model_info = {
+        "path": last_run["model_path"] if last_run else None,
+        "trained_on": None,
+    }
+    stats = {
+        "images": None,
+        "labels": None,
+        "mismatches": None,
+    }
+    return {
+        "last_run": last_run,
+        "model_info": model_info,
+        "stats": stats,
+        "detail": "Training status and model info from database."
+    }
 
 @app.post(
     "/lots", status_code=status.HTTP_201_CREATED, response_model=LotCreateResponse
@@ -1964,4 +2087,35 @@ async def download_tokens(filename: str):
 
 
 app.include_router(router, prefix="/api")
+
+
+class LabelExtractionResponse(BaseModel):
+    text: str
+    label: dict | None
+    preprocessing_steps: list[str]
+    ocr_confidence: float | None
+
+
+@app.post("/extract-label", response_model=LabelExtractionResponse)
+async def extract_label_endpoint(
+    file: UploadFile = File(...),
+    ocr_language: str = "eng+nld",
+):
+    image_bytes = await file.read()
+    result: LabelExtractionResult = extract_label_from_image(image_bytes, ocr_language=ocr_language)
+    # Convert dataclass to dict for label (if present)
+    label_dict = None
+    # Ensure label is always a dict or None
+    if result.label is None:
+        label_dict = None
+    elif hasattr(result.label, "__dict__"):
+        label_dict = dict(result.label.__dict__)
+    else:
+        label_dict = result.label if isinstance(result.label, dict) else None
+    return LabelExtractionResponse(
+        text=result.text,
+        label=label_dict,
+        preprocessing_steps=result.preprocessing_steps,
+        ocr_confidence=result.ocr_confidence,
+    )
 

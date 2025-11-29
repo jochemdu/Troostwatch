@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import LotTable, { SortField, SortDirection } from '../components/LotTable';
 import type { LotView, SearchResult } from '../lib/api';
 import { fetchLots, searchLots } from '../lib/api';
+import ExampleLotEventConsumer from '../components/ExampleLotEventConsumer';
 
 // Available filter options (hardcoded for now, could be fetched from API)
 const STATE_OPTIONS = ['scheduled', 'running', 'closed'] as const;
@@ -278,6 +279,8 @@ export default function LotsPage() {
           onSort={handleSort}
         />
       )}
+
+      <ExampleLotEventConsumer />
 
       <style jsx>{`
         .search-row {

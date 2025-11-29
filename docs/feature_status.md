@@ -1,3 +1,12 @@
+## Image Analysis Pipeline (Iteration 3 Complete)
+Overall, the previously identified gaps around authentication, bidding, schema completeness, parsing robustness and incremental/rate-limited sync have been addressed in the current codebase.
+## Pipeline Verbeteringen (Planning)
+- ML model retraining met nieuwe gelabelde data
+- UI bulk review en feedback-loop naar training data
+- Image preprocessing (contrast, binarization, rotatie)
+- Metrics dashboard in UI
+- Vendor-detectie en automatische profielen
+- API/CLI uitbreidingen voor retraining/data management
 # Feature status audit
 
 This document summarises the current implementation status of capabilities that were previously flagged as missing.

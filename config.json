@@ -7,6 +7,11 @@
     "lot_details_dir": "snapshots/lot_details",
     "images_dir": "data/images"
   },
+  "db": {
+    "enable_wal": true,
+    "foreign_keys": true,
+    "busy_timeout": 10000
+  },
   "sync": {
     "delay_seconds": 0.5,
     "max_pages": null,

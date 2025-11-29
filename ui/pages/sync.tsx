@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { triggerSync } from '../lib/api';
 import { createLotSocket, LotEvent } from '../lib/ws';
 import type { SyncSummaryResponse } from '../lib/generated';
+import ExampleLotEventConsumer from '../components/ExampleLotEventConsumer';
 
 interface LogEntry {
   timestamp: string;
@@ -315,6 +316,8 @@ export default function SyncPage() {
           )}
         </div>
       </div>
+
+      <ExampleLotEventConsumer />
     </Layout>
   );
 }

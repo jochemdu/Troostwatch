@@ -173,7 +173,7 @@ export interface LotQueryParams {
 // API Client Configuration
 // =============================================================================
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8001';
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -933,3 +933,56 @@ export async function analyzeImages(imageUrls: string[]): Promise<ImageAnalysisR
   });
   return handleResponse<ImageAnalysisResponse>(response);
 }
+
+/**
+ * Fetch images for a lot.
+ * @see GET /lots/{lot_code}/images in troostwatch/app/api.py (assumed endpoint)
+ */
+export async function fetchLotImages(lotCode: string, auctionCode?: string): Promise<string[]> {
+  const url = new URL(`${API_BASE}/lots/${encodeURIComponent(lotCode)}/images`);
+  if (auctionCode) {
+    url.searchParams.append('auction_code', auctionCode);
+  }
+  const response = await fetch(url.toString());
+  return handleResponse<string[]>(response);
+}
+
+/**
+ * Save extracted label data to a lot (notes/ean fields).
+ * @see PATCH /lots/{lot_code} in troostwatch/app/api.py
+ */
+export async function saveExtractedLabelToLot(lotCode: string, label: any, auctionCode?: string): Promise<LotDetailResponse> {
+  // For now, save as notes and ean if present
+  const updates: any = {};
+  if (label) {
+    if (label.product_code) updates.notes = `Product code: ${label.product_code}`;
+    if (label.ean) updates.ean = label.ean;
+    if (label.serial_number) updates.notes = (updates.notes ? updates.notes + ', ' : '') + `Serial: ${label.serial_number}`;
+  }
+  return updateLot(lotCode, updates, auctionCode);
+}
+
+export async function saveSpecsToLot(
+  lotCode: string,
+  specs: Array<{key: string, value: string, template_id?: number, parent_id?: number, ean?: string, price_eur?: number, release_date?: string, category?: string}>,
+  auctionCode?: string
+) {
+  for (const spec of specs) {
+    const payload = {
+      key: spec.key,
+      value: spec.value,
+      template_id: spec.template_id,
+      parent_id: spec.parent_id,
+      ean: spec.ean,
+      price_eur: spec.price_eur,
+      release_date: spec.release_date,
+      category: spec.category,
+    };
+    await fetch(`/lots/${encodeURIComponent(lotCode)}/specs${auctionCode ? `?auction_code=${auctionCode}` : ''}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  }
+}
+

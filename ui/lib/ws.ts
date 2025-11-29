@@ -12,7 +12,7 @@ type Callback = (event: LotEvent) => void;
 
 type StatusCallback = (state: 'connecting' | 'open' | 'closed' | 'error') => void;
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:8000/ws/lots';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:8001/ws/lots';
 
 export function createLotSocket(onEvent: Callback, onStatus?: StatusCallback): WebSocket {
   const socket = new WebSocket(WS_URL);

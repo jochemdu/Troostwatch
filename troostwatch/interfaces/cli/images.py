@@ -17,6 +17,7 @@ import click
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TaskProgressColumn
 from rich.table import Table
+import httpx
 
 from troostwatch.app.config import load_config
 from troostwatch.infrastructure.db import get_connection
@@ -870,6 +871,124 @@ def validate_codes_cmd(db_path: str, limit: int, images_dir: str | None) -> None
     console.print(f"  [green]Valid: {stats.get('valid', 0)}[/green]")
     console.print(f"  [red]Invalid: {stats.get('invalid', 0)}[/red]")
     console.print(f"  [cyan]Corrected (OCR fixes): {stats.get('corrected', 0)}[/cyan]")
+
+
+@images_cli.command(name="retrain-model")
+@click.option(
+    "--api-url",
+    default="http://localhost:8000/ml/retrain",
+    help="URL van het retraining API endpoint.",
+    show_default=True,
+)
+@click.option(
+    "--training-data-path",
+    default=None,
+    help="Pad naar training data JSON.",
+)
+@click.option(
+    "--n-estimators",
+    default=100,
+    type=int,
+    help="Aantal bomen in RandomForest.",
+)
+@click.option(
+    "--max-depth",
+    default=None,
+    type=int,
+    help="Maximale boomdiepte.",
+)
+def retrain_model_cli(api_url, training_data_path, n_estimators, max_depth):
+    """Trigger ML model retraining via API."""
+    console.print(f"[bold]Triggering ML retraining via:[/bold] {api_url}")
+    payload = {
+        "training_data_path": training_data_path,
+        "n_estimators": n_estimators,
+        "max_depth": max_depth,
+    }
+    try:
+        response = httpx.post(api_url, json=payload, timeout=60)
+        response.raise_for_status()
+        result = response.json()
+        console.print(f"[green]Retraining gestart:[/green] {result}")
+    except Exception as e:
+        console.print(f"[red]Fout bij retraining:[/red] {e}")
+
+
+@images_cli.command(name="export-training-data")
+@click.option(
+    "--api-url",
+    default="http://localhost:8000/ml/export-training-data",
+    help="URL van het training data export API endpoint.",
+    show_default=True,
+)
+@click.option(
+    "--output",
+    default="training_data.json",
+    help="Pad voor het output JSON-bestand.",
+    show_default=True,
+)
+@click.option(
+    "--include-reviewed/--no-include-reviewed",
+    default=False,
+    help="Neem handmatig gelabelde data mee.",
+)
+@click.option(
+    "--only-mismatches/--no-only-mismatches",
+    default=False,
+    help="Exporteer alleen records met token/label mismatch.",
+)
+@click.option(
+    "--limit",
+    default=1000,
+    type=int,
+    help="Maximaal aantal records.",
+)
+def export_training_data_cli(api_url, output, include_reviewed, only_mismatches, limit):
+    """Exporteer training data via API en sla op als JSON."""
+    console.print(f"[bold]Exporting training data via:[/bold] {api_url}")
+    params = {
+        "include_reviewed": include_reviewed,
+        "only_mismatches": only_mismatches,
+        "limit": limit,
+    }
+    try:
+        response = httpx.get(api_url, params=params, timeout=60)
+        response.raise_for_status()
+        data = response.json()
+        with open(output, "w", encoding="utf-8") as f:
+            import json
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        console.print(f"[green]Training data geëxporteerd:[/green] {output} ({data.get('count', 0)} records)")
+    except Exception as e:
+        console.print(f"[red]Fout bij exporteren training data:[/red] {e}")
+
+
+@images_cli.command(name="training-status")
+@click.option(
+    "--api-url",
+    default="http://localhost:8000/ml/training-status",
+    help="URL van het training status API endpoint.",
+    show_default=True,
+)
+def training_status_cli(api_url):
+    """Toon ML training status en model metrics via API."""
+    console.print(f"[bold]Ophalen training status via:[/bold] {api_url}")
+    try:
+        response = httpx.get(api_url, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        console.print("\n[bold green]Training Status:[/bold green]")
+        last_run = data.get("last_run", {})
+        model_info = data.get("model_info", {})
+        stats = data.get("stats", {})
+        console.print(f"Laatste run: {last_run.get('started_at')} → {last_run.get('finished_at')}")
+        console.print(f"Status: {last_run.get('status')}")
+        console.print(f"Metrics: {last_run.get('metrics')}")
+        console.print(f"Model info: {model_info}")
+        console.print(f"Stats: {stats}")
+        console.print(f"Detail: {data.get('detail')}")
+    except Exception as e:
+        console.print(f"[red]Fout bij ophalen training status:[/red] {e}")
 
 
 __all__ = ["images_cli"]

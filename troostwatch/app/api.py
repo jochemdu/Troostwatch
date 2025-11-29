@@ -1861,3 +1861,71 @@ async def get_review_stats(
         rejected=stats.get("rejected", 0),
         total=stats.get("total", 0),
     )
+
+
+# ============================================================================
+# Training Data Capture (for Chrome Extension)
+# ============================================================================
+
+
+class TrainingCaptureRequest(BaseModel):
+    """Request body for capturing lot page for training."""
+
+    html: str = Field(..., description="Full HTML of the lot page")
+    lot_code: str = Field(..., alias="lotCode", description="Lot code")
+    title: str = Field(default="", description="Lot title")
+    images: list[str] = Field(default_factory=list, description="Image URLs")
+    url: str = Field(default="", description="Page URL")
+
+
+class TrainingCaptureResponse(BaseModel):
+    """Response from training capture."""
+
+    success: bool
+    lot_code: str
+    images_queued: int
+    message: str
+
+
+@app.post("/api/training/capture", response_model=TrainingCaptureResponse)
+async def capture_training_data(
+    request: TrainingCaptureRequest,
+    lot_image_repo: LotImageRepositoryDep,
+) -> TrainingCaptureResponse:
+    """Capture a lot page for training data.
+
+    This endpoint receives HTML from the Chrome extension and queues
+    the images for download and OCR processing.
+    """
+    import hashlib
+    from pathlib import Path
+
+    # Save HTML to training_data directory
+    training_dir = Path("training_data/captured")
+    training_dir.mkdir(parents=True, exist_ok=True)
+
+    html_file = training_dir / f"{request.lot_code}.html"
+    with open(html_file, "w", encoding="utf-8") as f:
+        f.write(request.html)
+
+    # Queue images for processing
+    images_queued = 0
+    for image_url in request.images:
+        try:
+            # Add to lot_images table for later processing
+            lot_image_repo.add_image(
+                lot_code=request.lot_code,
+                image_url=image_url,
+                image_hash=hashlib.md5(image_url.encode()).hexdigest()[:16],
+            )
+            images_queued += 1
+        except Exception:
+            pass  # Image may already exist
+
+    return TrainingCaptureResponse(
+        success=True,
+        lot_code=request.lot_code,
+        images_queued=images_queued,
+        message=f"Captured {request.lot_code} with {images_queued} images",
+    )
+

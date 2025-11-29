@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Troostwatch Lot Capture",
+  "version": "1.0",
+  "description": "Capture Troostwijk lot pages for training data",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.troostwijkauctions.com/*",
+    "https://media.tbauctions.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png"
+  }
+}

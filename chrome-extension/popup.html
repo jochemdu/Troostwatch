@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      width: 320px;
+      padding: 15px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    h2 { margin: 0 0 15px 0; font-size: 16px; }
+    .status { 
+      padding: 10px; 
+      border-radius: 6px; 
+      margin: 10px 0;
+      font-size: 13px;
+    }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .info { background: #cce5ff; color: #004085; }
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      margin: 5px 0;
+    }
+    .primary { background: #007bff; color: white; }
+    .primary:hover { background: #0056b3; }
+    .secondary { background: #6c757d; color: white; }
+    .secondary:hover { background: #545b62; }
+    .primary:disabled, .secondary:disabled { 
+      background: #ccc; 
+      cursor: not-allowed; 
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    label { font-size: 12px; color: #666; }
+    .lot-info { font-size: 12px; color: #333; margin: 10px 0; }
+    #imageCount { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>🔍 Troostwatch Capture</h2>
+  
+  <div id="notOnSite" class="status error" style="display:none;">
+    Open a Troostwijk lot page first!
+  </div>
+  
+  <div id="onSite" style="display:none;">
+    <div class="lot-info">
+      <strong>Lot:</strong> <span id="lotCode">-</span><br>
+      <strong>Images:</strong> <span id="imageCount">0</span>
+    </div>
+    
+    <button id="captureLot" class="primary">📸 Capture This Lot</button>
+    <button id="captureAuction" class="secondary">📦 Capture All Lots in Auction</button>
+    
+    <div id="status" class="status info" style="display:none;"></div>
+    
+    <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;">
+    
+    <label>API Endpoint:</label>
+    <input type="text" id="apiUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+    
+    <button id="downloadHtml" class="secondary">💾 Download HTML</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

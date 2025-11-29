@@ -23,7 +23,11 @@ Usage:
 from __future__ import annotations
 
 import functools
-from contextlib import contextmanager
+<<<<<<< HEAD
+from contextlib import AbstractContextManager
+=======
+from contextlib import AbstractContextManager
+>>>>>>> main
 from contextvars import ContextVar
 from typing import Any, Callable, Iterator, TypeVar
 
@@ -164,66 +168,97 @@ def configure_tracing(
 # ---------------------------------------------------------------------------
 
 
-@contextmanager
-def trace_span(
-    name: str,
-    *,
-    kind: str = "internal",
-    **attributes: Any,
-) -> Iterator[Any]:
-    """Create a trace span for the enclosed code block.
+<<<<<<< HEAD
 
-    Args:
-        name: Name of the span (e.g., "sync_auction", "fetch_page").
-        kind: Span kind - "internal", "server", "client", "producer", "consumer".
-        **attributes: Additional attributes to attach to the span.
+class trace_span(AbstractContextManager):
+    def __init__(self, name: str, *, kind: str = "internal", **attributes: Any):
+        self.name = name
+        self.kind = kind
+        self.attributes = attributes
+        self.span = None
+        self.ctx_token = None
 
-    Yields:
-        The span object (or None if tracing is disabled).
-
-    Example:
-        with trace_span("process_lot", lot_code="LOT123", auction_code="A1"):
-            # ... processing ...
-    """
-    if not _tracing_enabled or _tracer is None:
-        yield None
-        return
-
-    try:
-        from opentelemetry.trace import SpanKind
-
-        kind_map = {
-            "internal": SpanKind.INTERNAL,
-            "server": SpanKind.SERVER,
-            "client": SpanKind.CLIENT,
-            "producer": SpanKind.PRODUCER,
-            "consumer": SpanKind.CONSUMER,
-        }
-        span_kind = kind_map.get(kind, SpanKind.INTERNAL)
-
-        with _tracer.start_as_current_span(name, kind=span_kind) as span:
-            # Set attributes
-            for key, value in attributes.items():
+    def __enter__(self):
+        if not _tracing_enabled or _tracer is None:
+            return None
+        try:
+            from opentelemetry.trace import SpanKind
+            kind_map = {
+                "internal": SpanKind.INTERNAL,
+                "server": SpanKind.SERVER,
+                "client": SpanKind.CLIENT,
+                "producer": SpanKind.PRODUCER,
+                "consumer": SpanKind.CONSUMER,
+            }
+            span_kind = kind_map.get(self.kind, SpanKind.INTERNAL)
+            self.span_ctx = _tracer.start_as_current_span(self.name, kind=span_kind)
+            self.span = self.span_ctx.__enter__()
+            for key, value in self.attributes.items():
                 if value is not None:
-                    span.set_attribute(key, str(value))
-
-            # Update trace context for log correlation
-            ctx = span.get_span_context()
+                    self.span.set_attribute(key, str(value))
+            ctx = self.span.get_span_context()
             if ctx.is_valid:
-                token = _trace_context.set({
+                self.ctx_token = _trace_context.set({
                     "trace_id": format(ctx.trace_id, "032x"),
                     "span_id": format(ctx.span_id, "016x"),
                 })
-                try:
-                    yield span
-                finally:
-                    _trace_context.reset(token)
-            else:
-                yield span
+            return self.span
+        except Exception as e:
+            logger.debug(f"Tracing error: {e}")
+            return None
 
-    except Exception as e:
-        logger.debug(f"Tracing error: {e}")
-        yield None
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.ctx_token is not None:
+            _trace_context.reset(self.ctx_token)
+        if hasattr(self, "span_ctx"):
+            self.span_ctx.__exit__(exc_type, exc_value, traceback)
+        return False
+=======
+
+class trace_span(AbstractContextManager):
+    def __init__(self, name: str, *, kind: str = "internal", **attributes: Any):
+        self.name = name
+        self.kind = kind
+        self.attributes = attributes
+        self.span = None
+        self.ctx_token = None
+
+    def __enter__(self):
+        if not _tracing_enabled or _tracer is None:
+            return None
+        try:
+            from opentelemetry.trace import SpanKind
+            kind_map = {
+                "internal": SpanKind.INTERNAL,
+                "server": SpanKind.SERVER,
+                "client": SpanKind.CLIENT,
+                "producer": SpanKind.PRODUCER,
+                "consumer": SpanKind.CONSUMER,
+            }
+            span_kind = kind_map.get(self.kind, SpanKind.INTERNAL)
+            self.span_ctx = _tracer.start_as_current_span(self.name, kind=span_kind)
+            self.span = self.span_ctx.__enter__()
+            for key, value in self.attributes.items():
+                if value is not None:
+                    self.span.set_attribute(key, str(value))
+            ctx = self.span.get_span_context()
+            if ctx.is_valid:
+                self.ctx_token = _trace_context.set({
+                    "trace_id": format(ctx.trace_id, "032x"),
+                    "span_id": format(ctx.span_id, "016x"),
+                })
+            return self.span
+        except Exception as e:
+            logger.debug(f"Tracing error: {e}")
+            return None
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.ctx_token is not None:
+            _trace_context.reset(self.ctx_token)
+        if hasattr(self, "span_ctx"):
+            self.span_ctx.__exit__(exc_type, exc_value, traceback)
+        return False
+>>>>>>> main
 
 
 def traced(
@@ -328,3 +363,15 @@ def record_exception(exception: BaseException) -> None:
             span.set_status(trace.Status(trace.StatusCode.ERROR))
     except Exception:
         pass
+<<<<<<< HEAD
+=======
+
+
+def my_context_manager():
+    try:
+        # setup
+        yield
+    finally:
+        # cleanup
+        return  # ensures generator stops after yield, even if exception is thrown
+>>>>>>> main

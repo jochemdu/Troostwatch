@@ -1,0 +1,504 @@
+#!/usr/bin/env python3
+"""Process manually saved lot detail HTML pages for training data.
+
+Since Troostwijk blocks automated requests, this script processes
+HTML files that you save manually from your browser.
+
+Instructions:
+1. Open lot detail pages in your browser
+2. Right-click -> "Save Page As" -> "Webpage, Complete" or just the HTML
+3. Save to a directory (e.g., ./saved_lots/)
+4. Run this script:
+
+   python scripts/process_saved_lot_pages.py --html-dir ./saved_lots/
+
+The script will:
+- Parse each HTML file using the lot detail parser
+- Extract image URLs from the JSON data
+- Download images that are still accessible
+- Run OCR to extract text tokens
+- Generate training data with labels
+
+Usage:
+    python scripts/process_saved_lot_pages.py --html-dir ./saved_lots/
+    python scripts/process_saved_lot_pages.py --html-dir ./saved_lots/ --output training_data/real
+"""
+
+
+from troostwatch.infrastructure.web.parsers import parse_lot_detail
+import argparse
+import asyncio
+import hashlib
+import json
+import re
+import sys
+from pathlib import Path
+import httpx
+import joblib
+import numpy as np
+from datetime import datetime
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+
+# Try to import OCR dependencies
+try:
+    import pytesseract
+    from PIL import Image
+    import io
+
+    HAS_OCR = True
+except ImportError:
+    HAS_OCR = False
+    print("Warning: pytesseract or PIL not available, OCR will be skipped")
+
+
+async def download_image(
+    client: httpx.AsyncClient, url: str, timeout: float = 30.0
+) -> bytes | None:
+    """
+    Download an image from URL asynchronously.
+
+    Args:
+        client (httpx.AsyncClient): HTTP client for requests.
+        url (str): Image URL.
+        timeout (float): Timeout in seconds.
+
+    Returns:
+        bytes | None: Image bytes if successful, else None.
+    """
+    try:
+        response = await client.get(url, timeout=timeout)
+        if response.status_code == 200:
+            return response.content
+        return None
+    except Exception:
+        return None
+
+
+def extract_tokens_from_image(image_bytes: bytes) -> list[dict]:
+    """
+    Extract text tokens from an image using OCR.
+
+    Args:
+        image_bytes (bytes): Image data in bytes.
+
+    Returns:
+        list[dict]: List of token dicts with text, confidence, and bounding box.
+    """
+    if not HAS_OCR:
+        return []
+
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        # Get detailed OCR data
+        ocr_data = pytesseract.image_to_data(
+            image, output_type=pytesseract.Output.DICT)
+
+        tokens = []
+        for i, text in enumerate(ocr_data["text"]):
+            text = text.strip()
+            if not text or len(text) < 3:  # Skip very short tokens
+                continue
+
+            conf = ocr_data["conf"][i]
+            if conf < 30:  # Skip low confidence
+                continue
+
+            x, y, w, h = (
+                ocr_data["left"][i],
+                ocr_data["top"][i],
+                ocr_data["width"][i],
+                ocr_data["height"][i],
+            )
+
+            tokens.append(
+                {
+                    "text": text,
+                    "confidence": conf,
+                    "bbox": {"x": x, "y": y, "width": w, "height": h},
+                }
+            )
+
+        return tokens
+    except Exception as e:
+        print(f"    OCR error: {e}")
+        return []
+
+
+def classify_token(text: str) -> str:
+    """
+    Classify a token based on its content.
+
+    Args:
+        text (str): The token text to classify.
+
+    Returns:
+        str: The label/category for the token (e.g., 'ean', 'serial_number', etc.).
+    """
+    text = text.strip().upper()
+    if not text:
+        return "none"
+
+    # EAN-13: exactly 13 digits
+    if re.match(r"^\d{13}$", text):
+        return "ean"
+
+    # EAN-8: exactly 8 digits
+    if re.match(r"^\d{8}$", text):
+        return "ean"
+
+    # Serial patterns: mixed alphanumeric, 8+ chars
+    if re.match(r"^[A-Z]{1,4}\d{6,12}$", text):
+        return "serial_number"
+    if re.match(r"^\d{6,12}[A-Z]{1,4}$", text):
+        return "serial_number"
+    if re.match(r"^S/?N[:\s]?\w+", text):
+        return "serial_number"
+
+    # Model patterns: letter-number combos, often with dashes
+    if re.match(r"^[A-Z]{1,4}\d{2,4}[A-Z]?(-[A-Z0-9]+)?$", text):
+        return "model_number"
+    if re.match(r"^[A-Z]{2}\d{2}[A-Z]{3,}$", text):
+        return "model_number"
+
+    # Part number patterns: XX##-#####X format
+    if re.match(r"^[A-Z]{2}\d{2}-\d{5}[A-Z]?$", text):
+        return "part_number"
+
+    return "none"
+
+
+async def process_html_file(
+    html_path: Path, output_dir: Path, client: httpx.AsyncClient, clf=None
+) -> dict:
+    """
+    Process a single HTML file and extract training data.
+
+    Args:
+        html_path (Path): Path to the HTML file.
+        output_dir (Path): Directory to save outputs.
+        client (httpx.AsyncClient): HTTP client for requests.
+        clf: Optional ML classifier for token prediction.
+
+    Returns:
+        dict: Stats with image and token counts.
+    """
+    print(f"\nProcessing: {html_path.name}")
+
+    with open(html_path, "r", encoding="utf-8", errors="ignore") as f:
+        html = f.read()
+
+    try:
+        lot_data = parse_lot_detail(html, lot_code=html_path.stem)
+    except Exception as e:
+        print(f"  Parse error: {e}")
+        return {"images": 0, "tokens": 0}
+
+    print(f"  Lot: {lot_data.lot_code}")
+    print(f"  Title: {lot_data.title[:60]}...")
+    print(f"  Images: {len(lot_data.image_urls)}")
+
+    stats = {"images": 0, "tokens": 0}
+
+    for i, image_url in enumerate(lot_data.image_urls):
+        print(f"  [{i+1}/{len(lot_data.image_urls)}] Downloading...")
+
+        image_bytes = await download_image(client, image_url)
+        if not image_bytes:
+            print("    Failed to download")
+            continue
+
+        # Save image
+        image_hash = hashlib.md5(image_bytes).hexdigest()[:8]
+        image_filename = f"{lot_data.lot_code}_{i}_{image_hash}.jpg"
+        image_path = output_dir / "images" / image_filename
+        image_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(image_path, "wb") as f:
+            f.write(image_bytes)
+
+        print(f"    Saved: {image_filename} ({len(image_bytes):,} bytes)")
+        stats["images"] += 1
+
+        # OCR
+        tokens = extract_tokens_from_image(image_bytes)
+        if tokens:
+            print(f"    OCR: {len(tokens)} tokens")
+
+        # Extra velden: brand, type, category
+        def extract_brand(title):
+            brands = [
+                "LENOVO",
+                "HP",
+                "DELL",
+                "SAMSUNG",
+                "LG",
+                "ACER",
+                "ASUS",
+                "CANON",
+                "EPSON",
+                "BROTHER",
+                "LEXMARK",
+                "FUJITSU",
+                "TOSHIBA",
+                "SONY",
+                "PANASONIC",
+                "PHILIPS",
+                "APPLE",
+                "MICROSOFT",
+                "LOGITECH",
+                "CISCO",
+                "NETGEAR",
+                "THINKPAD",
+                "THINKCENTRE",
+                "OPTIPLEX",
+                "LATITUDE",
+                "PROBOOK",
+                "ELITEBOOK",
+                "IDEAPAD",
+                "PAVILION",
+                "INSPIRON",
+                "VOSTRO",
+                "PRECISION",
+                "AMD",
+                "NVIDIA",
+                "GIGABYTE",
+                "HUAWEI",
+                "UBIQUITI",
+                "WESTERN DIGITAL",
+                "POWERCOLOUR",
+            ]
+            title_up = title.upper()
+            for b in brands:
+                if b in title_up:
+                    return b
+            return None
+
+        brand = extract_brand(lot_data.title)
+        auction_code = (
+            lot_data.lot_code.split("-")[0]
+            if "-" in lot_data.lot_code
+            else lot_data.lot_code
+        )
+        date_captured = datetime.now().isoformat()
+
+        # Detect type/category from OCR tokens only
+        type_keywords = {
+            "laptop": [
+                "LAPTOP",
+                "CHROMEBOOK",
+                "NOTEBOOK",
+                "ELITEBOOK",
+                "PROBOOK",
+                "THINKPAD",
+                "IDEAPAD",
+                "PAVILION",
+                "INSPIRON",
+                "VOSTRO",
+                "PRECISION",
+                "GAMING",
+            ],
+            "tablet": ["TABLET", "TAB"],
+            "smartwatch": ["SMARTWATCH", "WATCH"],
+            "videokaart": ["VIDEOKAART", "RTX", "RADEON", "GEFORCE"],
+            "harde schijf": ["HARDE SCHIJF", "HDD", "SSD", "WD", "WESTERN DIGITAL"],
+            "accesspoint": ["ACCESSPOINT", "UBIQUITI", "PRO"],
+            "workstation": ["WORKSTATION"],
+            "desktop": ["DESKTOP"],
+            "monitor": ["MONITOR"],
+            "printer": ["PRINTER"],
+            "router": ["ROUTER"],
+            "server": ["SERVER"],
+            "switch": ["SWITCH"],
+        }
+        category_map = {
+            "laptop": "computer",
+            "tablet": "elektronica",
+            "smartwatch": "accessoires",
+            "videokaart": "computer",
+            "harde schijf": "computer",
+            "accesspoint": "netwerk",
+            "workstation": "computer",
+            "desktop": "computer",
+            "monitor": "beeld",
+            "printer": "print",
+            "router": "netwerk",
+            "server": "computer",
+            "switch": "netwerk",
+        }
+
+        def detect_type_from_tokens(tokens):
+            texts = [t["text"].upper() for t in tokens]
+            for type_name, keywords in type_keywords.items():
+                for kw in keywords:
+                    if any(kw in txt for txt in texts):
+                        return type_name
+            return None
+
+        type_detected = detect_type_from_tokens(tokens)
+        category_detected = (
+            category_map.get(type_detected, None) if type_detected else None
+        )
+
+        # Classify and save
+        for idx, token in enumerate(tokens):
+            token["label"] = classify_token(token["text"])
+            token["image_file"] = image_filename
+            token["lot_code"] = lot_data.lot_code
+            token["lot_title"] = lot_data.title
+            token["source_url"] = image_url
+            token["brand"] = brand
+            token["auction_code"] = auction_code
+            token["date_captured"] = date_captured
+            token["type"] = type_detected if type_detected else None
+            token["category"] = category_detected if category_detected else None
+
+        # ML predictie
+        if clf is not None and tokens:
+            # Prepare features for ML model
+            def prepare_features(token, idx, total):
+                text = token["text"]
+                conf = float(token["confidence"])
+                pos_ratio = idx / max(total, 1)
+                features = []
+                features.append(float(len(text)))
+                features.append(min(len(text), 20) / 20.0)
+                if len(text) > 0:
+                    features.append(sum(c.isdigit() for c in text) / len(text))
+                    features.append(sum(c.isupper() for c in text) / len(text))
+                    features.append(sum(c.isalpha() for c in text) / len(text))
+                    features.append(sum(c in "-_/" for c in text) / len(text))
+                else:
+                    features.extend([0.0, 0.0, 0.0, 0.0])
+                features.append(1.0 if re.match(r"^\d{13}$", text) else 0.0)
+                features.append(1.0 if re.match(r"^\d{8}$", text) else 0.0)
+                features.append(1.0 if re.match(
+                    r"^[A-Z]{2,3}\d{6,}", text) else 0.0)
+                features.append(1.0 if re.match(
+                    r"^[A-Z]{2,4}-?\d{3,6}", text) else 0.0)
+                features.append(1.0 if re.match(
+                    r"^\d+[A-Z]+\d*$", text) else 0.0)
+                features.append(conf / 100.0)
+                features.append(pos_ratio)
+                return features
+
+            X = np.array(
+                [
+                    prepare_features(token, i, len(tokens))
+                    for i, token in enumerate(tokens)
+                ]
+            )
+            y_pred = clf.predict(X)
+            for i, token in enumerate(tokens):
+                token["ml_label"] = str(y_pred[i])
+
+        tokens_path = output_dir / "tokens.jsonl"
+        with open(tokens_path, "a", encoding="utf-8") as f:
+            for token in tokens:
+                f.write(json.dumps(token, ensure_ascii=False) + "\n")
+                stats["tokens"] += 1
+
+    return stats
+
+
+async def main():
+        """
+        Main entry point for processing manually saved lot detail HTML pages for training data.
+
+        Usage:
+            python scripts/process_saved_lot_pages.py --html-dir ./saved_lots/
+        """
+    parser = argparse.ArgumentParser(
+        description="Process manually saved lot detail HTML pages"
+    )
+    parser.add_argument(
+        "--html-dir",
+        type=Path,
+        required=True,
+        help="Directory containing saved HTML files",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("training_data/real_labels"),
+        help="Output directory",
+    )
+    parser.add_argument(
+        "--predict",
+        type=Path,
+        default=None,
+        help="Path to trained ML model (optional)",
+    )
+
+    args = parser.parse_args()
+
+    if not args.html_dir.exists():
+        print(f"Error: Directory not found: {args.html_dir}")
+        print("\nTo use this script:")
+        print("1. Open lot pages in your browser")
+        print("2. Save the HTML (Ctrl+S or Right-click -> Save As)")
+        print(f"3. Put the HTML files in: {args.html_dir}")
+        print("4. Run this script again")
+        return
+
+    html_files = list(args.html_dir.glob("*.html")) + \
+        list(args.html_dir.glob("*.htm"))
+    if not html_files:
+        print(f"No HTML files found in: {args.html_dir}")
+        return
+
+    print(f"Found {len(html_files)} HTML files")
+    print(f"Output: {args.output}")
+
+    args.output.mkdir(parents=True, exist_ok=True)
+
+    # Clear tokens file
+    tokens_path = args.output / "tokens.jsonl"
+    if tokens_path.exists():
+        tokens_path.unlink()
+
+    total = {"images": 0, "tokens": 0}
+
+    clf = None
+    if args.predict is not None and args.predict.exists():
+        print(f"Loading ML model: {args.predict}")
+        clf = joblib.load(args.predict)
+
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        for html_file in html_files:
+            stats = await process_html_file(html_file, args.output, client, clf=clf)
+            total["images"] += stats["images"]
+            total["tokens"] += stats["tokens"]
+
+    print("\n" + "=" * 50)
+    print("Summary:")
+    print(f"  Files processed: {len(html_files)}")
+    print(f"  Images downloaded: {total['images']}")
+    print(f"  Tokens extracted: {total['tokens']}")
+
+    if total["tokens"] > 0:
+        print(f"\nTraining data: {tokens_path}")
+        # Show label distribution
+        labels: dict[str, int] = {}
+        ml_labels: dict[str, int] = {}
+        with open(tokens_path) as f:
+            for line in f:
+                obj = json.loads(line)
+                label = obj.get("label", "none")
+                labels[label] = labels.get(label, 0) + 1
+                ml_label = obj.get("ml_label", None)
+                if ml_label:
+                    ml_labels[ml_label] = ml_labels.get(ml_label, 0) + 1
+        print("\nLabel distribution:")
+        for label, count in sorted(labels.items(), key=lambda x: -x[1]):
+            print(f"  {label}: {count}")
+        if ml_labels:
+            print("\nML label distribution:")
+            for label, count in sorted(ml_labels.items(), key=lambda x: -x[1]):
+                print(f"  {label}: {count}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

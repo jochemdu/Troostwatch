@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Troostwijk Auction Lot Image Analyzer",
+  "version": "1.0",
+  "description": "Capture lot images and send to backend for analysis.",
+  "permissions": ["scripting", "activeTab"],
+  "host_permissions": ["http://localhost:8000/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.troostwijkauctions.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}

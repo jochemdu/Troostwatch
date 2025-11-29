@@ -1,0 +1,20 @@
+2025-11-26T01:42:01.310565Z Processing page 1/1: https://example.com/a/test
+2025-11-26T01:42:01.312007Z   Upserted lot A1-TEST-1: bid €n/a
+2025-11-26T01:42:01.365428Z Processing page 1/1: https://example.com/page
+2025-11-26T01:42:01.510814Z Processing page 1/1: https://example.com/a/test
+2025-11-26T20:54:28.423115Z Processing page 1/1: https://example.com/a/test
+2025-11-26T20:54:28.424125Z   Upserted lot A1-TEST-1: bid €n/a
+2025-11-26T20:54:28.434479Z Processing page 1/1: https://example.com/page
+2025-11-26T20:54:28.466296Z Processing page 1/1: https://example.com/a/test
+2025-11-26T20:56:32.180999Z Processing page 1/1: https://example.com/a/test
+2025-11-26T20:56:32.182077Z   Upserted lot A1-TEST-1: bid €n/a
+2025-11-26T20:56:32.193199Z Processing page 1/1: https://example.com/page
+2025-11-26T20:56:32.228266Z Processing page 1/1: https://example.com/a/test
+2025-11-26T20:57:25.119157Z Processing page 1/1: https://example.com/a/test
+2025-11-26T20:57:25.120118Z   Upserted lot A1-TEST-1: bid €n/a
+2025-11-26T20:57:25.130823Z Processing page 1/1: https://example.com/page
+2025-11-26T20:57:25.166799Z Processing page 1/1: https://example.com/a/test
+2025-11-26T20:57:48.206953Z Processing page 1/1: https://example.com/a/test
+2025-11-26T20:57:48.208328Z   Upserted lot A1-TEST-1: bid €n/a
+2025-11-26T20:57:48.221044Z Processing page 1/1: https://example.com/page
+2025-11-26T20:57:48.256703Z Processing page 1/1: https://example.com/a/test

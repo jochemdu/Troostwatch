@@ -1,0 +1,4469 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Troostwatch API",
+    "version": "0.7.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Root",
+        "description": "API root endpoint with welcome message and links.",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lots": {
+      "get": {
+        "summary": "List Lots",
+        "operationId": "list_lots_lots_get",
+        "parameters": [
+          {
+            "name": "auction_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auction Code"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "brand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Brand"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 1000,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LotView"
+                  },
+                  "title": "Response List Lots Lots Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Lot",
+        "description": "Manually add or update a lot in the database.",
+        "operationId": "create_lot_lots_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search": {
+      "get": {
+        "summary": "Search Lots",
+        "description": "Search lots by title, brand, lot code, or EAN.",
+        "operationId": "search_lots_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "description": "Search query (min 2 chars)",
+              "title": "Q"
+            },
+            "description": "Search query (min 2 chars)"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by state",
+              "title": "State"
+            },
+            "description": "Filter by state"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Max results",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Max results"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SearchResultResponse"
+                  },
+                  "title": "Response Search Lots Search Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lots/{lot_code}": {
+      "get": {
+        "summary": "Get Lot Detail",
+        "description": "Get detailed lot information including specs and reference prices.",
+        "operationId": "get_lot_detail_lots__lot_code__get",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "auction_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auction Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update Lot",
+        "description": "Update lot notes and EAN.",
+        "operationId": "update_lot_lots__lot_code__patch",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "auction_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auction Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Lot",
+        "description": "Delete a lot and all related data (specs, bids, reference prices, positions).",
+        "operationId": "delete_lot_lots__lot_code__delete",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "auction_code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Auction code is required to identify the lot",
+              "title": "Auction Code"
+            },
+            "description": "Auction code is required to identify the lot"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lots/{lot_code}/reference-prices": {
+      "get": {
+        "summary": "List Reference Prices",
+        "description": "Get all reference prices for a lot.",
+        "operationId": "list_reference_prices_lots__lot_code__reference_prices_get",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "auction_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auction Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReferencePriceResponse"
+                  },
+                  "title": "Response List Reference Prices Lots  Lot Code  Reference Prices Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Reference Price",
+        "description": "Add a reference price for a lot.",
+        "operationId": "create_reference_price_lots__lot_code__reference_prices_post",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "auction_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auction Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferencePriceCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferencePriceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lots/{lot_code}/reference-prices/{ref_id}": {
+      "patch": {
+        "summary": "Update Reference Price",
+        "description": "Update a reference price.",
+        "operationId": "update_reference_price_lots__lot_code__reference_prices__ref_id__patch",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "ref_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Ref Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReferencePriceUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferencePriceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Reference Price",
+        "description": "Delete a reference price.",
+        "operationId": "delete_reference_price_lots__lot_code__reference_prices__ref_id__delete",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "ref_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Ref Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lots/{lot_code}/bid-history": {
+      "get": {
+        "summary": "Get Lot Bid History",
+        "description": "Get bid history for a lot, ordered by most recent first.",
+        "operationId": "get_lot_bid_history_lots__lot_code__bid_history_get",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "auction_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auction Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BidHistoryEntryResponse"
+                  },
+                  "title": "Response Get Lot Bid History Lots  Lot Code  Bid History Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lots/{lot_code}/specs": {
+      "post": {
+        "summary": "Create Lot Spec",
+        "description": "Add or update a specification for a lot.",
+        "operationId": "create_lot_spec_lots__lot_code__specs_post",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "auction_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auction Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LotSpecCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotSpecResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lots/{lot_code}/specs/{spec_id}": {
+      "delete": {
+        "summary": "Delete Lot Spec",
+        "description": "Delete a lot specification.",
+        "operationId": "delete_lot_spec_lots__lot_code__specs__spec_id__delete",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "spec_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Spec Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/spec-templates": {
+      "get": {
+        "summary": "List Spec Templates",
+        "description": "List all spec templates, optionally filtered by parent.",
+        "operationId": "list_spec_templates_spec_templates_get",
+        "parameters": [
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SpecTemplateResponse"
+                  },
+                  "title": "Response List Spec Templates Spec Templates Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Spec Template",
+        "description": "Create a new spec template.",
+        "operationId": "create_spec_template_spec_templates_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpecTemplateCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecTemplateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/spec-templates/{template_id}": {
+      "patch": {
+        "summary": "Update Spec Template",
+        "description": "Update a spec template.",
+        "operationId": "update_spec_template_spec_templates__template_id__patch",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpecTemplateUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecTemplateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Spec Template",
+        "description": "Delete a spec template.",
+        "operationId": "delete_spec_template_spec_templates__template_id__delete",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lots/{lot_code}/apply-template": {
+      "post": {
+        "summary": "Apply Template To Lot",
+        "description": "Apply a spec template to a lot.",
+        "operationId": "apply_template_to_lot_lots__lot_code__apply_template_post",
+        "parameters": [
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "auction_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auction Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LotSpecResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/positions/batch": {
+      "post": {
+        "summary": "Upsert Positions",
+        "operationId": "upsert_positions_positions_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PositionBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionBatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/positions": {
+      "get": {
+        "summary": "List Positions",
+        "description": "List all tracked positions, optionally filtered by buyer.",
+        "operationId": "list_positions_positions_get",
+        "parameters": [
+          {
+            "name": "buyer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by buyer label",
+              "title": "Buyer"
+            },
+            "description": "Filter by buyer label"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PositionResponse"
+                  },
+                  "title": "Response List Positions Positions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/positions/{buyer_label}/{lot_code}": {
+      "delete": {
+        "summary": "Delete Position",
+        "description": "Delete a tracked position.",
+        "operationId": "delete_position_positions__buyer_label___lot_code__delete",
+        "parameters": [
+          {
+            "name": "buyer_label",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Buyer Label"
+            }
+          },
+          {
+            "name": "lot_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Lot Code"
+            }
+          },
+          {
+            "name": "auction_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Auction Code"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/buyers": {
+      "get": {
+        "summary": "List Buyers",
+        "operationId": "list_buyers_buyers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BuyerResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Buyers Buyers Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Buyer",
+        "operationId": "create_buyer_buyers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuyerCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuyerCreateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/buyers/{label}": {
+      "delete": {
+        "summary": "Delete Buyer",
+        "operationId": "delete_buyer_buyers__label__delete",
+        "parameters": [
+          {
+            "name": "label",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Label"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bids": {
+      "get": {
+        "summary": "List Bids",
+        "description": "List recorded bids with optional filters.",
+        "operationId": "list_bids_bids_get",
+        "parameters": [
+          {
+            "name": "buyer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by buyer label",
+              "title": "Buyer"
+            },
+            "description": "Filter by buyer label"
+          },
+          {
+            "name": "lot_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by lot code",
+              "title": "Lot Code"
+            },
+            "description": "Filter by lot code"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BidResponse"
+                  },
+                  "title": "Response List Bids Bids Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Bid",
+        "description": "Record a new bid (local only, does not submit to Troostwijk).",
+        "operationId": "create_bid_bids_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BidCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BidResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/buyer/{buyer_label}": {
+      "get": {
+        "summary": "Get Buyer Report",
+        "description": "Get exposure and position summary for a buyer.",
+        "operationId": "get_buyer_report_reports_buyer__buyer_label__get",
+        "parameters": [
+          {
+            "name": "buyer_label",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Buyer Label"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuyerSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats": {
+      "get": {
+        "summary": "Get Dashboard Stats",
+        "description": "Get dashboard statistics overview.",
+        "operationId": "get_dashboard_stats_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardStatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auctions": {
+      "get": {
+        "summary": "List Auctions",
+        "description": "List all auctions, optionally including those without active lots.",
+        "operationId": "list_auctions_auctions_get",
+        "parameters": [
+          {
+            "name": "include_inactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include auctions without active lots",
+              "default": false,
+              "title": "Include Inactive"
+            },
+            "description": "Include auctions without active lots"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuctionResponse"
+                  },
+                  "title": "Response List Auctions Auctions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auctions/{auction_code}": {
+      "get": {
+        "summary": "Get Auction",
+        "description": "Get a single auction by code.",
+        "operationId": "get_auction_auctions__auction_code__get",
+        "parameters": [
+          {
+            "name": "auction_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Auction Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuctionDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update Auction",
+        "description": "Update an auction.",
+        "operationId": "update_auction_auctions__auction_code__patch",
+        "parameters": [
+          {
+            "name": "auction_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Auction Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuctionUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuctionDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Auction",
+        "description": "Delete an auction. Optionally delete all associated lots.",
+        "operationId": "delete_auction_auctions__auction_code__delete",
+        "parameters": [
+          {
+            "name": "auction_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Auction Code"
+            }
+          },
+          {
+            "name": "delete_lots",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also delete all lots in this auction",
+              "default": false,
+              "title": "Delete Lots"
+            },
+            "description": "Also delete all lots in this auction"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuctionDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sync": {
+      "post": {
+        "summary": "Trigger Sync",
+        "operationId": "trigger_sync_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/live-sync/start": {
+      "post": {
+        "summary": "Start Live Sync",
+        "operationId": "start_live_sync_live_sync_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveSyncStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveSyncControlResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/live-sync/pause": {
+      "post": {
+        "summary": "Pause Live Sync",
+        "operationId": "pause_live_sync_live_sync_pause_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveSyncControlResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/live-sync/stop": {
+      "post": {
+        "summary": "Stop Live Sync",
+        "operationId": "stop_live_sync_live_sync_stop_post",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveSyncControlResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/live-sync/status": {
+      "get": {
+        "summary": "Get Live Sync Status",
+        "operationId": "get_live_sync_status_live_sync_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveSyncStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/images/analyze": {
+      "post": {
+        "summary": "Analyze Images",
+        "description": "Analyze images for product codes, model numbers, and EAN codes.\n\nSupports two backends:\n- 'local': Uses Tesseract OCR with regex extraction (free, offline)\n- 'openai': Uses GPT-4 Vision API (requires OPENAI_API_KEY)\n\nThe local backend requires pytesseract and tesseract-ocr to be installed.",
+        "operationId": "analyze_images_images_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageAnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageAnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/codes/pending": {
+      "get": {
+        "summary": "Get Pending Codes",
+        "description": "Get extracted codes pending manual review.\n\nReturns codes that have not been auto-approved and need human review.",
+        "operationId": "get_pending_codes_review_codes_pending_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "code_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingCodesListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/codes/{code_id}/approve": {
+      "post": {
+        "summary": "Approve Code",
+        "description": "Approve an extracted code for promotion to lot record.",
+        "operationId": "approve_code_review_codes__code_id__approve_post",
+        "parameters": [
+          {
+            "name": "code_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Code Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeApprovalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/codes/{code_id}/reject": {
+      "post": {
+        "summary": "Reject Code",
+        "description": "Reject an extracted code (mark as not approved).",
+        "operationId": "reject_code_review_codes__code_id__reject_post",
+        "parameters": [
+          {
+            "name": "code_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Code Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeApprovalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/codes/bulk": {
+      "post": {
+        "summary": "Bulk Approve Codes",
+        "description": "Approve or reject multiple codes at once.",
+        "operationId": "bulk_approve_codes_review_codes_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkApprovalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkApprovalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/stats": {
+      "get": {
+        "summary": "Get Review Stats",
+        "description": "Get statistics for the review queue.",
+        "operationId": "get_review_stats_review_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewStatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApplyTemplateRequest": {
+        "properties": {
+          "template_id": {
+            "type": "integer",
+            "title": "Template Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id"
+        ],
+        "title": "ApplyTemplateRequest",
+        "description": "Request to apply a template to a lot."
+      },
+      "AuctionDeleteResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "auction_deleted": {
+            "type": "integer",
+            "title": "Auction Deleted"
+          },
+          "lots_deleted": {
+            "type": "integer",
+            "title": "Lots Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "auction_deleted",
+          "lots_deleted"
+        ],
+        "title": "AuctionDeleteResponse",
+        "description": "Response after deleting an auction."
+      },
+      "AuctionDetailResponse": {
+        "properties": {
+          "auction_code": {
+            "type": "string",
+            "title": "Auction Code"
+          },
+          "lot_count": {
+            "type": "integer",
+            "title": "Lot Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "auction_code"
+        ],
+        "title": "AuctionDetailResponse",
+        "description": "Detailed auction information."
+      },
+      "AuctionResponse": {
+        "properties": {
+          "auction_code": {
+            "type": "string",
+            "title": "Auction Code"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "ends_at_planned": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At Planned"
+          },
+          "active_lots": {
+            "type": "integer",
+            "title": "Active Lots",
+            "default": 0
+          },
+          "lot_count": {
+            "type": "integer",
+            "title": "Lot Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "auction_code"
+        ],
+        "title": "AuctionResponse",
+        "description": "Auction summary."
+      },
+      "AuctionUpdateRequest": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          },
+          "ends_at_planned": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At Planned"
+          }
+        },
+        "type": "object",
+        "title": "AuctionUpdateRequest",
+        "description": "Request to update an auction."
+      },
+      "BidCreateRequest": {
+        "properties": {
+          "buyer_label": {
+            "type": "string",
+            "title": "Buyer Label"
+          },
+          "auction_code": {
+            "type": "string",
+            "title": "Auction Code"
+          },
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "amount_eur": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Amount Eur"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "buyer_label",
+          "auction_code",
+          "lot_code",
+          "amount_eur"
+        ],
+        "title": "BidCreateRequest",
+        "description": "Request to record a new bid."
+      },
+      "BidHistoryEntryResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "bidder_label": {
+            "type": "string",
+            "title": "Bidder Label"
+          },
+          "amount_eur": {
+            "type": "number",
+            "title": "Amount Eur"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timestamp"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "bidder_label",
+          "amount_eur"
+        ],
+        "title": "BidHistoryEntryResponse",
+        "description": "A single bid in the lot's bid history."
+      },
+      "BidResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "buyer_label": {
+            "type": "string",
+            "title": "Buyer Label"
+          },
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "auction_code": {
+            "type": "string",
+            "title": "Auction Code"
+          },
+          "lot_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Title"
+          },
+          "amount_eur": {
+            "type": "number",
+            "title": "Amount Eur"
+          },
+          "placed_at": {
+            "type": "string",
+            "title": "Placed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "buyer_label",
+          "lot_code",
+          "auction_code",
+          "amount_eur",
+          "placed_at"
+        ],
+        "title": "BidResponse",
+        "description": "A recorded bid."
+      },
+      "BulkApprovalRequest": {
+        "properties": {
+          "code_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Code Ids"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code_ids",
+          "approved"
+        ],
+        "title": "BulkApprovalRequest",
+        "description": "Request to approve/reject multiple codes."
+      },
+      "BulkApprovalResponse": {
+        "properties": {
+          "processed": {
+            "type": "integer",
+            "title": "Processed"
+          },
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          }
+        },
+        "type": "object",
+        "required": [
+          "processed",
+          "approved",
+          "rejected"
+        ],
+        "title": "BulkApprovalResponse",
+        "description": "Response after bulk approval/rejection."
+      },
+      "BuyerCreateRequest": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "BuyerCreateRequest"
+      },
+      "BuyerCreateResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "label"
+        ],
+        "title": "BuyerCreateResponse"
+      },
+      "BuyerResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "BuyerResponse"
+      },
+      "BuyerSummaryResponse": {
+        "properties": {
+          "buyer_label": {
+            "type": "string",
+            "title": "Buyer Label"
+          },
+          "tracked_count": {
+            "type": "integer",
+            "title": "Tracked Count",
+            "default": 0
+          },
+          "open_count": {
+            "type": "integer",
+            "title": "Open Count",
+            "default": 0
+          },
+          "closed_count": {
+            "type": "integer",
+            "title": "Closed Count",
+            "default": 0
+          },
+          "open_exposure_min_eur": {
+            "type": "number",
+            "title": "Open Exposure Min Eur",
+            "default": 0.0
+          },
+          "open_exposure_max_eur": {
+            "type": "number",
+            "title": "Open Exposure Max Eur",
+            "default": 0.0
+          },
+          "open_tracked_lots": {
+            "items": {
+              "$ref": "#/components/schemas/TrackedLotSummaryResponse"
+            },
+            "type": "array",
+            "title": "Open Tracked Lots"
+          },
+          "won_lots": {
+            "items": {
+              "$ref": "#/components/schemas/TrackedLotSummaryResponse"
+            },
+            "type": "array",
+            "title": "Won Lots"
+          }
+        },
+        "type": "object",
+        "required": [
+          "buyer_label"
+        ],
+        "title": "BuyerSummaryResponse",
+        "description": "Buyer exposure and position summary."
+      },
+      "CodeApprovalResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "approved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "approved"
+        ],
+        "title": "CodeApprovalResponse",
+        "description": "Response after approving/rejecting a code."
+      },
+      "DashboardStatsResponse": {
+        "properties": {
+          "total_auctions": {
+            "type": "integer",
+            "title": "Total Auctions"
+          },
+          "active_auctions": {
+            "type": "integer",
+            "title": "Active Auctions"
+          },
+          "total_lots": {
+            "type": "integer",
+            "title": "Total Lots"
+          },
+          "running_lots": {
+            "type": "integer",
+            "title": "Running Lots"
+          },
+          "scheduled_lots": {
+            "type": "integer",
+            "title": "Scheduled Lots"
+          },
+          "closed_lots": {
+            "type": "integer",
+            "title": "Closed Lots"
+          },
+          "total_bids": {
+            "type": "integer",
+            "title": "Total Bids"
+          },
+          "total_positions": {
+            "type": "integer",
+            "title": "Total Positions"
+          },
+          "total_buyers": {
+            "type": "integer",
+            "title": "Total Buyers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_auctions",
+          "active_auctions",
+          "total_lots",
+          "running_lots",
+          "scheduled_lots",
+          "closed_lots",
+          "total_bids",
+          "total_positions",
+          "total_buyers"
+        ],
+        "title": "DashboardStatsResponse",
+        "description": "Dashboard statistics overview."
+      },
+      "ExtractedCodeResponse": {
+        "properties": {
+          "code_type": {
+            "type": "string",
+            "title": "Code Type"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "confidence": {
+            "type": "string",
+            "title": "Confidence"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code_type",
+          "value",
+          "confidence"
+        ],
+        "title": "ExtractedCodeResponse",
+        "description": "A code extracted from an image."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ImageAnalysisRequest": {
+        "properties": {
+          "image_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Image Urls"
+          },
+          "backend": {
+            "type": "string",
+            "pattern": "^(local|openai)$",
+            "title": "Backend",
+            "description": "Backend to use: 'local' (Tesseract OCR) or 'openai' (GPT-4 Vision)",
+            "default": "local"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_urls"
+        ],
+        "title": "ImageAnalysisRequest",
+        "description": "Request to analyze images for product codes."
+      },
+      "ImageAnalysisResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ImageAnalysisResultResponse"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "title": "ImageAnalysisResponse",
+        "description": "Response with analyzed image results."
+      },
+      "ImageAnalysisResultResponse": {
+        "properties": {
+          "image_url": {
+            "type": "string",
+            "title": "Image Url"
+          },
+          "codes": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractedCodeResponse"
+            },
+            "type": "array",
+            "title": "Codes"
+          },
+          "raw_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Text"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_url"
+        ],
+        "title": "ImageAnalysisResultResponse",
+        "description": "Result of analyzing a single image."
+      },
+      "LiveSyncControlResponse": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "LiveSyncControlResponse",
+        "description": "Response for live sync control actions."
+      },
+      "LiveSyncStartRequest": {
+        "properties": {
+          "auction_code": {
+            "type": "string",
+            "title": "Auction Code"
+          },
+          "auction_url": {
+            "type": "string",
+            "title": "Auction Url"
+          },
+          "max_pages": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Pages"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          },
+          "interval_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Seconds",
+            "description": "Seconds between sync runs; defaults to configured worker interval."
+          }
+        },
+        "type": "object",
+        "required": [
+          "auction_code",
+          "auction_url"
+        ],
+        "title": "LiveSyncStartRequest"
+      },
+      "LiveSyncStatusResponse": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "last_sync": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync"
+          },
+          "next_sync": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Sync"
+          },
+          "current_auction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Auction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "LiveSyncStatusResponse",
+        "description": "Status of the live sync worker."
+      },
+      "LotCreateRequest": {
+        "properties": {
+          "auction_code": {
+            "type": "string",
+            "title": "Auction Code"
+          },
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "opens_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opens At"
+          },
+          "closing_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closing Time"
+          },
+          "bid_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Count"
+          },
+          "opening_bid_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opening Bid Eur"
+          },
+          "current_bid_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Bid Eur"
+          },
+          "location_city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location City"
+          },
+          "location_country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Country"
+          },
+          "auction_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auction Title"
+          },
+          "auction_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auction Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "auction_code",
+          "lot_code",
+          "title"
+        ],
+        "title": "LotCreateRequest",
+        "description": "Request to manually add or update a lot."
+      },
+      "LotCreateResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "auction_code": {
+            "type": "string",
+            "title": "Auction Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "lot_code",
+          "auction_code"
+        ],
+        "title": "LotCreateResponse",
+        "description": "Response after creating/updating a lot."
+      },
+      "LotDetailResponse": {
+        "properties": {
+          "auction_code": {
+            "type": "string",
+            "title": "Auction Code"
+          },
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "current_bid_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Bid Eur"
+          },
+          "bid_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Count"
+          },
+          "opening_bid_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opening Bid Eur"
+          },
+          "closing_time_current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closing Time Current"
+          },
+          "closing_time_original": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closing Time Original"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "ean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean"
+          },
+          "location_city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location City"
+          },
+          "location_country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Country"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "specs": {
+            "items": {
+              "$ref": "#/components/schemas/LotSpecResponse"
+            },
+            "type": "array",
+            "title": "Specs"
+          },
+          "reference_prices": {
+            "items": {
+              "$ref": "#/components/schemas/ReferencePriceResponse"
+            },
+            "type": "array",
+            "title": "Reference Prices"
+          }
+        },
+        "type": "object",
+        "required": [
+          "auction_code",
+          "lot_code"
+        ],
+        "title": "LotDetailResponse",
+        "description": "Detailed lot information including specs and reference prices."
+      },
+      "LotSpecCreateRequest": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value",
+            "default": ""
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "ean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean"
+          },
+          "price_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Eur"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "title": "LotSpecCreateRequest",
+        "description": "Request to add or update a lot specification."
+      },
+      "LotSpecResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "ean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean"
+          },
+          "price_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Eur"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "key"
+        ],
+        "title": "LotSpecResponse",
+        "description": "A specification key-value pair for a lot."
+      },
+      "LotUpdateRequest": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "ean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean"
+          }
+        },
+        "type": "object",
+        "title": "LotUpdateRequest",
+        "description": "Request to update lot fields (notes, ean)."
+      },
+      "LotView": {
+        "properties": {
+          "auction_code": {
+            "type": "string",
+            "title": "Auction Code"
+          },
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "current_bid_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Bid Eur"
+          },
+          "bid_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bid Count"
+          },
+          "current_bidder_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Bidder Label"
+          },
+          "closing_time_current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closing Time Current",
+            "description": "Current closing timestamp, if set."
+          },
+          "closing_time_original": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closing Time Original",
+            "description": "Original closing timestamp, if set."
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand",
+            "description": "Brand/manufacturer of the lot item."
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": false
+          },
+          "effective_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Price"
+          }
+        },
+        "type": "object",
+        "required": [
+          "auction_code",
+          "lot_code"
+        ],
+        "title": "LotView",
+        "description": "DTO representing a lot summary suitable for API responses."
+      },
+      "PendingCodeResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "lot_image_id": {
+            "type": "integer",
+            "title": "Lot Image Id"
+          },
+          "lot_id": {
+            "type": "integer",
+            "title": "Lot Id"
+          },
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "image_local_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Local Path"
+          },
+          "code_type": {
+            "type": "string",
+            "title": "Code Type"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "confidence": {
+            "type": "string",
+            "title": "Confidence"
+          },
+          "context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "lot_image_id",
+          "lot_id",
+          "lot_code",
+          "code_type",
+          "value",
+          "confidence",
+          "created_at"
+        ],
+        "title": "PendingCodeResponse",
+        "description": "An extracted code pending review."
+      },
+      "PendingCodesListResponse": {
+        "properties": {
+          "codes": {
+            "items": {
+              "$ref": "#/components/schemas/PendingCodeResponse"
+            },
+            "type": "array",
+            "title": "Codes"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "default": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "default": 20
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "PendingCodesListResponse",
+        "description": "List of pending codes for review."
+      },
+      "PositionBatchRequest": {
+        "properties": {
+          "updates": {
+            "items": {
+              "$ref": "#/components/schemas/PositionUpdate"
+            },
+            "type": "array",
+            "title": "Updates"
+          }
+        },
+        "type": "object",
+        "required": [
+          "updates"
+        ],
+        "title": "PositionBatchRequest"
+      },
+      "PositionBatchResponse": {
+        "properties": {
+          "updated": {
+            "type": "integer",
+            "title": "Updated"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created",
+            "default": 0
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "updated"
+        ],
+        "title": "PositionBatchResponse",
+        "description": "Response for batch position updates."
+      },
+      "PositionResponse": {
+        "properties": {
+          "buyer_label": {
+            "type": "string",
+            "title": "Buyer Label"
+          },
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "auction_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auction Code"
+          },
+          "track_active": {
+            "type": "boolean",
+            "title": "Track Active",
+            "default": true
+          },
+          "max_budget_total_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Budget Total Eur"
+          },
+          "my_highest_bid_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Highest Bid Eur"
+          },
+          "lot_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot Title"
+          },
+          "lot_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lot State"
+          },
+          "current_bid_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Bid Eur"
+          }
+        },
+        "type": "object",
+        "required": [
+          "buyer_label",
+          "lot_code"
+        ],
+        "title": "PositionResponse",
+        "description": "A tracked position linking a buyer to a lot."
+      },
+      "PositionUpdate": {
+        "properties": {
+          "buyer_label": {
+            "type": "string",
+            "title": "Buyer Label"
+          },
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "max_budget_total_eur": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Budget Total Eur"
+          },
+          "preferred_bid_eur": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Bid Eur"
+          },
+          "watch": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Watch"
+          }
+        },
+        "type": "object",
+        "required": [
+          "buyer_label",
+          "lot_code"
+        ],
+        "title": "PositionUpdate"
+      },
+      "ReferencePriceCreateRequest": {
+        "properties": {
+          "condition": {
+            "type": "string",
+            "pattern": "^(new|used|refurbished)$",
+            "title": "Condition",
+            "default": "used"
+          },
+          "price_eur": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Price Eur"
+          }
+        },
+        "type": "object",
+        "required": [
+          "price_eur"
+        ],
+        "title": "ReferencePriceCreateRequest",
+        "description": "Request to add a reference price."
+      },
+      "ReferencePriceResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "condition": {
+            "type": "string",
+            "title": "Condition"
+          },
+          "price_eur": {
+            "type": "number",
+            "title": "Price Eur"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "condition",
+          "price_eur"
+        ],
+        "title": "ReferencePriceResponse",
+        "description": "A reference price for a lot."
+      },
+      "ReferencePriceUpdateRequest": {
+        "properties": {
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(new|used|refurbished)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "price_eur": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Eur"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "title": "ReferencePriceUpdateRequest",
+        "description": "Request to update a reference price."
+      },
+      "ReviewStatsResponse": {
+        "properties": {
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "approved_auto": {
+            "type": "integer",
+            "title": "Approved Auto"
+          },
+          "approved_manual": {
+            "type": "integer",
+            "title": "Approved Manual"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending",
+          "approved_auto",
+          "approved_manual",
+          "rejected",
+          "total"
+        ],
+        "title": "ReviewStatsResponse",
+        "description": "Statistics for the review queue."
+      },
+      "SearchResultResponse": {
+        "properties": {
+          "auction_code": {
+            "type": "string",
+            "title": "Auction Code"
+          },
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "current_bid_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Bid Eur"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "match_field": {
+            "type": "string",
+            "title": "Match Field"
+          }
+        },
+        "type": "object",
+        "required": [
+          "auction_code",
+          "lot_code",
+          "match_field"
+        ],
+        "title": "SearchResultResponse",
+        "description": "A search result with lot details and match info."
+      },
+      "SpecTemplateCreateRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "SpecTemplateCreateRequest",
+        "description": "Request to create a spec template."
+      },
+      "SpecTemplateResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "ean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean"
+          },
+          "price_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Eur"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "SpecTemplateResponse",
+        "description": "A reusable specification template."
+      },
+      "SpecTemplateUpdateRequest": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "ean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean"
+          },
+          "price_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Eur"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "title": "SpecTemplateUpdateRequest",
+        "description": "Request to update a spec template."
+      },
+      "SyncRequest": {
+        "properties": {
+          "auction_code": {
+            "type": "string",
+            "title": "Auction Code"
+          },
+          "auction_url": {
+            "type": "string",
+            "title": "Auction Url"
+          },
+          "max_pages": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Pages"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "auction_code",
+          "auction_url"
+        ],
+        "title": "SyncRequest"
+      },
+      "SyncRunResultResponse": {
+        "properties": {
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "pages_scanned": {
+            "type": "integer",
+            "title": "Pages Scanned",
+            "default": 0
+          },
+          "lots_scanned": {
+            "type": "integer",
+            "title": "Lots Scanned",
+            "default": 0
+          },
+          "lots_updated": {
+            "type": "integer",
+            "title": "Lots Updated",
+            "default": 0
+          },
+          "error_count": {
+            "type": "integer",
+            "title": "Error Count",
+            "default": 0
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "SyncRunResultResponse",
+        "description": "Result of a single sync run."
+      },
+      "SyncSummaryResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "auction_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auction Code"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncRunResultResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "SyncSummaryResponse",
+        "description": "Summary response for a sync operation."
+      },
+      "TrackedLotSummaryResponse": {
+        "properties": {
+          "lot_code": {
+            "type": "string",
+            "title": "Lot Code"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "current_bid_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Bid Eur"
+          },
+          "max_budget_total_eur": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Budget Total Eur"
+          },
+          "track_active": {
+            "type": "boolean",
+            "title": "Track Active",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "lot_code",
+          "title",
+          "state"
+        ],
+        "title": "TrackedLotSummaryResponse",
+        "description": "Summary of a tracked lot in buyer report."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

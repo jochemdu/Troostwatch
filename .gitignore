@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.sqlite
+snapshots/
+troostwatch.db
+troostwatch.db-shm
+troostwatch.db-wal
+node_modules/
+ui/.next/
+.venv/
+*.egg-info/
+ui/.next/

@@ -1,0 +1,22 @@
+{
+  "config_format_version": "1.0",
+  "paths": {
+    "db_path": "troostwatch.db",
+    "snapshots_root": "snapshots",
+    "lot_cards_dir": "snapshots/lot_cards",
+    "lot_details_dir": "snapshots/lot_details",
+    "images_dir": "data/images"
+  },
+  "db": {
+    "enable_wal": true,
+    "foreign_keys": true,
+    "busy_timeout": 10000
+  },
+  "sync": {
+    "delay_seconds": 0.5,
+    "max_pages": null,
+    "dry_run": false,
+    "verbose": true,
+    "log_path": "sync.log"
+  }
+}

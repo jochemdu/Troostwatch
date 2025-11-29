@@ -9,7 +9,6 @@ This module provides database access for the image analysis pipeline:
 from __future__ import annotations
 
 import json
-import sqlite3
 from dataclasses import dataclass
 from typing import Any
 

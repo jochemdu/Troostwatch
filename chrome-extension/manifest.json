@@ -5,7 +5,8 @@
   "description": "Capture Troostwijk lot pages for training data",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "downloads"
   ],
   "host_permissions": [
     "https://www.troostwijkauctions.com/*",

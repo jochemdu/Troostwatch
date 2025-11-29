@@ -40,9 +40,21 @@ from pathlib import Path
 
 import joblib
 import numpy as np
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import cross_val_score, train_test_split
+
+
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or restrict to your extension's origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def prepare_features(token: str, ocr_conf: float, position_ratio: float) -> list[float]:
@@ -56,20 +68,23 @@ def prepare_features(token: str, ocr_conf: float, position_ratio: float) -> list
     Returns:
         Feature vector as a list of floats
     """
+
     features = []
 
     # Length features
-    features.append(float(len(token)))
-    features.append(min(len(token), 20) / 20.0)  # Normalized length (cap at 20)
+    features.append(len(token))
+    features.append(len(token) / 20.0)
 
-    # Character composition
-    if len(token) > 0:
-        features.append(sum(c.isdigit() for c in token) / len(token))
-        features.append(sum(c.isupper() for c in token) / len(token))
-        features.append(sum(c.isalpha() for c in token) / len(token))
-        features.append(sum(c in "-_/" for c in token) / len(token))
-    else:
-        features.extend([0.0, 0.0, 0.0, 0.0])
+    # Character ratios
+    digit_count = sum(c.isdigit() for c in token)
+    upper_count = sum(c.isupper() for c in token)
+    alpha_count = sum(c.isalpha() for c in token)
+    punct_count = sum(not c.isalnum() for c in token)
+    total = max(len(token), 1)
+    features.append(digit_count / total)
+    features.append(upper_count / total)
+    features.append(alpha_count / total)
+    features.append(punct_count / total)
 
     # Pattern matches
     features.append(1.0 if re.match(r"^\d{13}$", token) else 0.0)  # EAN-13
@@ -88,76 +103,75 @@ def prepare_features(token: str, ocr_conf: float, position_ratio: float) -> list
 
 
 def load_training_data(input_path: Path) -> tuple[np.ndarray, np.ndarray, list[str]]:
-    """Load and process training data from JSON file.
+
+    """Load and process training data from JSON or JSONL file.
 
     Args:
-        input_path: Path to the training data JSON
+        input_path: Path to the training data JSON or JSONL
 
     Returns:
         Tuple of (features, labels, raw_tokens) as numpy arrays
     """
     with open(input_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+        first = f.read(2048)
+        f.seek(0)
+        if first.strip().startswith("["):
+            # Standard JSON array
+            data = json.load(f)
+        else:
+            # JSONL: one object per line
+            data = [json.loads(line) for line in f if line.strip()]
 
     all_features = []
     all_labels = []
     all_tokens = []
 
-    for image in data.get("images", []):
-        tokens_data = image.get("tokens", {})
-        labels = image.get("labels", {})  # Manual labels: {index: label}
-
-        texts = tokens_data.get("text", [])
-        confs = tokens_data.get("conf", [])
-        total_tokens = len(texts)
-
-        for i, token in enumerate(texts):
-            token = str(token).strip()
-            if not token or token == "-1":
-                continue
-
-            # Get label (from manual annotation or default to 'none')
-            label = labels.get(str(i), "none")
-
-            # Get OCR confidence
-            try:
-                conf = float(confs[i]) if i < len(confs) else 0.0
-            except (ValueError, TypeError):
-                conf = 0.0
-
-            # Position ratio
-            pos_ratio = i / max(total_tokens, 1)
-
-            # Prepare features
-            features = prepare_features(token, conf, pos_ratio)
-
-            all_features.append(features)
+    if isinstance(data, list):
+        # Flat token list (JSONL or JSON array)
+        for token_obj in data:
+            token_text = token_obj.get("text", "")
+            conf = float(token_obj.get("confidence", 0))
+            position_ratio = 0.0
+            if "bbox" in token_obj:
+                position_ratio = float(token_obj["bbox"].get("y", 0)) / 1000.0
+            label = token_obj.get("ml_label", "none")
+            all_features.append(prepare_features(token_text, conf, position_ratio))
             all_labels.append(label)
-            all_tokens.append(token)
+            all_tokens.append(token_text)
+    elif isinstance(data, dict):
+        # Original nested format
+        for image in data.get("images", []):
+            tokens_data = image.get("tokens", {})
+            labels = image.get("labels", {})  # Manual labels: {index: label}
+
+            texts = tokens_data.get("text", [])
+            confs = tokens_data.get("conf", [])
+            total_tokens = len(texts)
+
+            for i, token in enumerate(texts):
+                token = str(token).strip()
+                if not token or token == "-1":
+                    continue
+                try:
+                    conf = float(confs[i]) if i < len(confs) else 0.0
+                except (ValueError, TypeError):
+                    conf = 0.0
+                position_ratio = i / max(total_tokens - 1, 1) if total_tokens > 1 else 0.0
+                label = labels.get(str(i), "none")
+                all_features.append(prepare_features(token, conf, position_ratio))
+                all_labels.append(label)
+                all_tokens.append(token)
+
 
     return np.array(all_features), np.array(all_labels), all_tokens
 
-
 def train_model(X: np.ndarray, y: np.ndarray) -> RandomForestClassifier:
-    """Train a Random Forest classifier.
-
-    Args:
-        X: Feature matrix
-        y: Label array
-
-    Returns:
-        Trained classifier
-    """
-    # Split data
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
-
     print(f"Training set size: {len(X_train)}")
     print(f"Test set size: {len(X_test)}")
     print()
-
-    # Train classifier
     clf = RandomForestClassifier(
         n_estimators=100,
         max_depth=10,
@@ -166,48 +180,25 @@ def train_model(X: np.ndarray, y: np.ndarray) -> RandomForestClassifier:
         random_state=42,
         n_jobs=-1,
     )
-
     clf.fit(X_train, y_train)
-
-    # Evaluate
     print("Cross-validation scores:")
     cv_scores = cross_val_score(clf, X_train, y_train, cv=5)
     print(f"  Mean: {cv_scores.mean():.3f} (+/- {cv_scores.std() * 2:.3f})")
     print()
-
-    # Test set performance
     y_pred = clf.predict(X_test)
     print("Test set performance:")
     print(classification_report(y_test, y_pred))
     print()
-
     print("Confusion matrix:")
     print(confusion_matrix(y_test, y_pred))
     print()
-
-    # Feature importance
     feature_names = [
-        "length",
-        "length_norm",
-        "digit_ratio",
-        "upper_ratio",
-        "alpha_ratio",
-        "punct_ratio",
-        "is_ean13",
-        "is_ean8",
-        "is_serial",
-        "is_model",
-        "is_mixed",
-        "ocr_conf",
-        "position",
+        "length", "length_norm", "digit_ratio", "upper_ratio", "alpha_ratio", "punct_ratio",
+        "is_ean13", "is_ean8", "is_serial", "is_model", "is_mixed", "ocr_conf", "position"
     ]
-
     print("Feature importance:")
-    for name, importance in sorted(
-        zip(feature_names, clf.feature_importances_), key=lambda x: -x[1]
-    ):
+    for name, importance in sorted(zip(feature_names, clf.feature_importances_), key=lambda x: -x[1]):
         print(f"  {name}: {importance:.3f}")
-
     return clf
 
 
@@ -275,3 +266,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+const API_URL = 'http://localhost:8000/api/upload-tokens';
+// ... use sendTokensToApi as shown earlier ...

@@ -58,7 +58,22 @@ async function extractAuctionData(tab) {
       try {
         const data = JSON.parse(script.textContent);
         const pageProps = data.props?.pageProps || {};
-        const items = pageProps.items || pageProps.lots || [];
+        
+        // Lots can be in different places depending on page structure
+        let items = [];
+        
+        // Check lots.results (auction page)
+        if (pageProps.lots?.results) {
+          items = pageProps.lots.results;
+        }
+        // Check items array
+        else if (pageProps.items) {
+          items = pageProps.items;
+        }
+        // Check lots array directly
+        else if (Array.isArray(pageProps.lots)) {
+          items = pageProps.lots;
+        }
         
         return {
           html: document.documentElement.outerHTML,

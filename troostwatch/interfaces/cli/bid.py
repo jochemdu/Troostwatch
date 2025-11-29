@@ -90,8 +90,7 @@ def bid(
         session_timeout=session_timeout,
     )
     if client is None:
-        click.echo(
-            "Login credentials or a token path are required to submit bids.")
+        click.echo("Login credentials or a token path are required to submit bids.")
         return
 
     try:

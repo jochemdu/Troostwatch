@@ -123,8 +123,7 @@ def add_position(
 ) -> None:
     """Add or update a tracked position using a SQLite-backed service."""
 
-    service = _resolve_service(
-        db_path=db_path, connection_factory=connection_factory)
+    service = _resolve_service(db_path=db_path, connection_factory=connection_factory)
     service.add_position(
         buyer_label=buyer_label,
         auction_code=auction_code,
@@ -142,8 +141,7 @@ def list_positions(
 ) -> list[PositionDTO]:
     """Return tracked positions using a SQLite-backed service."""
 
-    service = _resolve_service(
-        db_path=db_path, connection_factory=connection_factory)
+    service = _resolve_service(db_path=db_path, connection_factory=connection_factory)
     return service.list_positions(buyer_label=buyer_label)
 
 
@@ -157,8 +155,7 @@ def delete_position(
 ) -> None:
     """Delete a tracked position using a SQLite-backed service."""
 
-    service = _resolve_service(
-        db_path=db_path, connection_factory=connection_factory)
+    service = _resolve_service(db_path=db_path, connection_factory=connection_factory)
     service.delete_position(
         buyer_label=buyer_label, auction_code=auction_code, lot_code=lot_code
     )

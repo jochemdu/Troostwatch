@@ -1,0 +1,9 @@
+{
+  "config_format_version": "1.0",
+  "paths": {
+    "db_path": "troostwatch.db",
+    "snapshots_root": "snapshots",
+    "lot_cards_dir": "snapshots/lot_cards",
+    "lot_details_dir": "snapshots/lot_details"
+  }
+}

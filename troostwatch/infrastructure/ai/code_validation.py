@@ -498,7 +498,7 @@ def validate_mac_address(code: str) -> ValidationResult:
         )
 
     # Format as AA:BB:CC:DD:EE:FF
-    formatted = ":".join(normalized[i: i + 2] for i in range(0, 12, 2))
+    formatted = ":".join(normalized[i:i+2] for i in range(0, 12, 2))
 
     return ValidationResult(
         is_valid=True,
@@ -626,9 +626,7 @@ def detect_code_type(code: str) -> CodeType:
 
     # Check for UUID pattern
     uuid_normalized = code.lower().replace("-", "")
-    if len(uuid_normalized) == 32 and all(
-        c in "0123456789abcdef" for c in uuid_normalized
-    ):
+    if len(uuid_normalized) == 32 and all(c in "0123456789abcdef" for c in uuid_normalized):
         return CodeType.UUID
 
     # ISBN-10 check (9 digits + optional X)

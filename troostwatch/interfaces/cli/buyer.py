@@ -53,11 +53,9 @@ def add_cmd(
     cli_context: CLIContext = ctx.obj["cli_context"]
     with buyer_service(cli_context) as service:
         try:
-            asyncio.run(service.create_buyer(
-                label=label, name=name, notes=notes))
+            asyncio.run(service.create_buyer(label=label, name=name, notes=notes))
         except BuyerAlreadyExistsError:
-            console.print(
-                f"[red]Buyer with label '{label}' already exists.[/red]")
+            console.print(f"[red]Buyer with label '{label}' already exists.[/red]")
             ctx.exit(1)
 
     console.print(f"[green]Added buyer [bold]{label}[/bold]")
@@ -81,8 +79,7 @@ def list_cmd(ctx: click.Context) -> None:
     table.add_column("Name")
     table.add_column("Notes")
     for buyer_item in buyers:
-        table.add_row(buyer_item.label, buyer_item.name or "",
-                      buyer_item.notes or "")
+        table.add_row(buyer_item.label, buyer_item.name or "", buyer_item.notes or "")
     console.print(table)
 
 

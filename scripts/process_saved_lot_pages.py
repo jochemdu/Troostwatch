@@ -9,7 +9,7 @@ Instructions:
 2. Right-click -> "Save Page As" -> "Webpage, Complete" or just the HTML
 3. Save to a directory (e.g., ./saved_lots/)
 4. Run this script:
-
+   
    python scripts/process_saved_lot_pages.py --html-dir ./saved_lots/
 
 The script will:
@@ -25,11 +25,11 @@ Usage:
 """
 
 
-from troostwatch.infrastructure.web.parsers import parse_lot_detail
 import argparse
 import asyncio
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -41,6 +41,7 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from troostwatch.infrastructure.web.parsers import parse_lot_detail
 
 # Try to import OCR dependencies
 try:
@@ -57,17 +58,7 @@ except ImportError:
 async def download_image(
     client: httpx.AsyncClient, url: str, timeout: float = 30.0
 ) -> bytes | None:
-    """
-    Download an image from URL asynchronously.
-
-    Args:
-        client (httpx.AsyncClient): HTTP client for requests.
-        url (str): Image URL.
-        timeout (float): Timeout in seconds.
-
-    Returns:
-        bytes | None: Image bytes if successful, else None.
-    """
+    """Download an image from URL."""
     try:
         response = await client.get(url, timeout=timeout)
         if response.status_code == 200:
@@ -78,23 +69,14 @@ async def download_image(
 
 
 def extract_tokens_from_image(image_bytes: bytes) -> list[dict]:
-    """
-    Extract text tokens from an image using OCR.
-
-    Args:
-        image_bytes (bytes): Image data in bytes.
-
-    Returns:
-        list[dict]: List of token dicts with text, confidence, and bounding box.
-    """
+    """Extract text tokens from an image using OCR."""
     if not HAS_OCR:
         return []
 
     try:
         image = Image.open(io.BytesIO(image_bytes))
         # Get detailed OCR data
-        ocr_data = pytesseract.image_to_data(
-            image, output_type=pytesseract.Output.DICT)
+        ocr_data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
 
         tokens = []
         for i, text in enumerate(ocr_data["text"]):
@@ -128,14 +110,9 @@ def extract_tokens_from_image(image_bytes: bytes) -> list[dict]:
 
 
 def classify_token(text: str) -> str:
-    """
-    Classify a token based on its content.
+    """Classify a token based on its content.
 
-    Args:
-        text (str): The token text to classify.
-
-    Returns:
-        str: The label/category for the token (e.g., 'ean', 'serial_number', etc.).
+    Returns one of: 'ean', 'serial_number', 'model_number', 'part_number', 'none'
     """
     text = text.strip().upper()
     if not text:
@@ -173,18 +150,7 @@ def classify_token(text: str) -> str:
 async def process_html_file(
     html_path: Path, output_dir: Path, client: httpx.AsyncClient, clf=None
 ) -> dict:
-    """
-    Process a single HTML file and extract training data.
-
-    Args:
-        html_path (Path): Path to the HTML file.
-        output_dir (Path): Directory to save outputs.
-        client (httpx.AsyncClient): HTTP client for requests.
-        clf: Optional ML classifier for token prediction.
-
-    Returns:
-        dict: Stats with image and token counts.
-    """
+    """Process a single HTML file and extract training data."""
     print(f"\nProcessing: {html_path.name}")
 
     with open(html_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -207,7 +173,7 @@ async def process_html_file(
 
         image_bytes = await download_image(client, image_url)
         if not image_bytes:
-            print("    Failed to download")
+            print(f"    Failed to download")
             continue
 
         # Save image
@@ -227,48 +193,17 @@ async def process_html_file(
         if tokens:
             print(f"    OCR: {len(tokens)} tokens")
 
+
+
         # Extra velden: brand, type, category
         def extract_brand(title):
             brands = [
-                "LENOVO",
-                "HP",
-                "DELL",
-                "SAMSUNG",
-                "LG",
-                "ACER",
-                "ASUS",
-                "CANON",
-                "EPSON",
-                "BROTHER",
-                "LEXMARK",
-                "FUJITSU",
-                "TOSHIBA",
-                "SONY",
-                "PANASONIC",
-                "PHILIPS",
-                "APPLE",
-                "MICROSOFT",
-                "LOGITECH",
-                "CISCO",
-                "NETGEAR",
-                "THINKPAD",
-                "THINKCENTRE",
-                "OPTIPLEX",
-                "LATITUDE",
-                "PROBOOK",
-                "ELITEBOOK",
-                "IDEAPAD",
-                "PAVILION",
-                "INSPIRON",
-                "VOSTRO",
-                "PRECISION",
-                "AMD",
-                "NVIDIA",
-                "GIGABYTE",
-                "HUAWEI",
-                "UBIQUITI",
-                "WESTERN DIGITAL",
-                "POWERCOLOUR",
+                "LENOVO", "HP", "DELL", "SAMSUNG", "LG", "ACER", "ASUS", "CANON",
+                "EPSON", "BROTHER", "LEXMARK", "FUJITSU", "TOSHIBA", "SONY", "PANASONIC",
+                "PHILIPS", "APPLE", "MICROSOFT", "LOGITECH", "CISCO", "NETGEAR",
+                "THINKPAD", "THINKCENTRE", "OPTIPLEX", "LATITUDE", "PROBOOK", "ELITEBOOK",
+                "IDEAPAD", "PAVILION", "INSPIRON", "VOSTRO", "PRECISION", "AMD", "NVIDIA",
+                "GIGABYTE", "HUAWEI", "UBIQUITI", "WESTERN DIGITAL", "POWERCOLOUR"
             ]
             title_up = title.upper()
             for b in brands:
@@ -276,30 +211,14 @@ async def process_html_file(
                     return b
             return None
 
+
         brand = extract_brand(lot_data.title)
-        auction_code = (
-            lot_data.lot_code.split("-")[0]
-            if "-" in lot_data.lot_code
-            else lot_data.lot_code
-        )
+        auction_code = lot_data.lot_code.split('-')[0] if '-' in lot_data.lot_code else lot_data.lot_code
         date_captured = datetime.now().isoformat()
 
         # Detect type/category from OCR tokens only
         type_keywords = {
-            "laptop": [
-                "LAPTOP",
-                "CHROMEBOOK",
-                "NOTEBOOK",
-                "ELITEBOOK",
-                "PROBOOK",
-                "THINKPAD",
-                "IDEAPAD",
-                "PAVILION",
-                "INSPIRON",
-                "VOSTRO",
-                "PRECISION",
-                "GAMING",
-            ],
+            "laptop": ["LAPTOP", "CHROMEBOOK", "NOTEBOOK", "ELITEBOOK", "PROBOOK", "THINKPAD", "IDEAPAD", "PAVILION", "INSPIRON", "VOSTRO", "PRECISION", "GAMING"],
             "tablet": ["TABLET", "TAB"],
             "smartwatch": ["SMARTWATCH", "WATCH"],
             "videokaart": ["VIDEOKAART", "RTX", "RADEON", "GEFORCE"],
@@ -338,9 +257,7 @@ async def process_html_file(
             return None
 
         type_detected = detect_type_from_tokens(tokens)
-        category_detected = (
-            category_map.get(type_detected, None) if type_detected else None
-        )
+        category_detected = category_map.get(type_detected, None) if type_detected else None
 
         # Classify and save
         for idx, token in enumerate(tokens):
@@ -374,22 +291,14 @@ async def process_html_file(
                     features.extend([0.0, 0.0, 0.0, 0.0])
                 features.append(1.0 if re.match(r"^\d{13}$", text) else 0.0)
                 features.append(1.0 if re.match(r"^\d{8}$", text) else 0.0)
-                features.append(1.0 if re.match(
-                    r"^[A-Z]{2,3}\d{6,}", text) else 0.0)
-                features.append(1.0 if re.match(
-                    r"^[A-Z]{2,4}-?\d{3,6}", text) else 0.0)
-                features.append(1.0 if re.match(
-                    r"^\d+[A-Z]+\d*$", text) else 0.0)
+                features.append(1.0 if re.match(r"^[A-Z]{2,3}\d{6,}", text) else 0.0)
+                features.append(1.0 if re.match(r"^[A-Z]{2,4}-?\d{3,6}", text) else 0.0)
+                features.append(1.0 if re.match(r"^\d+[A-Z]+\d*$", text) else 0.0)
                 features.append(conf / 100.0)
                 features.append(pos_ratio)
                 return features
 
-            X = np.array(
-                [
-                    prepare_features(token, i, len(tokens))
-                    for i, token in enumerate(tokens)
-                ]
-            )
+            X = np.array([prepare_features(token, i, len(tokens)) for i, token in enumerate(tokens)])
             y_pred = clf.predict(X)
             for i, token in enumerate(tokens):
                 token["ml_label"] = str(y_pred[i])
@@ -404,12 +313,6 @@ async def process_html_file(
 
 
 async def main():
-        """
-        Main entry point for processing manually saved lot detail HTML pages for training data.
-
-        Usage:
-            python scripts/process_saved_lot_pages.py --html-dir ./saved_lots/
-        """
     parser = argparse.ArgumentParser(
         description="Process manually saved lot detail HTML pages"
     )
@@ -443,8 +346,7 @@ async def main():
         print("4. Run this script again")
         return
 
-    html_files = list(args.html_dir.glob("*.html")) + \
-        list(args.html_dir.glob("*.htm"))
+    html_files = list(args.html_dir.glob("*.html")) + list(args.html_dir.glob("*.htm"))
     if not html_files:
         print(f"No HTML files found in: {args.html_dir}")
         return

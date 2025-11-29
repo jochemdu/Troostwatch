@@ -136,12 +136,10 @@ class MetricRegistry:
         """Get or create a histogram."""
         with self._lock:
             if name not in self._histograms:
-                kwargs: dict[str, object] = {
-                    "name": name, "help_text": help_text}
+                kwargs: dict[str, object] = {"name": name, "help_text": help_text}
                 if buckets is not None:
                     kwargs["buckets"] = buckets
-                self._histograms[name] = Histogram(
-                    **kwargs)  # type: ignore[arg-type]
+                self._histograms[name] = Histogram(**kwargs)  # type: ignore[arg-type]
             return self._histograms[name]
 
     def all_counters(self) -> dict[str, Counter]:
@@ -210,8 +208,7 @@ class Timer:
 
     def __exit__(self, *args: object) -> None:
         duration = time.perf_counter() - self._start
-        observe_histogram(self.histogram_name, duration,
-                          self.labels, self.help_text)
+        observe_histogram(self.histogram_name, duration, self.labels, self.help_text)
 
 
 # ---------------------------------------------------------------------------
@@ -244,10 +241,8 @@ def record_api_request(
     endpoint: str, method: str, status_code: int, duration: float
 ) -> None:
     """Record an API request with its outcome and duration."""
-    labels = {"endpoint": endpoint,
-              "method": method, "status": str(status_code)}
-    increment_counter(API_REQUESTS, labels=labels,
-                      help_text="Total API requests")
+    labels = {"endpoint": endpoint, "method": method, "status": str(status_code)}
+    increment_counter(API_REQUESTS, labels=labels, help_text="Total API requests")
     observe_histogram(
         API_REQUEST_DURATION,
         duration,
@@ -379,9 +374,7 @@ def get_image_pipeline_stats() -> dict[str, object]:
         },
         "analysis": {
             "local_success": analysis.get({"backend": "local", "status": "success"}),
-            "local_review": analysis.get(
-                {"backend": "local", "status": "needs_review"}
-            ),
+            "local_review": analysis.get({"backend": "local", "status": "needs_review"}),
             "local_failed": analysis.get({"backend": "local", "status": "failed"}),
             "openai_success": analysis.get({"backend": "openai", "status": "success"}),
         },
@@ -410,16 +403,14 @@ def get_metrics_summary() -> dict[str, object]:
     for name, counter in _registry.all_counters().items():
         values = {}
         for key, value in counter._values.items():
-            label_str = ",".join(
-                f"{k}={v}" for k, v in key) if key else "default"
+            label_str = ",".join(f"{k}={v}" for k, v in key) if key else "default"
             values[label_str] = value
         result["counters"][name] = values  # type: ignore[index]
 
     for name, histogram in _registry.all_histograms().items():
         stats = {}
         for key in histogram._observations:
-            label_str = ",".join(
-                f"{k}={v}" for k, v in key) if key else "default"
+            label_str = ",".join(f"{k}={v}" for k, v in key) if key else "default"
             stats[label_str] = histogram.get_stats(dict(key) if key else None)
         result["histograms"][name] = stats  # type: ignore[index]
 

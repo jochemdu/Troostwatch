@@ -245,8 +245,7 @@ class LotRepository(BaseRepository):
 
     def delete_reference_price(self, ref_id: int) -> bool:
         """Delete a reference price. Returns True if deleted."""
-        cur = self.conn.execute(
-            "DELETE FROM reference_prices WHERE id = ?", (ref_id,))
+        cur = self.conn.execute("DELETE FROM reference_prices WHERE id = ?", (ref_id,))
         self.conn.commit()
         return cur.rowcount > 0
 
@@ -363,8 +362,7 @@ class LotRepository(BaseRepository):
 
     def delete_lot_spec(self, spec_id: int) -> bool:
         """Delete a specification by id. Returns True if deleted."""
-        cur = self._execute(
-            "DELETE FROM product_layers WHERE id = ?", (spec_id,))
+        cur = self._execute("DELETE FROM product_layers WHERE id = ?", (spec_id,))
         self.conn.commit()
         return cur.rowcount > 0
 
@@ -464,8 +462,7 @@ class LotRepository(BaseRepository):
 
     def delete_spec_template(self, template_id: int) -> bool:
         """Delete a spec template. Returns True if deleted."""
-        cur = self._execute(
-            "DELETE FROM spec_templates WHERE id = ?", (template_id,))
+        cur = self._execute("DELETE FROM spec_templates WHERE id = ?", (template_id,))
         self.conn.commit()
         return cur.rowcount > 0
 
@@ -602,8 +599,7 @@ class LotRepository(BaseRepository):
 
         # Upsert bid history if available
         if detail.bid_history:
-            self._upsert_bid_history(
-                card.lot_code, auction_id, detail.bid_history)
+            self._upsert_bid_history(card.lot_code, auction_id, detail.bid_history)
 
         return lot_id
 
@@ -658,11 +654,9 @@ class LotRepository(BaseRepository):
 
         # Delete related data in order (foreign key dependencies)
         self._execute("DELETE FROM bid_history WHERE lot_id = ?", (lot_id,))
-        self._execute(
-            "DELETE FROM reference_prices WHERE lot_id = ?", (lot_id,))
+        self._execute("DELETE FROM reference_prices WHERE lot_id = ?", (lot_id,))
         self._execute("DELETE FROM product_layers WHERE lot_id = ?", (lot_id,))
-        self._execute(
-            "DELETE FROM my_lot_positions WHERE lot_id = ?", (lot_id,))
+        self._execute("DELETE FROM my_lot_positions WHERE lot_id = ?", (lot_id,))
 
         # Delete the lot itself
         self._execute("DELETE FROM lots WHERE id = ?", (lot_id,))

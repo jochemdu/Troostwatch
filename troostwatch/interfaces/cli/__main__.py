@@ -30,8 +30,7 @@ from .view import view
 def cli(ctx: click.Context) -> None:
     """Troostwatch command-line interface."""
     if ctx.invoked_subcommand is None:
-        click.echo(
-            "Launching interactive menu (use --help to see all commands).\n")
+        click.echo("Launching interactive menu (use --help to see all commands).\n")
         ctx.invoke(menu)
 
 

@@ -14,6 +14,7 @@ import threading
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Iterable
 from urllib.parse import urlparse
 
 import aiohttp
@@ -97,7 +98,7 @@ class HttpFetcher:
         from troostwatch import __version__
 
         if not user_agent:
-            user_agent = "troostwatch-sync/{}".format(__version__)
+            user_agent = f"troostwatch-sync/{__version__}"
         self.max_concurrent_requests = max(1, max_concurrent_requests)
         self.rate_limiter = RateLimiter(throttle_per_host)
         self.retry_attempts = max(1, retry_attempts)
@@ -122,7 +123,7 @@ class HttpFetcher:
                     url, headers=self.headers, timeout=self.timeout_seconds
                 )
                 if response.status_code >= 400:
-                    raise requests.HTTPError("HTTP {}".format(response.status_code))
+                    raise requests.HTTPError(f"HTTP {response.status_code}")
                 return RequestResult(
                     url=url, text=response.text, error=None, status=response.status_code
                 )
@@ -194,8 +195,7 @@ class HttpFetcher:
 
     async def fetch_many(self, urls: Iterable[str]) -> list[RequestResult]:
         if self.concurrency_mode not in {"asyncio", "threadpool"}:
-            raise ValueError(
-                "concurrency_mode must be 'asyncio' or 'threadpool'")
+            raise ValueError("concurrency_mode must be 'asyncio' or 'threadpool'")
         if self.concurrency_mode == "threadpool":
             return await self._fetch_many_threadpool(urls)
         return await self._fetch_many_asyncio(urls)

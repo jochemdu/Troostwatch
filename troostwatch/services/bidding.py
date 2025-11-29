@@ -97,20 +97,16 @@ class BiddingService:
                 payload["note"] = note
 
             try:
-                response = self.client.post_json(
-                    self._resolve("bids"), payload)
+                response = self.client.post_json(self._resolve("bids"), payload)
             except AuthenticationError:
-                self._logger.error(
-                    "Authentication failed during bid submission")
+                self._logger.error("Authentication failed during bid submission")
                 raise
             except Exception as exc:  # pragma: no cover - runtime safety
                 self._logger.error("Bid submission failed: %s", exc)
-                raise BidError("Failed to submit bid: {}".format(exc))
+                raise BidError(f"Failed to submit bid: {exc}")
 
-            self._persist_bid(buyer_label, auction_code,
-                              lot_code, amount_eur, note)
-            self._logger.info(
-                "Bid submitted successfully for %.2f EUR", amount_eur)
+            self._persist_bid(buyer_label, auction_code, lot_code, amount_eur, note)
+            self._logger.info("Bid submitted successfully for %.2f EUR", amount_eur)
 
             return BidResult(
                 lot_code=lot_code,
@@ -140,4 +136,4 @@ class BiddingService:
                     note=note,
                 )
             except ValueError as exc:
-                raise BidError("Failed to persist bid locally: {}".format(exc))
+                raise BidError(f"Failed to persist bid locally: {exc}")

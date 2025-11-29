@@ -32,8 +32,7 @@ console = Console()
 @click.option("--url", "lot_url", help="Lot detail URL.")
 @click.option(
     "--state",
-    type=click.Choice(["running", "scheduled", "closed", ""],
-                      case_sensitive=False),
+    type=click.Choice(["running", "scheduled", "closed", ""], case_sensitive=False),
     default="",
     show_default=False,
     help="Lot state.",

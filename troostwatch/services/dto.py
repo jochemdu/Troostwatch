@@ -5,7 +5,7 @@ Centralized DTOs and input/output models for Troostwatch services.
 from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 
 # --- Event Publishing Types ---
@@ -15,6 +15,7 @@ EventPublisher = Callable[[EventPayload], Awaitable[None]]
 
 async def noop_event_publisher(_: EventPayload) -> None:
     """Default no-op event publisher for services that don't need events."""
+    pass
 
 
 # --- Lot DTOs ---

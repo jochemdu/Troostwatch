@@ -16,14 +16,12 @@ from troostwatch.infrastructure.ai import (
     ParsedLabel,
 )
 
-
 @dataclass
 class LabelExtractionResult:
     text: str
     label: Optional[ParsedLabel]
     preprocessing_steps: list[str]
     ocr_confidence: Optional[float]
-
 
 def extract_label_from_image(
     image_bytes: bytes,

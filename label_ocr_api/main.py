@@ -46,10 +46,8 @@ class ExtractedCode(BaseModel):
         description="Type of code: 'ean', 'serial_number', 'model_number', 'part_number', 'other'"
     )
     value: str = Field(description="The extracted code value")
-    confidence: str = Field(
-        description="Confidence level: 'high', 'medium', 'low'")
-    context: str | None = Field(
-        default=None, description="Context around the code")
+    confidence: str = Field(description="Confidence level: 'high', 'medium', 'low'")
+    context: str | None = Field(default=None, description="Context around the code")
 
 
 class ParseLabelResponse(BaseModel):
@@ -57,8 +55,7 @@ class ParseLabelResponse(BaseModel):
 
     codes: list[ExtractedCode] = Field(default_factory=list)
     raw_text: str = Field(description="Full text extracted from the image")
-    processing_time_ms: int = Field(
-        description="Processing time in milliseconds")
+    processing_time_ms: int = Field(description="Processing time in milliseconds")
 
 
 class ImageURLRequest(BaseModel):
@@ -149,11 +146,7 @@ def extract_codes_ml(text: str, token_data: dict) -> list[ExtractedCode]:
 
             if prediction != "none":
                 max_proba = max(proba)
-                confidence = (
-                    "high"
-                    if max_proba > 0.8
-                    else "medium" if max_proba > 0.5 else "low"
-                )
+                confidence = "high" if max_proba > 0.8 else "medium" if max_proba > 0.5 else "low"
                 codes.append(
                     ExtractedCode(
                         code_type=prediction,
@@ -216,8 +209,7 @@ def analyze_image(image: Image.Image) -> ParseLabelResponse:
 
     # Run OCR
     raw_text = pytesseract.image_to_string(image)
-    token_data = pytesseract.image_to_data(
-        image, output_type=pytesseract.Output.DICT)
+    token_data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
 
     # Extract codes
     if label_classifier is not None:
@@ -272,8 +264,7 @@ async def parse_label_upload(
         image = Image.open(io.BytesIO(content))
         return analyze_image(image)
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to process image: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process image: {e}")
 
 
 @app.post("/parse-label/url", response_model=ParseLabelResponse)
@@ -290,11 +281,9 @@ async def parse_label_url(request: ImageURLRequest) -> ParseLabelResponse:
         image = Image.open(io.BytesIO(response.content))
         return analyze_image(image)
     except httpx.HTTPError as e:
-        raise HTTPException(
-            status_code=400, detail=f"Failed to download image: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to download image: {e}")
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to process image: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process image: {e}")
 
 
 @app.exception_handler(Exception)
@@ -302,8 +291,7 @@ async def generic_exception_handler(request, exc):
     """Handle unexpected exceptions gracefully."""
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error",
-                 "type": type(exc).__name__},
+        content={"detail": "Internal server error", "type": type(exc).__name__},
     )
 
 

@@ -11,7 +11,6 @@ Prints:
     - Warning if versions mismatch.
 """
 from __future__ import annotations
-from troostwatch.infrastructure.db.schema import CURRENT_SCHEMA_VERSION
 
 import argparse
 import sqlite3
@@ -21,14 +20,11 @@ from pathlib import Path
 # Ensure package is importable when run as script
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from troostwatch.infrastructure.db.schema import CURRENT_SCHEMA_VERSION
+
 
 def get_db_path() -> Path:
-    """
-    Return the default database path from config or fallback.
-
-    Returns:
-        Path: Path to the SQLite database file.
-    """
+    """Return the default database path from config or fallback."""
     config_path = Path(__file__).resolve().parents[1] / "config.json"
     if config_path.exists():
         import json
@@ -40,15 +36,7 @@ def get_db_path() -> Path:
 
 
 def check_schema(db_path: Path) -> int:
-    """
-    Inspect and report on database schema state.
-
-    Args:
-        db_path (Path): Path to the SQLite database file.
-
-    Returns:
-        int: Exit code (0 if OK, 1 if error).
-    """
+    """Inspect and report on database schema state. Returns exit code."""
     if not db_path.exists():
         print(f"❌ Database not found: {db_path}")
         return 1
@@ -63,13 +51,11 @@ def check_schema(db_path: Path) -> int:
 
         db_version: int | None = None
         if has_version_table:
-            cur = conn.execute(
-                "SELECT version, applied_at FROM schema_version LIMIT 1")
+            cur = conn.execute("SELECT version, applied_at FROM schema_version LIMIT 1")
             row = cur.fetchone()
             if row:
                 db_version = row[0]
-                print(
-                    f"📦 Database schema version: {db_version} (applied at {row[1]})")
+                print(f"📦 Database schema version: {db_version} (applied at {row[1]})")
             else:
                 print("📦 Database schema version: (not set)")
         else:
@@ -118,14 +104,7 @@ def check_schema(db_path: Path) -> int:
 
 
 def main() -> None:
-        """
-        Main entry point for inspecting database schema version and migrations.
-
-        Usage:
-            python scripts/check_schema.py [--db PATH]
-        """
-    parser = argparse.ArgumentParser(
-        description="Inspect database schema version.")
+    parser = argparse.ArgumentParser(description="Inspect database schema version.")
     parser.add_argument(
         "--db",
         type=Path,

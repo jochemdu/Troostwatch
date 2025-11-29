@@ -102,8 +102,7 @@ def parse_lot_detail(
     fees = page_props.get("fees", {})
 
     try:
-        title = lot.get("title") or _strip_html_tags(
-            _parse_title_from_dom(soup))
+        title = lot.get("title") or _strip_html_tags(_parse_title_from_dom(soup))
         url = page_props.get("canonicalUrl") or _build_url(
             base_url, lot.get("urlSlug"), lot_code
         )
@@ -132,8 +131,7 @@ def parse_lot_detail(
         ) or utils.parse_datetime_from_text(
             utils.extract_by_data_cy(soup, "closing-time")
         )
-        closing_time_original = utils.epoch_to_iso(
-            lot.get("originalClosingTime"))
+        closing_time_original = utils.epoch_to_iso(lot.get("originalClosingTime"))
 
         bid_info = lot.get("bidInfo", {})
         bid_count = bid_info.get("bidCount")
@@ -156,8 +154,7 @@ def parse_lot_detail(
             if fees.get("buyerFeeVatPct") is not None
             else None
         )
-        total_example_price_eur = _parse_amount_field(
-            fees.get("totalExamplePrice"))
+        total_example_price_eur = _parse_amount_field(fees.get("totalExamplePrice"))
 
         location = lot.get("location", {})
         location_city = location.get("city") or None
@@ -176,8 +173,7 @@ def parse_lot_detail(
         brand = _parse_brand(lot)
         bid_history = _parse_bid_history(lot)
         # Try to get images from JSON first (more reliable), fall back to DOM parsing
-        image_urls = _parse_image_urls_from_json(
-            lot) or _parse_image_urls(soup)
+        image_urls = _parse_image_urls_from_json(lot) or _parse_image_urls(soup)
 
         # Determine the lot code - prefer displayId from the API data
         # The displayId contains the full lot code (e.g., "A1-39500-1802" or "03T-SMD-1")

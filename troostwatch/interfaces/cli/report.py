@@ -16,6 +16,7 @@ from troostwatch.services.reporting import ReportingService
 @click.group()
 def report() -> None:
     """Generate reports and summaries."""
+    pass
 
 
 @report.command(name="buyer")
@@ -37,10 +38,8 @@ def report_buyer(db_path: str, buyer: str, json_output: bool) -> None:
     click.echo(f"  Tracked positions: {summary['tracked_count']}")
     click.echo(f"  Open lots: {summary['open_count']}")
     click.echo(f"  Closed lots: {summary['closed_count']}")
-    click.echo(
-        f"  Minimum open exposure: €{summary['open_exposure_min_eur']:.2f}")
-    click.echo(
-        f"  Maximum open exposure: €{summary['open_exposure_max_eur']:.2f}")
+    click.echo(f"  Minimum open exposure: €{summary['open_exposure_min_eur']:.2f}")
+    click.echo(f"  Maximum open exposure: €{summary['open_exposure_max_eur']:.2f}")
     if summary["open_tracked_lots"]:
         click.echo("\nOpen tracked lots:")
         for lot in summary["open_tracked_lots"]:

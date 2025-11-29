@@ -48,8 +48,7 @@ class StoredSession:
 
     def is_expired(self, timeout_seconds: float) -> bool:
         return (
-            timeout_seconds > 0 and (
-                time.time() - self.obtained_at) > timeout_seconds
+            timeout_seconds > 0 and (time.time() - self.obtained_at) > timeout_seconds
         )
 
 
@@ -127,14 +126,7 @@ class TroostwatchHttpClient:
         )
 
     def authenticate(self, *, force: bool = False) -> None:
-        """
-        Ensure an authenticated session exists.
-        Raises:
-            SessionExpiredError: If credentials are missing or session cannot be refreshed.
-        """
-        import logging
-
-        logger = logging.getLogger(__name__)
+        """Ensure an authenticated session exists."""
 
         if not force and self._session_active():
             return
@@ -147,60 +139,31 @@ class TroostwatchHttpClient:
                 return
 
         if not self.credentials.username or not self.credentials.password:
-            logger.error(
-                "Session expired and no credentials/token available to refresh."
-            )
             raise SessionExpiredError(
                 "Session expired and no credentials/token available to refresh."
             )
 
-        try:
-            self._login(self.credentials.username, self.credentials.password)
-        except Exception as exc:
-            logger.error(f"Login failed: {exc}")
-            raise AuthenticationError(f"Login failed: {exc}") from exc
+        self._login(self.credentials.username, self.credentials.password)
         if token_path is not None:
             self._store_session(token_path)
 
     def _login(self, username: str, password: str) -> None:
-        """
-        Perform login and update session tokens.
-        Raises:
-            AuthenticationError: If login fails.
-        """
-        import logging
-
-        logger = logging.getLogger(__name__)
         login_url = urljoin(self.base_url + "/", self.login_path.lstrip("/"))
-        try:
-            page = self.session.get(login_url)
-            page.raise_for_status()
-            csrf = self._extract_csrf(page)
-        except Exception as exc:
-            logger.error(f"Failed to fetch login page: {exc}")
-            raise AuthenticationError(
-                f"Failed to fetch login page: {exc}") from exc
+        page = self.session.get(login_url)
+        page.raise_for_status()
+        csrf = self._extract_csrf(page)
 
-        payload = {"username": username,
-                   "email": username, "password": password}
+        payload = {"username": username, "email": username, "password": password}
         headers: dict[str, str] = {}
         if csrf:
             headers["X-CSRFToken"] = csrf
-        try:
-            response = self.session.post(
-                login_url, data=payload, headers=headers)
-            if response.status_code >= 400:
-                logger.error(
-                    f"Login failed with status {response.status_code}: {response.text[:200]}"
-                )
-                raise AuthenticationError(
-                    f"Login failed with status {response.status_code}: {response.text[:200]}"
-                )
-            self.csrf_token = self._extract_csrf(response) or csrf
-            self.last_authenticated = time.time()
-        except Exception as exc:
-            logger.error(f"Login request failed: {exc}")
-            raise AuthenticationError(f"Login request failed: {exc}") from exc
+        response = self.session.post(login_url, data=payload, headers=headers)
+        if response.status_code >= 400:
+            raise AuthenticationError(
+                f"Login failed with status {response.status_code}: {response.text[:200]}"
+            )
+        self.csrf_token = self._extract_csrf(response) or csrf
+        self.last_authenticated = time.time()
 
     # -------------------- request helpers --------------------
     def _prepare_headers(self, extra: dict[str, str | None]) -> dict[str, str]:
@@ -228,25 +191,11 @@ class TroostwatchHttpClient:
         return response
 
     def _raise_for_status(self, response: Response) -> None:
-        """
-        Raise custom exceptions for HTTP error status codes.
-        """
-        import logging
-
-        logger = logging.getLogger(__name__)
         if response.status_code == 401:
-            logger.error("Unauthenticated request; please log in again.")
-            raise AuthenticationError(
-                "Unauthenticated request; please log in again.")
+            raise AuthenticationError("Unauthenticated request; please log in again.")
         if response.status_code == 403:
-            logger.error("Permission denied for the requested operation.")
-            raise AuthenticationError(
-                "Permission denied for the requested operation.")
-        try:
-            response.raise_for_status()
-        except Exception as exc:
-            logger.error(f"HTTP request failed: {exc}")
-            raise AuthenticationError(f"HTTP request failed: {exc}") from exc
+            raise AuthenticationError("Permission denied for the requested operation.")
+        response.raise_for_status()
 
     # -------------------- convenience --------------------
     def fetch_text(self, url: str) -> str:
@@ -262,12 +211,6 @@ class TroostwatchHttpClient:
             return response.json()
         except Exception as exc:
             raise AuthenticationError(f"Failed to parse JSON response: {exc}")
-
-    def _get(self, url, **kwargs):
-        return DummyResponse(text=f"response for {url}")
-
-    def _post_json(self, url, payload, **kwargs):
-        return DummyResponse(json_data={"echo": payload, "url": url})
 
 
 __all__ = [

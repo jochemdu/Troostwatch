@@ -15,13 +15,7 @@ from pathlib import Path
 
 import click
 from rich.console import Console
-from rich.progress import (
-    Progress,
-    SpinnerColumn,
-    BarColumn,
-    TextColumn,
-    TaskProgressColumn,
-)
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TaskProgressColumn
 from rich.table import Table
 import httpx
 
@@ -44,6 +38,7 @@ def _get_images_dir(config_path: str = "config.json") -> Path:
 @click.group(name="images")
 def images_cli() -> None:
     """Commands for image download and analysis."""
+    pass
 
 
 @images_cli.command(name="download")
@@ -96,11 +91,11 @@ def download_images(
     """
     images_path = Path(images_dir) if images_dir else _get_images_dir()
 
-    console.print("[bold]Downloading images to:[/bold] {}".format(images_path))
-    console.print("[bold]Database:[/bold] {}".format(db_path))
-    console.print("[bold]Limit:[/bold] {}".format(limit))
+    console.print(f"[bold]Downloading images to:[/bold] {images_path}")
+    console.print(f"[bold]Database:[/bold] {db_path}")
+    console.print(f"[bold]Limit:[/bold] {limit}")
     if parallel:
-        console.print("[bold]Mode:[/bold] Parallel ({} concurrent)".format(concurrency))
+        console.print(f"[bold]Mode:[/bold] Parallel ({concurrency} concurrent)")
     else:
         console.print("[bold]Mode:[/bold] Sequential")
     console.print()
@@ -134,10 +129,10 @@ def download_images(
 
     console.print()
     console.print("[bold green]Download complete![/bold green]")
-    console.print("  Processed: {}".format(stats.images_processed))
-    console.print("  Downloaded: {}".format(stats.images_downloaded))
-    console.print("  Failed: {}".format(stats.images_failed))
-    console.print("  Bytes: {:,}".format(stats.bytes_downloaded))
+    console.print(f"  Processed: {stats.images_processed}")
+    console.print(f"  Downloaded: {stats.images_downloaded}")
+    console.print(f"  Failed: {stats.images_failed}")
+    console.print(f"  Bytes: {stats.bytes_downloaded:,}")
 
 
 @images_cli.command(name="analyze")
@@ -216,13 +211,11 @@ def analyze_images(
     """
     images_path = Path(images_dir) if images_dir else _get_images_dir()
 
-    console.print("[bold]Analyzing images with backend:[/bold] {}".format(backend))
-    console.print("[bold]Database:[/bold] {}".format(db_path))
-    console.print("[bold]Save tokens:[/bold] {}".format(save_tokens))
-    console.print("[bold]Confidence threshold:[/bold] {}".format(confidence_threshold))
-    console.print(
-        f"[bold]Auto-approve:[/bold] {auto_approve} (threshold: {auto_approve_threshold})"
-    )
+    console.print(f"[bold]Analyzing images with backend:[/bold] {backend}")
+    console.print(f"[bold]Database:[/bold] {db_path}")
+    console.print(f"[bold]Save tokens:[/bold] {save_tokens}")
+    console.print(f"[bold]Confidence threshold:[/bold] {confidence_threshold}")
+    console.print(f"[bold]Auto-approve:[/bold] {auto_approve} (threshold: {auto_approve_threshold})")
     console.print(f"[bold]Limit:[/bold] {limit}")
     console.print()
 
@@ -243,8 +236,7 @@ def analyze_images(
     console.print(f"  Needs review: {stats.images_needs_review}")
     console.print(f"  Failed: {stats.images_failed}")
     console.print(f"  Codes extracted: {stats.codes_extracted}")
-    console.print(
-        f"  [green]Codes auto-approved: {stats.codes_auto_approved}[/green]")
+    console.print(f"  [green]Codes auto-approved: {stats.codes_auto_approved}[/green]")
     console.print(f"  Tokens saved: {stats.tokens_saved}")
 
 
@@ -445,8 +437,7 @@ def openai_analyze(db_path: str, limit: int, images_dir: str | None) -> None:
     console.print(f"  Still needs review: {stats.images_needs_review}")
     console.print(f"  Failed: {stats.images_failed}")
     console.print(f"  Codes extracted: {stats.codes_extracted}")
-    console.print(
-        f"  [green]Codes auto-approved: {stats.codes_auto_approved}[/green]")
+    console.print(f"  [green]Codes auto-approved: {stats.codes_auto_approved}[/green]")
 
 
 @images_cli.command(name="export-tokens")
@@ -544,17 +535,13 @@ def show_stats(db_path: str, images_dir: str | None) -> None:
     img_table.add_column("Count", justify="right")
 
     img_table.add_row("Total", str(img_stats.get("total", 0)))
-    img_table.add_row("Pending Download", str(
-        img_stats.get("pending_download", 0)))
+    img_table.add_row("Pending Download", str(img_stats.get("pending_download", 0)))
     img_table.add_row("Downloaded", str(img_stats.get("downloaded", 0)))
-    img_table.add_row("Download Failed", str(
-        img_stats.get("download_failed", 0)))
-    img_table.add_row("Pending Analysis", str(
-        img_stats.get("pending_analysis", 0)))
+    img_table.add_row("Download Failed", str(img_stats.get("download_failed", 0)))
+    img_table.add_row("Pending Analysis", str(img_stats.get("pending_analysis", 0)))
     img_table.add_row("Analyzed", str(img_stats.get("analyzed", 0)))
     img_table.add_row("Needs Review", str(img_stats.get("needs_review", 0)))
-    img_table.add_row("Analysis Failed", str(
-        img_stats.get("analysis_failed", 0)))
+    img_table.add_row("Analysis Failed", str(img_stats.get("analysis_failed", 0)))
 
     console.print(img_table)
     console.print()
@@ -566,18 +553,10 @@ def show_stats(db_path: str, images_dir: str | None) -> None:
     code_table.add_column("Value", justify="right")
 
     code_table.add_row("Total Codes", str(code_stats.get("total", 0)))
-    code_table.add_row("[green]Approved[/green]",
-                       str(code_stats.get("approved", 0)))
-    code_table.add_row(
-        "[yellow]Pending Approval[/yellow]", str(code_stats.get("pending", 0))
-    )
-    code_table.add_row(
-        "[cyan]Auto-approved[/cyan]", str(code_stats.get("auto_approved", 0))
-    )
-    code_table.add_row(
-        "[blue]Manually Approved[/blue]", str(
-            code_stats.get("manually_approved", 0))
-    )
+    code_table.add_row("[green]Approved[/green]", str(code_stats.get("approved", 0)))
+    code_table.add_row("[yellow]Pending Approval[/yellow]", str(code_stats.get("pending", 0)))
+    code_table.add_row("[cyan]Auto-approved[/cyan]", str(code_stats.get("auto_approved", 0)))
+    code_table.add_row("[blue]Manually Approved[/blue]", str(code_stats.get("manually_approved", 0)))
     code_table.add_row("Promoted to Lots", str(code_stats.get("promoted", 0)))
 
     console.print(code_table)
@@ -590,10 +569,8 @@ def show_stats(db_path: str, images_dir: str | None) -> None:
     token_table.add_column("Value", justify="right")
 
     token_table.add_row("Total Records", str(token_stats.get("total", 0)))
-    token_table.add_row("Labeled for Training",
-                        str(token_stats.get("labeled", 0)))
-    token_table.add_row(
-        "Total Tokens", f"{token_stats.get('total_tokens', 0):,}")
+    token_table.add_row("Labeled for Training", str(token_stats.get("labeled", 0)))
+    token_table.add_row("Total Tokens", f"{token_stats.get('total_tokens', 0):,}")
 
     console.print(token_table)
 
@@ -776,25 +753,22 @@ def find_duplicates_cmd(
     console.print()
 
     for i, group in enumerate(groups, 1):
-        console.print(
-            f"[bold cyan]Group {i}[/bold cyan] ({group.count} images)")
+        console.print(f"[bold cyan]Group {i}[/bold cyan] ({group.count} images)")
         console.print(f"  Hash: {group.phash[:16]}...")
-        console.print(
-            f"  Lot IDs: {', '.join(str(lid) for lid in group.lot_ids)}")
+        console.print(f"  Lot IDs: {', '.join(str(lid) for lid in group.lot_ids)}")
 
         if show_paths:
             for img in group.images:
-                console.print(
-                    f"    - Image {img.id}: {img.local_path or img.url}")
+                console.print(f"    - Image {img.id}: {img.local_path or img.url}")
 
         console.print()
 
     # Summary
     total_duplicates = sum(g.count for g in groups)
     unique_lots = len(set(lid for g in groups for lid in g.lot_ids))
-    console.print("[bold]Summary:[/bold]")
-    console.print("  Total duplicate images: {}".format(total_duplicates))
-    console.print("  Unique lots affected: {}".format(unique_lots))
+    console.print(f"[bold]Summary:[/bold]")
+    console.print(f"  Total duplicate images: {total_duplicates}")
+    console.print(f"  Unique lots affected: {unique_lots}")
     console.print(f"  Duplicate groups: {len(groups)}")
 
 
@@ -896,8 +870,7 @@ def validate_codes_cmd(db_path: str, limit: int, images_dir: str | None) -> None
     console.print(f"  Processed: {stats.get('processed', 0)}")
     console.print(f"  [green]Valid: {stats.get('valid', 0)}[/green]")
     console.print(f"  [red]Invalid: {stats.get('invalid', 0)}[/red]")
-    console.print(
-        f"  [cyan]Corrected (OCR fixes): {stats.get('corrected', 0)}[/cyan]")
+    console.print(f"  [cyan]Corrected (OCR fixes): {stats.get('corrected', 0)}[/cyan]")
 
 
 @images_cli.command(name="retrain-model")
@@ -984,11 +957,8 @@ def export_training_data_cli(api_url, output, include_reviewed, only_mismatches,
         data = response.json()
         with open(output, "w", encoding="utf-8") as f:
             import json
-
             json.dump(data, f, indent=2, ensure_ascii=False)
-        console.print(
-            f"[green]Training data geëxporteerd:[/green] {output} ({data.get('count', 0)} records)"
-        )
+        console.print(f"[green]Training data geëxporteerd:[/green] {output} ({data.get('count', 0)} records)")
     except Exception as e:
         console.print(f"[red]Fout bij exporteren training data:[/red] {e}")
 
@@ -1011,9 +981,7 @@ def training_status_cli(api_url):
         last_run = data.get("last_run", {})
         model_info = data.get("model_info", {})
         stats = data.get("stats", {})
-        console.print(
-            f"Laatste run: {last_run.get('started_at')} → {last_run.get('finished_at')}"
-        )
+        console.print(f"Laatste run: {last_run.get('started_at')} → {last_run.get('finished_at')}")
         console.print(f"Status: {last_run.get('status')}")
         console.print(f"Metrics: {last_run.get('metrics')}")
         console.print(f"Model info: {model_info}")

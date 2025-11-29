@@ -25,7 +25,6 @@ from typing import List
 @dataclass
 class ImportViolation:
     """Represents a forbidden import."""
-
     file_path: Path
     line_number: int
     import_statement: str
@@ -36,7 +35,6 @@ class ImportViolation:
 @dataclass
 class ImportRule:
     """Defines forbidden imports for a directory."""
-
     directory: str
     forbidden_patterns: List[str]
     exceptions: List[str] = field(default_factory=list)
@@ -57,8 +55,7 @@ IMPORT_RULES: List[ImportRule] = [
             "troostwatch/interfaces/cli/context_helpers.py",
             "troostwatch/interfaces/cli/auth.py",
             "troostwatch/interfaces/cli/debug.py",  # Diagnostics are allowed
-            # Only imports AuthenticationError exception
-            "troostwatch/interfaces/cli/bid.py",
+            "troostwatch/interfaces/cli/bid.py",  # Only imports AuthenticationError exception
         ],
         reason="CLI commands should use services, not infrastructure directly",
     ),
@@ -131,29 +128,19 @@ def check_sync_imports(base_path: Path) -> List[ImportViolation]:
             for line_no, module in extract_imports(py_file):
                 for forbidden in SYNC_FORBIDDEN_PATTERNS:
                     if module == forbidden or module.startswith(forbidden + "."):
-                        violations.append(
-                            ImportViolation(
-                                file_path=py_file,
-                                line_number=line_no,
-                                import_statement=module,
-                                forbidden_module=forbidden,
-                                reason="Import sync from troostwatch.services.sync, not submodules",
-                            )
-                        )
+                        violations.append(ImportViolation(
+                            file_path=py_file,
+                            line_number=line_no,
+                            import_statement=module,
+                            forbidden_module=forbidden,
+                            reason="Import sync from troostwatch.services.sync, not submodules",
+                        ))
 
     return violations
 
 
 def extract_imports(file_path: Path) -> List[tuple[int, str]]:
-    """
-    Extract all import statements from a Python file.
-
-    Args:
-        file_path (Path): Path to the Python file.
-
-    Returns:
-        List[tuple[int, str]]: List of (line number, module name) tuples.
-    """
+    """Extract all import statements from a Python file."""
     try:
         content = file_path.read_text(encoding="utf-8")
         tree = ast.parse(content)
@@ -172,16 +159,7 @@ def extract_imports(file_path: Path) -> List[tuple[int, str]]:
 
 
 def check_file(file_path: Path, rule: ImportRule) -> List[ImportViolation]:
-    """
-    Check a single file against an import rule.
-
-    Args:
-        file_path (Path): Path to the Python file.
-        rule (ImportRule): Import rule to check against.
-
-    Returns:
-        List[ImportViolation]: List of violations found in the file.
-    """
+    """Check a single file against an import rule."""
     violations = []
 
     # Skip exception files
@@ -192,29 +170,18 @@ def check_file(file_path: Path, rule: ImportRule) -> List[ImportViolation]:
     for line_no, module in extract_imports(file_path):
         for forbidden in rule.forbidden_patterns:
             if module.startswith(forbidden) or f".{forbidden}" in module:
-                violations.append(
-                    ImportViolation(
-                        file_path=file_path,
-                        line_number=line_no,
-                        import_statement=module,
-                        forbidden_module=forbidden,
-                        reason=rule.reason,
-                    )
-                )
+                violations.append(ImportViolation(
+                    file_path=file_path,
+                    line_number=line_no,
+                    import_statement=module,
+                    forbidden_module=forbidden,
+                    reason=rule.reason,
+                ))
     return violations
 
 
 def check_directory(base_path: Path, rule: ImportRule) -> List[ImportViolation]:
-    """
-    Check all Python files in a directory against an import rule.
-
-    Args:
-        base_path (Path): Base path of the project.
-        rule (ImportRule): Import rule to check against.
-
-    Returns:
-        List[ImportViolation]: List of violations found in the directory.
-    """
+    """Check all Python files in a directory against an import rule."""
     violations = []
     dir_path = base_path / rule.directory
 
@@ -230,19 +197,9 @@ def check_directory(base_path: Path, rule: ImportRule) -> List[ImportViolation]:
 
 
 def main():
-        """
-        Main entry point for checking forbidden imports in the codebase.
-
-        Usage:
-            python scripts/check_imports.py [--verbose] [--fix-suggestions]
-        """
     parser = argparse.ArgumentParser(description="Check for forbidden imports")
-    parser.add_argument(
-        "--verbose", "-v", action="store_true", help="Show all files checked"
-    )
-    parser.add_argument(
-        "--fix-suggestions", action="store_true", help="Show fix suggestions"
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show all files checked")
+    parser.add_argument("--fix-suggestions", action="store_true", help="Show fix suggestions")
     args = parser.parse_args()
 
     base_path = Path(__file__).parent.parent

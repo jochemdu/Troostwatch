@@ -30,8 +30,7 @@ class PositionRepository(BaseRepository):
     ) -> None:
         buyer_id = self.buyers.get_id(buyer_label)
         if buyer_id is None:
-            raise ValueError(
-                f"Buyer with label '{buyer_label}' does not exist")
+            raise ValueError(f"Buyer with label '{buyer_label}' does not exist")
         lot_id = self.lots.get_id(lot_code, auction_code)
         if lot_id is None:
             raise ValueError(
@@ -84,8 +83,7 @@ class PositionRepository(BaseRepository):
     ) -> None:
         buyer_id = self.buyers.get_id(buyer_label)
         if buyer_id is None:
-            raise ValueError(
-                f"Buyer with label '{buyer_label}' does not exist")
+            raise ValueError(f"Buyer with label '{buyer_label}' does not exist")
         lot_id = self.lots.get_id(lot_code, auction_code)
         if lot_id is None:
             raise ValueError(

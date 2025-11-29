@@ -36,14 +36,8 @@ class CodePattern:
     """A pattern for extracting a specific type of code."""
 
     code_type: Literal[
-        "product_code",
-        "model_number",
-        "ean",
-        "serial_number",
-        "part_number",
-        "mac_address",
-        "service_tag",
-        "other",
+        "product_code", "model_number", "ean", "serial_number",
+        "part_number", "mac_address", "service_tag", "other"
     ]
     pattern: re.Pattern
     confidence: Literal["high", "medium", "low"] = "medium"
@@ -461,14 +455,12 @@ def extract_vendor_codes(
                 continue
 
             seen.add(value)
-            codes.append(
-                ExtractedCode(
-                    code_type=code_pattern.code_type,
-                    value=value,
-                    confidence=code_pattern.confidence,
-                    context=f"{vendor.name}: {code_pattern.context}",
-                )
-            )
+            codes.append(ExtractedCode(
+                code_type=code_pattern.code_type,
+                value=value,
+                confidence=code_pattern.confidence,
+                context=f"{vendor.name}: {code_pattern.context}",
+            ))
 
     return codes
 

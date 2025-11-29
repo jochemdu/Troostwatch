@@ -12,6 +12,7 @@ import asyncio
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from typing import Literal
+from typing import Callable, Literal
 
 from troostwatch.infrastructure.db import iso_utcnow
 from troostwatch.infrastructure.observability import get_logger
@@ -149,7 +150,7 @@ class LiveSyncRunner:
             await self._set_status("running")
             self._state.current_run_started_at = iso_utcnow()
             await self._emit_log(
-                "Starting sync for {} at {}".format(config.auction_code, config.auction_url)
+                f"Starting sync for {config.auction_code} at {config.auction_url}"
             )
 
             try:
@@ -173,12 +174,12 @@ class LiveSyncRunner:
                 )
                 if result.errors:
                     for err in result.errors:
-                        await self._emit_log("Sync error: {}".format(err))
+                        await self._emit_log(f"Sync error: {err}")
                 await self._emit_log(
-                    "Sync finished with {} updates across {} lots".format(result.lots_updated, result.lots_scanned)
+                    f"Sync finished with {result.lots_updated} updates across {result.lots_scanned} lots"
                 )
             except Exception as exc:  # pragma: no cover - defensive logging
-                message = "Live sync failed: {}".format(exc)
+                message = f"Live sync failed: {exc}"
                 self._logger.exception(message)
                 self._state.last_error = str(exc)
                 await self._publish_event(

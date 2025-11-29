@@ -9,6 +9,7 @@ This module provides database access for the image analysis pipeline:
 from __future__ import annotations
 
 import json
+import sqlite3
 from dataclasses import dataclass
 from typing import Any
 
@@ -66,7 +67,9 @@ class OcrTokenData:
 class LotImageRepository(BaseRepository):
     """Repository for lot image records."""
 
-    def insert_images(self, lot_id: int, image_urls: list[str]) -> list[int]:
+    def insert_images(
+        self, lot_id: int, image_urls: list[str]
+    ) -> list[int]:
         """Insert image URLs for a lot, returning the inserted IDs.
 
         Skips URLs that already exist for this lot (upsert behavior).

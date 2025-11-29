@@ -257,6 +257,5 @@ class LotManagementService:
             detail_last_seen_at=seen_at,
         )
 
-        self._logger.debug(
-            "Lot %s added/updated successfully", lot_input.lot_code)
+        self._logger.debug("Lot %s added/updated successfully", lot_input.lot_code)
         return lot_input.lot_code

@@ -50,12 +50,9 @@ class SyncRunSummary:
     result: SyncRunResult | None = None
     error: str | None = None
 
-    def to_event_payload(
-        self, auction_code: str | None = None
-    ) -> dict[str, object]:
+    def to_event_payload(self, auction_code: str | None = None) -> dict[str, object]:
         code = auction_code or self.auction_code
-        payload: dict[str, object] = {
-            "type": "sync_finished", "status": self.status}
+        payload: dict[str, object] = {"type": "sync_finished", "status": self.status}
         if code:
             payload["auction_code"] = code
         if self.result:
@@ -65,8 +62,7 @@ class SyncRunSummary:
         return payload
 
     def to_dict(self) -> dict[str, object]:
-        payload: dict[str, object] = {
-            "type": "sync_finished", "status": self.status}
+        payload: dict[str, object] = {"type": "sync_finished", "status": self.status}
         if self.auction_code:
             payload["auction_code"] = self.auction_code
         if self.result:
@@ -111,16 +107,7 @@ class SyncService:
         log_path: str | None = None,
         http_client: TroostwatchHttpClient | None = None,
     ) -> SyncRunSummary:
-        """
-        Run a one-off sync for a single auction.
-
-        Args:
-            auction_code: The code of the auction to sync.
-            auction_url: The URL of the auction.
-            ...existing code...
-        Returns:
-            SyncRunSummary: Summary of the sync run.
-        """
+        """Run a one-off sync for a single auction."""
         self._logger.info(
             "Starting sync for auction %s (dry_run=%s, max_pages=%s)",
             auction_code,
@@ -148,12 +135,23 @@ class SyncService:
                 http_client=http_client,
             )
         except Exception as exc:  # pragma: no cover - defensive guard
-            return self._handle_sync_error(auction_code, exc)
+            self._logger.error("Sync failed for auction %s: %s", auction_code, exc)
+            return SyncRunSummary(
+                status="error", auction_code=auction_code, result=None, error=str(exc)
+            )
 
-        summary = self._build_sync_summary(auction_code, result)
+        summary = SyncRunSummary(
+            status=result.status,
+            auction_code=auction_code,
+            result=result,
+            error=(
+                "; ".join(result.errors)
+                if result.status != "success" and result.errors
+                else None
+            ),
+        )
         self._logger.info(
-            "Sync completed for auction %s: status=%s, "
-            "lots_scanned=%d, lots_updated=%d",
+            "Sync completed for auction %s: status=%s, lots_scanned=%d, lots_updated=%d",
             auction_code,
             result.status,
             result.lots_scanned,
@@ -161,29 +159,6 @@ class SyncService:
         )
         await self._event_publisher(summary.to_event_payload())
         return summary
-
-    def _handle_sync_error(
-        self, auction_code: str, exc: Exception
-    ) -> SyncRunSummary:
-        self._logger.error("Sync failed for auction %s: %s", auction_code, exc)
-        return SyncRunSummary(
-            status="error",
-            auction_code=auction_code,
-            result=None,
-            error=str(exc),
-        )
-
-    def _build_sync_summary(self, auction_code: str, result) -> SyncRunSummary:
-        return SyncRunSummary(
-            status=result.status,
-            auction_code=auction_code,
-            result=result,
-            error=(
-                "; ".join(result.errors)
-                if result.status != "success" and getattr(result, "errors", None)
-                else None
-            ),
-        )
 
     async def run_multi_sync(
         self,
@@ -221,21 +196,15 @@ class SyncService:
                     dry_run=dry_run,
                 )
             )
-        self._logger.info(
-            "Multi-sync completed: %d auctions processed", len(results))
+        self._logger.info("Multi-sync completed: %d auctions processed", len(results))
         return results
 
     def choose_auction(
-        self,
-        *,
-        auction_code: str | None = None,
-        auction_url: str | None = None,
+        self, *, auction_code: str | None = None, auction_url: str | None = None
     ) -> AuctionSelection:
         """Resolve which auction to sync using stored auctions and preferences."""
         self._logger.debug(
-            "Choosing auction: code=%s, url=%s",
-            auction_code,
-            auction_url,
+            "Choosing auction: code=%s, url=%s", auction_code, auction_url
         )
 
         available, preferred_code = self._load_auctions_and_preference(
@@ -262,11 +231,7 @@ class SyncService:
         resolved_url: str | None = auction_url
         if resolved_code and not resolved_url:
             match = next(
-                (
-                    a for a in available
-                    if a.get("auction_code") == resolved_code
-                ),
-                None,
+                (a for a in available if a.get("auction_code") == resolved_code), None
             )
             if match:
                 url_val = match.get("url")
@@ -320,9 +285,7 @@ class SyncService:
     def _format_live_state(self, state: LiveSyncState) -> dict[str, object]:
         return {"state": state.status, "detail": None}
 
-    def _load_auctions(
-        self, *, include_inactive: bool
-    ) -> list[dict[str, str | None]]:
+    def _load_auctions(self, *, include_inactive: bool) -> list[dict[str, str | None]]:
         with get_connection(self._db_path) as conn:
             ensure_core_schema(conn)
             ensure_schema(conn)

@@ -9,13 +9,7 @@ from pathlib import Path
 
 
 def main() -> None:
-    """
-    Create default database and configuration files for Troostwatch.
-
-    - Creates config.json if missing
-    - Creates troostwatch.db from schema if missing
-    - Creates snapshot directories
-    """
+    """Create default database and configuration files."""
     root = Path(__file__).resolve().parent.parent
     config_path = root / "config.json"
     db_path = root / "troostwatch.db"

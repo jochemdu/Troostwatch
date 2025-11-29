@@ -134,10 +134,8 @@ class Lot:
             title=data.get("title", ""),
             state=LotState.from_string(state_str),
             opens_at=parse_datetime(data.get("opens_at")),
-            closing_time_current=parse_datetime(
-                data.get("closing_time_current")),
-            closing_time_original=parse_datetime(
-                data.get("closing_time_original")),
+            closing_time_current=parse_datetime(data.get("closing_time_current")),
+            closing_time_original=parse_datetime(data.get("closing_time_original")),
             opening_bid_eur=data.get("opening_bid_eur"),
             current_bid_eur=data.get("current_bid_eur"),
             bid_count=data.get("bid_count"),

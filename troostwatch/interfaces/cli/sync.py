@@ -171,8 +171,7 @@ def sync(
     """
     console = Console()
     if username and not password and token_path is None:
-        password = Prompt.ask("Troostwijk password",
-                              password=True, console=console)
+        password = Prompt.ask("Troostwijk password", password=True, console=console)
 
     command_context = build_sync_command_context(
         db_path=db_path,
@@ -197,8 +196,7 @@ def sync(
         for idx, auction in enumerate(selection.available, start=1):
             title = auction.get("title") or "(geen titel)"
             url = auction.get("url") or "(geen url bekend)"
-            console.print(
-                f"{idx}) {auction['auction_code']} - {title} - {url}")
+            console.print(f"{idx}) {auction['auction_code']} - {title} - {url}")
         default_choice_num = selection.default_choice_number or 1
         console.print(
             "Standaard keuze: "

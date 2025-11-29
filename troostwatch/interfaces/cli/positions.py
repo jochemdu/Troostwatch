@@ -16,6 +16,7 @@ from troostwatch.services.positions import PositionsService
 @click.group()
 def positions() -> None:
     """Manage tracked lot positions."""
+    pass
 
 
 @positions.command()
@@ -55,8 +56,7 @@ def add(
         click.echo(str(exc))
         return
     status = "inactive" if not track_active else "active"
-    click.echo(
-        f"Position for {buyer} on {auction_code}/{lot_code} set to {status}.")
+    click.echo(f"Position for {buyer} on {auction_code}/{lot_code} set to {status}.")
 
 
 @positions.command(name="list")

@@ -23,7 +23,7 @@ Usage:
 from __future__ import annotations
 
 import functools
-from contextlib import contextmanager
+from contextlib import AbstractContextManager
 from contextvars import ContextVar
 from typing import Any, Callable, Iterator, TypeVar
 
@@ -46,7 +46,8 @@ _tracing_enabled: bool = False
 
 # Context variable for trace/span IDs (used for log correlation)
 _trace_context: ContextVar[dict[str, str]] = ContextVar(
-    "trace_context", default={})
+    "trace_context", default={}
+)
 
 
 def is_tracing_enabled() -> bool:
@@ -163,85 +164,20 @@ def configure_tracing(
 # ---------------------------------------------------------------------------
 
 
-@contextmanager
-def trace_span(
-    name: str,
-    *,
-    kind: str = "internal",
-    **attributes: Any,
-) -> Iterator[Any]:
-    """Create a trace span for the enclosed code block.
 
-    Args:
-        name: Name of the span (e.g., "sync_auction", "fetch_page").
-        kind: Span kind - "internal", "server", "client", "producer", "consumer".
-        **attributes: Additional attributes to attach to the span.
+class trace_span(AbstractContextManager):
+    def __init__(self, name: str, *, kind: str = "internal", **attributes: Any):
+        self.name = name
+        self.kind = kind
+        self.attributes = attributes
+        self.span = None
+        self.ctx_token = None
 
-    Yields:
-        The span object (or None if tracing is disabled).
-
-    Example:
-        with trace_span("process_lot", lot_code="LOT123", auction_code="A1"):
-            # ... processing ...
-    """
-    if not _tracing_enabled or _tracer is None:
-        yield None
-        return
-
-    try:
-        from opentelemetry.trace import SpanKind
-
-        kind_map = {
-            "internal": SpanKind.INTERNAL,
-            "server": SpanKind.SERVER,
-            "client": SpanKind.CLIENT,
-            "producer": SpanKind.PRODUCER,
-            "consumer": SpanKind.CONSUMER,
-        }
-        span_kind = kind_map.get(kind, SpanKind.INTERNAL)
-
-        with _tracer.start_as_current_span(name, kind=span_kind) as span:
-            # Set attributes
-            for key, value in attributes.items():
-                if value is not None:
-                    span.set_attribute(key, str(value))
-
-            # Update trace context for log correlation
-            ctx = span.get_span_context()
-            if ctx.is_valid:
-                token = _trace_context.set(
-                    {
-                        "trace_id": format(ctx.trace_id, "032x"),
-                        "span_id": format(ctx.span_id, "016x"),
-                    }
-                )
-                try:
-                    yield span
-                finally:
-                    _trace_context.reset(token)
-            else:
-                yield span
-
-    except Exception as e:
-        logger.debug(f"Tracing error: {e}")
-        yield None
-
-
-def traced(
-    name: str | None = None,
-    *,
-    kind: str = "internal",
-) -> Callable[[F], F]:
-    # Docstring removed due to SyntaxError
-
-    def decorator(func: F) -> F:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            if not _tracing_enabled or _tracer is None:
-                return func(*args, **kwargs)
-
+    def __enter__(self):
+        if not _tracing_enabled or _tracer is None:
+            return None
+        try:
             from opentelemetry.trace import SpanKind
-
             kind_map = {
                 "internal": SpanKind.INTERNAL,
                 "server": SpanKind.SERVER,
@@ -249,21 +185,102 @@ def traced(
                 "producer": SpanKind.PRODUCER,
                 "consumer": SpanKind.CONSUMER,
             }
-            span_kind = kind_map.get(kind, SpanKind.INTERNAL)
+            span_kind = kind_map.get(self.kind, SpanKind.INTERNAL)
+            self.span_ctx = _tracer.start_as_current_span(self.name, kind=span_kind)
+            self.span = self.span_ctx.__enter__()
+            for key, value in self.attributes.items():
+                if value is not None:
+                    self.span.set_attribute(key, str(value))
+            ctx = self.span.get_span_context()
+            if ctx.is_valid:
+                self.ctx_token = _trace_context.set({
+                    "trace_id": format(ctx.trace_id, "032x"),
+                    "span_id": format(ctx.span_id, "016x"),
+                })
+            return self.span
+        except Exception as e:
+            logger.debug(f"Tracing error: {e}")
+            return None
 
-            with _tracer.start_as_current_span(
-                name or func.__name__, kind=span_kind
-            ) as span:
-                # No attributes passed to decorator, but could be added via kwargs
-                result = func(*args, **kwargs)
-            return result
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.ctx_token is not None:
+            _trace_context.reset(self.ctx_token)
+        if hasattr(self, "span_ctx"):
+            self.span_ctx.__exit__(exc_type, exc_value, traceback)
+        return False
 
-        return wrapper  # type: ignore
+
+def traced(
+    name: str | None = None,
+    *,
+    kind: str = "internal",
+) -> Callable[[F], F]:
+    """Decorator to trace a function.
+
+    Args:
+        name: Span name (defaults to function name).
+        kind: Span kind.
+
+    Example:
+        @traced("sync_auction")
+        async def sync_auction(code: str) -> SyncResult:
+            ...
+
+        @traced()  # Uses function name as span name
+        def process_lot(lot: Lot) -> None:
+            ...
+    """
+    def decorator(func: F) -> F:
+        span_name = name or func.__name__
+
+        @functools.wraps(func)
+        def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+            with trace_span(span_name, kind=kind):
+                return func(*args, **kwargs)
+
+        @functools.wraps(func)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            with trace_span(span_name, kind=kind):
+                return await func(*args, **kwargs)
+
+        import inspect
+        if inspect.iscoroutinefunction(func):
+            return async_wrapper  # type: ignore
+        return sync_wrapper  # type: ignore
 
     return decorator
 
 
+def add_span_event(name: str, **attributes: Any) -> None:
+    """Add an event to the current span.
+
+    Events are timestamped annotations that can be attached to spans
+    to mark significant moments during execution.
+
+    Args:
+        name: Event name.
+        **attributes: Event attributes.
+    """
+    if not _tracing_enabled:
+        return
+
+    try:
+        from opentelemetry import trace
+
+        span = trace.get_current_span()
+        if span and span.is_recording():
+            span.add_event(name, attributes=attributes)
+    except Exception:
+        pass
+
+
 def set_span_attribute(key: str, value: Any) -> None:
+    """Set an attribute on the current span.
+
+    Args:
+        key: Attribute key.
+        value: Attribute value (will be converted to string).
+    """
     if not _tracing_enabled:
         return
 
@@ -278,7 +295,11 @@ def set_span_attribute(key: str, value: Any) -> None:
 
 
 def record_exception(exception: BaseException) -> None:
-    # Docstring removed due to SyntaxError
+    """Record an exception on the current span.
+
+    Args:
+        exception: The exception to record.
+    """
     if not _tracing_enabled:
         return
 
@@ -293,15 +314,10 @@ def record_exception(exception: BaseException) -> None:
         pass
 
 
-def add_span_event(name: str, **attributes: Any) -> None:
-    """Add a custom event to the current span, if tracing is enabled."""
-    if not _tracing_enabled:
-        return
+def my_context_manager():
     try:
-        from opentelemetry import trace
-
-        span = trace.get_current_span()
-        if span and span.is_recording():
-            span.add_event(name, attributes=attributes)
-    except Exception:
-        pass
+        # setup
+        yield
+    finally:
+        # cleanup
+        return  # ensures generator stops after yield, even if exception is thrown

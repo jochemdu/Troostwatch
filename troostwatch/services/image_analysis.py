@@ -34,6 +34,8 @@ from troostwatch.infrastructure.ai.image_hashing import (
 )
 from troostwatch.infrastructure.ai.code_validation import (
     CodeType,
+    ValidationResult,
+    detect_code_type,
     normalize_code,
     validate_code,
     validate_and_correct_ean,
@@ -50,6 +52,7 @@ from troostwatch.infrastructure.observability.metrics import (
     record_image_download,
     record_image_analysis,
     record_code_approval,
+    Timer,
 )
 from troostwatch.infrastructure.persistence.images import ImageDownloader
 
@@ -117,16 +120,7 @@ class ImageAnalysisService(BaseService):
     # Confidence threshold above which codes are auto-approved
     DEFAULT_AUTO_APPROVE_THRESHOLD = 0.85
 
-    def record_training_run(
-        self,
-        status: str,
-        model_path: str | None = None,
-        metrics: dict | None = None,
-        notes: str | None = None,
-        created_by: str | None = None,
-        training_data_filter: str | None = None,
-        error_message: str | None = None,
-    ) -> int:
+    def record_training_run(self, status: str, model_path: str | None = None, metrics: dict | None = None, notes: str | None = None, created_by: str | None = None, training_data_filter: str | None = None, error_message: str | None = None) -> int:
         """Record a new ML training run in the database.
 
         Args:
@@ -164,16 +158,7 @@ class ImageAnalysisService(BaseService):
             conn.commit()
         return run_id
 
-    def update_training_run(
-        self,
-        run_id: int,
-        status: str | None = None,
-        finished_at: str | None = None,
-        model_path: str | None = None,
-        metrics: dict | None = None,
-        notes: str | None = None,
-        error_message: str | None = None,
-    ) -> None:
+    def update_training_run(self, run_id: int, status: str | None = None, finished_at: str | None = None, model_path: str | None = None, metrics: dict | None = None, notes: str | None = None, error_message: str | None = None) -> None:
         """Update an existing ML training run record."""
         fields = []
         params = []
@@ -204,9 +189,7 @@ class ImageAnalysisService(BaseService):
             )
             conn.commit()
 
-    def get_training_runs(
-        self, limit: int = 20, status: str | None = None
-    ) -> list[dict]:
+    def get_training_runs(self, limit: int = 20, status: str | None = None) -> list[dict]:
         """Fetch recent ML training runs, optionally filtered by status."""
         with self._connection_factory() as conn:
             query = "SELECT * FROM ml_training_runs"
@@ -219,7 +202,6 @@ class ImageAnalysisService(BaseService):
             cur = conn.execute(query, tuple(params))
             columns = [c[0] for c in cur.description]
             return [dict(zip(columns, row)) for row in cur.fetchall()]
-
     # Confidence threshold above which codes are auto-approved
     DEFAULT_AUTO_APPROVE_THRESHOLD = 0.85
 
@@ -294,14 +276,12 @@ class ImageAnalysisService(BaseService):
                     except Exception:
                         record_image_download("success", duration)
                 else:
-                    image_repo.mark_download_failed(
-                        image.id, error or "Unknown error")
+                    image_repo.mark_download_failed(image.id, error or "Unknown error")
                     stats.images_failed += 1
                     record_image_download("failed", duration)
                     logger.warning(
                         "Failed to download image",
-                        extra={"image_id": image.id,
-                               "url": image.url, "error": error},
+                        extra={"image_id": image.id, "url": image.url, "error": error},
                     )
 
             conn.commit()
@@ -377,13 +357,11 @@ class ImageAnalysisService(BaseService):
                     image_repo.mark_downloaded(image_id, local_path)
                     stats.images_downloaded += 1
                     try:
-                        stats.bytes_downloaded += Path(
-                            local_path).stat().st_size
+                        stats.bytes_downloaded += Path(local_path).stat().st_size
                     except Exception:
                         pass
                 else:
-                    image_repo.mark_download_failed(
-                        image_id, error or "Unknown error")
+                    image_repo.mark_download_failed(image_id, error or "Unknown error")
                     stats.images_failed += 1
                     logger.warning(
                         "Failed to download image",
@@ -413,7 +391,6 @@ class ImageAnalysisService(BaseService):
         Returns:
             ImageAnalysisResult with extracted codes.
         """
-
         async def _run() -> ParseLabelResult:
             async with LabelAPIClient() as client:
                 return await client.parse_label_file(image_path)
@@ -506,8 +483,7 @@ class ImageAnalysisService(BaseService):
                         result = self._analyze_with_ml(image.local_path)
                     else:
                         # Use local OCR (default)
-                        result = self._ocr.analyze_local_image(
-                            image.local_path)
+                        result = self._ocr.analyze_local_image(image.local_path)
                     duration = time.perf_counter() - start_time
 
                     if result.error:
@@ -524,8 +500,7 @@ class ImageAnalysisService(BaseService):
                         status = "needs_review"
                         stats.images_needs_review += 1
                         record_image_analysis(
-                            backend, "needs_review", duration, len(
-                                result.codes)
+                            backend, "needs_review", duration, len(result.codes)
                         )
                     else:
                         status = "analyzed"
@@ -539,8 +514,7 @@ class ImageAnalysisService(BaseService):
 
                     # Store extracted codes
                     if result.codes:
-                        code_repo.delete_by_image_id(
-                            image.id)  # Clear old codes
+                        code_repo.delete_by_image_id(image.id)  # Clear old codes
                         for code in result.codes:
                             code_repo.insert_code(
                                 lot_image_id=image.id,
@@ -560,8 +534,7 @@ class ImageAnalysisService(BaseService):
                                 stats.codes_auto_approved += approved_count
                                 # Record metrics for each approved code type
                                 for code in result.codes:
-                                    record_code_approval(
-                                        "auto", code.code_type)
+                                    record_code_approval("auto", code.code_type)
 
                     # Save token data for ML training
                     if save_tokens:
@@ -702,7 +675,9 @@ class ImageAnalysisService(BaseService):
                             for code in result.codes:
                                 record_code_approval("openai", code.code_type)
 
-                record_image_analysis("openai", status, 0.0, len(result.codes))
+                record_image_analysis(
+                    "openai", status, 0.0, len(result.codes)
+                )
 
             conn.commit()
 
@@ -759,7 +734,7 @@ class ImageAnalysisService(BaseService):
         """
         with self._connection_factory() as conn:
             token_repo = OcrTokenRepository(conn)
-            LotImageRepository(conn)
+            image_repo = LotImageRepository(conn)
 
             if include_reviewed:
                 records = token_repo.get_for_training(limit=limit or 10000)
@@ -779,15 +754,13 @@ class ImageAnalysisService(BaseService):
                     (record.lot_image_id,),
                 )
                 if image:
-                    export_data["images"].append(
-                        {
-                            "lot_image_id": record.lot_image_id,
-                            "lot_id": image.get("lot_id"),
-                            "local_path": image.get("local_path"),
-                            "tokens": record.tokens,
-                            "has_labels": record.has_labels,
-                        }
-                    )
+                    export_data["images"].append({
+                        "lot_image_id": record.lot_image_id,
+                        "lot_id": image.get("lot_id"),
+                        "local_path": image.get("local_path"),
+                        "tokens": record.tokens,
+                        "has_labels": record.has_labels,
+                    })
 
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -797,8 +770,7 @@ class ImageAnalysisService(BaseService):
 
         logger.info(
             "Exported token data",
-            extra={"path": str(output_path), "records": len(
-                export_data["images"])},
+            extra={"path": str(output_path), "records": len(export_data["images"])},
         )
         return len(export_data["images"])
 
@@ -981,8 +953,7 @@ class ImageAnalysisService(BaseService):
                         stats.images_failed += 1
                         logger.warning(
                             "Failed to compute phash",
-                            extra={"image_id": image.id,
-                                   "path": image.local_path},
+                            extra={"image_id": image.id, "path": image.local_path},
                         )
                 except Exception as e:
                     stats.images_failed += 1
@@ -1035,13 +1006,11 @@ class ImageAnalysisService(BaseService):
                 groups = []
                 for phash, images in db_duplicates:
                     lot_ids = list(set(img.lot_id for img in images))
-                    groups.append(
-                        DuplicateGroup(
-                            phash=phash,
-                            images=images,
-                            lot_ids=lot_ids,
-                        )
-                    )
+                    groups.append(DuplicateGroup(
+                        phash=phash,
+                        images=images,
+                        lot_ids=lot_ids,
+                    ))
                 return groups
 
             # Fuzzy matching - need to compare hashes using Hamming distance
@@ -1103,14 +1072,11 @@ class ImageAnalysisService(BaseService):
 
                 if len(cluster_images) > 1:
                     lot_ids = list(set(img.lot_id for img in cluster_images))
-                    groups.append(
-                        DuplicateGroup(
-                            # Use first hash as representative
-                            phash=cluster_hashes[0],
-                            images=cluster_images,
-                            lot_ids=lot_ids,
-                        )
-                    )
+                    groups.append(DuplicateGroup(
+                        phash=cluster_hashes[0],  # Use first hash as representative
+                        images=cluster_images,
+                        lot_ids=lot_ids,
+                    ))
 
             # Sort by number of duplicates (most first)
             groups.sort(key=lambda g: g.count, reverse=True)
@@ -1123,7 +1089,7 @@ class ImageAnalysisService(BaseService):
             Dictionary with duplicate-related counts.
         """
         with self._connection_factory() as conn:
-            LotImageRepository(conn)
+            image_repo = LotImageRepository(conn)
 
             # Count images with phash
             cur = conn.execute(

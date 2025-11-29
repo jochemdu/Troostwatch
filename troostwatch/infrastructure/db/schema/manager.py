@@ -40,8 +40,7 @@ def _ensure_lots_columns(conn, migrator: SchemaMigrator) -> None:
     if cur.fetchone() is None:
         return
 
-    existing = {row[1] for row in conn.execute(
-        "PRAGMA table_info(lots)").fetchall()}
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(lots)").fetchall()}
 
     to_add = {
         "status": "TEXT",
@@ -153,4 +152,5 @@ def _ensure_lot_images_phash(conn, migrator: SchemaMigrator) -> None:
 
     # Ensure index exists
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_lot_images_phash ON lot_images(phash)")
+        "CREATE INDEX IF NOT EXISTS idx_lot_images_phash ON lot_images(phash)"
+    )

@@ -178,13 +178,11 @@ class AuctionRepository(BaseRepository):
                 )
 
             # Delete lots
-            cur = self._execute(
-                "DELETE FROM lots WHERE auction_id = ?", (auction_id,))
+            cur = self._execute("DELETE FROM lots WHERE auction_id = ?", (auction_id,))
             lots_deleted = cur.rowcount
 
             # Delete the auction
-            cur = self._execute(
-                "DELETE FROM auctions WHERE id = ?", (auction_id,))
+            cur = self._execute("DELETE FROM auctions WHERE id = ?", (auction_id,))
             auction_deleted = cur.rowcount
 
         self.conn.commit()

@@ -16,8 +16,7 @@ def create_snapshot(
     """Create a SQLite backup using :meth:`sqlite3.Connection.backup`."""
 
     paths = get_path_config()
-    root = Path(
-        snapshot_root) if snapshot_root is not None else paths["snapshots_root"]
+    root = Path(snapshot_root) if snapshot_root is not None else paths["snapshots_root"]
     root.mkdir(parents=True, exist_ok=True)
     timestamp = iso_utcnow().replace(":", "-")
     suffix = label or "snapshot"

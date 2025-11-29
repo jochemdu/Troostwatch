@@ -103,6 +103,5 @@ def view_cmd(ctx: click.Context, table: str, limit: int) -> None:
         console.print("\t".join(headers))
         for row in rows:
             console.print(
-                "\t".join(str(row[h]) if row[h]
-                          is not None else "" for h in headers)
+                "\t".join(str(row[h]) if row[h] is not None else "" for h in headers)
             )

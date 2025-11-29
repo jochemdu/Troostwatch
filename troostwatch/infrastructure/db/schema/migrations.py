@@ -102,8 +102,7 @@ class SchemaMigrator:
                 continue
             with open(path, "r", encoding="utf-8") as f:
                 sql = f.read()
-            self.apply_sql(
-                name, sql, notes=f"applied from {path.relative_to(root)}")
+            self.apply_sql(name, sql, notes=f"applied from {path.relative_to(root)}")
 
     def run_migrations(self, migrations: Iterable[str] | None = None) -> None:
         """Execute bundled schema and any additional migration scripts."""

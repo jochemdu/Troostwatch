@@ -1,14 +1,12 @@
 from __future__ import annotations
-from .config import get_default_timeout, get_path_config, load_config
-from pathlib import Path
-from datetime import datetime, timezone
-from contextlib import contextmanager
-from collections.abc import Iterator
+
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path
 
-
-class DatabaseError(Exception):
-    """Custom exception for database connection errors."""
+from .config import get_default_timeout, get_path_config, load_config
 
 
 def iso_utcnow() -> str:
@@ -26,15 +24,12 @@ def apply_pragmas(
 ) -> None:
     """Apply SQLite PRAGMAs required by Troostwatch."""
 
-    try:
-        if enable_wal:
-            conn.execute("PRAGMA journal_mode=WAL;")
-        if foreign_keys:
-            conn.execute("PRAGMA foreign_keys=ON;")
-        if busy_timeout_ms is not None:
-            conn.execute(f"PRAGMA busy_timeout={int(busy_timeout_ms)};")
-    except sqlite3.Error as exc:
-        raise DatabaseError(f"Failed to apply PRAGMAs: {exc}") from exc
+    if enable_wal:
+        conn.execute("PRAGMA journal_mode=WAL;")
+    if foreign_keys:
+        conn.execute("PRAGMA foreign_keys=ON;")
+    if busy_timeout_ms is not None:
+        conn.execute(f"PRAGMA busy_timeout={int(busy_timeout_ms)};")
 
 
 @contextmanager
@@ -49,16 +44,12 @@ def get_connection(
     """Yield a configured SQLite connection."""
 
     paths = get_path_config()
-    resolved_db_path = Path(
-        db_path) if db_path is not None else paths["db_path"]
+    resolved_db_path = Path(db_path) if db_path is not None else paths["db_path"]
     resolved_db_path.parent.mkdir(parents=True, exist_ok=True)
     timeout_value = timeout if timeout is not None else get_default_timeout()
-    try:
-        conn = sqlite3.connect(
-            resolved_db_path, timeout=timeout_value, check_same_thread=check_same_thread
-        )
-    except sqlite3.Error as exc:
-        raise DatabaseError(f"Failed to connect to database: {exc}") from exc
+    conn = sqlite3.connect(
+        resolved_db_path, timeout=timeout_value, check_same_thread=check_same_thread
+    )
     try:
         cfg = load_config()
         db_cfg = cfg.get("db", {}) if isinstance(cfg, dict) else {}
@@ -79,8 +70,5 @@ def get_connection(
             busy_timeout_ms=int(timeout_value * 1000),
         )
         yield conn
-    except DatabaseError:
-        conn.close()
-        raise
     finally:
         conn.close()

@@ -30,16 +30,14 @@ def get_path_config(config_path: Path | str | None = None) -> dict[str, Path]:
     """Return resolved filesystem paths from the project configuration."""
 
     cfg = load_config(config_path)
-    root = Path(
-        config_path).parent if config_path is not None else _CONFIG_FILE.parent
+    root = Path(config_path).parent if config_path is not None else _CONFIG_FILE.parent
     defaults = {
         "db_path": root / "troostwatch.db",
         "snapshots_root": root / "snapshots",
         "lot_cards_dir": root / "snapshots" / "lot_cards",
         "lot_details_dir": root / "snapshots" / "lot_details",
     }
-    paths_cfg = cfg.get("paths", {}) if isinstance(
-        cfg.get("paths", {}), dict) else {}
+    paths_cfg = cfg.get("paths", {}) if isinstance(cfg.get("paths", {}), dict) else {}
     resolved: dict[str, Path] = {}
     for key, default_value in defaults.items():
         raw_value = paths_cfg.get(key, default_value)

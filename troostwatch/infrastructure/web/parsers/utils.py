@@ -188,8 +188,7 @@ def split_location(text: str) -> tuple[str | None, str | None]:
 def extract_next_data(html: str | BeautifulSoup) -> dict:
     """Load ``__NEXT_DATA__`` JSON from a page when present."""
 
-    soup = BeautifulSoup(html, "html.parser") if isinstance(
-        html, str) else html
+    soup = BeautifulSoup(html, "html.parser") if isinstance(html, str) else html
     script = soup.find("script", id="__NEXT_DATA__")
     if not script:
         return {}
@@ -216,8 +215,7 @@ def log_structure_signature(
     """Log a checksum for a specific parser section to detect layout drift."""
 
     checksum = structure_checksum(html_fragment)
-    logger.info("structure-signature",
-                extra={"section": section, "checksum": checksum})
+    logger.info("structure-signature", extra={"section": section, "checksum": checksum})
 
 
 def record_parsing_error(

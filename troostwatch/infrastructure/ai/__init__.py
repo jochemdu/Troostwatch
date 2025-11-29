@@ -16,13 +16,7 @@ from .vendor_profiles import (
     extract_vendor_codes,
     get_all_vendor_names,
 )
-from .preprocessing import (
-    preprocess_for_ocr,
-    PreprocessingConfig,
-    TesseractOCR,
-    parse_label,
-    ParsedLabel,
-)
+from .preprocessing import preprocess_for_ocr, PreprocessingConfig, TesseractOCR, parse_label, ParsedLabel
 
 __all__ = [
     "ImageAnalyzer",

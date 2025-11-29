@@ -1,0 +1,6 @@
+[console_scripts]
+troostwatch-buyer = troostwatch.interfaces.cli.buyer:buyer
+troostwatch-debug = troostwatch.interfaces.cli.debug:debug
+troostwatch-sync = troostwatch.interfaces.cli.sync:sync
+troostwatch-sync-multi = troostwatch.interfaces.cli.sync_multi:sync_multi
+troostwatch-view = troostwatch.interfaces.cli.view:view

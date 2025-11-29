@@ -41,8 +41,7 @@ def db_view(
 ) -> list[dict[str, Any]]:
     """Fetch up to ``limit`` rows from the specified table."""
     cur = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (
-            table,)
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)
     )
     if cur.fetchone() is None:
         raise ValueError(f"Table '{table}' does not exist in the database")

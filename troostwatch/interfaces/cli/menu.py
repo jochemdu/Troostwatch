@@ -149,8 +149,7 @@ def _run_sync(ctx: click.Context) -> None:
 
 def _run_sync_multi(ctx: click.Context) -> None:
     db_path = click.prompt("Database path", default=_default_db_path())
-    max_pages = _prompt_optional_int(
-        "Max pages to fetch per auction (blank for all)")
+    max_pages = _prompt_optional_int("Max pages to fetch per auction (blank for all)")
     include_inactive = click.confirm(
         "Include auctions without active lots?", default=False
     )
@@ -183,8 +182,7 @@ def _run_view(ctx: click.Context) -> None:
     db_path = click.prompt("Database path", default=_default_db_path())
     auction_code = _prompt_optional_str("Auction code filter (blank for all)")
     state = _prompt_optional_str("State filter (blank for all)")
-    limit = click.prompt(
-        "Maximum lots to show (0 for no limit)", default=50, type=int)
+    limit = click.prompt("Maximum lots to show (0 for no limit)", default=50, type=int)
     json_output = click.confirm("Show as JSON?", default=False)
 
     ctx.invoke(
@@ -205,8 +203,7 @@ def _run_add_lot(ctx: click.Context) -> None:
     lot_code = click.prompt("Lot code")
     title = click.prompt("Lot title")
     lot_url = _prompt_optional_str("Lot URL (optional)")
-    state = _prompt_optional_str(
-        "Lot state (running/scheduled/closed, optional)") or ""
+    state = _prompt_optional_str("Lot state (running/scheduled/closed, optional)") or ""
     opens_at = _prompt_optional_str("Opens at (ISO, optional)")
     closing_time = _prompt_optional_str("Closing time (ISO, optional)")
     bid_count = _prompt_optional_int("Bid count (optional)")
@@ -247,8 +244,7 @@ def _run_buyer(ctx: click.Context) -> None:
     db_path = click.prompt("Database path", default=_default_db_path())
     action = click.prompt(
         "Buyer action",
-        type=click.Choice(["list", "add", "delete", "back"],
-                          case_sensitive=False),
+        type=click.Choice(["list", "add", "delete", "back"], case_sensitive=False),
         show_choices=True,
     ).lower()
     if action == "back":
@@ -265,8 +261,7 @@ def _run_buyer(ctx: click.Context) -> None:
         notes = _prompt_optional_str("Notes (optional)")
         with click.Context(buyer) as buyer_ctx:
             buyer_ctx.obj = {"db_path": db_path}
-            buyer_ctx.invoke(
-                buyer.commands["add"], label=label, name=name, notes=notes)
+            buyer_ctx.invoke(buyer.commands["add"], label=label, name=name, notes=notes)
     else:
         with click.Context(buyer) as buyer_ctx:
             buyer_ctx.obj = {"db_path": db_path}
@@ -277,16 +272,14 @@ def _run_positions(ctx: click.Context) -> None:
     db_path = click.prompt("Database path", default=_default_db_path())
     action = click.prompt(
         "Positions action",
-        type=click.Choice(["list", "add", "delete", "back"],
-                          case_sensitive=False),
+        type=click.Choice(["list", "add", "delete", "back"], case_sensitive=False),
         show_choices=True,
     ).lower()
     if action == "back":
         return
     if action == "list":
         buyer_filter = _prompt_optional_str("Filter by buyer (blank for all)")
-        ctx.invoke(positions.commands["list"],
-                   db_path=db_path, buyer=buyer_filter)
+        ctx.invoke(positions.commands["list"], db_path=db_path, buyer=buyer_filter)
         return
 
     buyer_label = click.prompt("Buyer label")
@@ -358,8 +351,7 @@ def _run_debug(ctx: click.Context) -> None:
     db_path = click.prompt("Database path", default=_default_db_path())
     action = click.prompt(
         "Debug action",
-        type=click.Choice(["stats", "integrity", "view",
-                          "back"], case_sensitive=False),
+        type=click.Choice(["stats", "integrity", "view", "back"], case_sensitive=False),
         show_choices=True,
     ).lower()
     if action == "back":

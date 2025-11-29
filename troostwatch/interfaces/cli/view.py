@@ -81,8 +81,7 @@ def view(
         return
 
     if not lots:
-        console.print(
-            "[yellow]No lots found with the provided filters.[/yellow]")
+        console.print("[yellow]No lots found with the provided filters.[/yellow]")
         return
 
     console.print(f"Showing {len(lots)} lot(s):")

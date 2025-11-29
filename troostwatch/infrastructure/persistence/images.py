@@ -7,6 +7,7 @@ and storing them locally for OCR analysis and ML training.
 from __future__ import annotations
 
 import hashlib
+import mimetypes
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -117,8 +118,7 @@ class ImageDownloader:
             On success: (path_string, None)
             On failure: (None, error_message)
         """
-        download_url = self._get_download_url(
-            url, size or self.DEFAULT_IMAGE_SIZE)
+        download_url = self._get_download_url(url, size or self.DEFAULT_IMAGE_SIZE)
 
         for attempt in range(self.max_retries):
             try:
@@ -126,14 +126,12 @@ class ImageDownloader:
                     response = client.get(download_url)
                     response.raise_for_status()
 
-                    content_type = response.headers.get(
-                        "content-type", "image/jpeg")
+                    content_type = response.headers.get("content-type", "image/jpeg")
                     # Handle content-type with charset
                     if ";" in content_type:
                         content_type = content_type.split(";")[0].strip()
 
-                    local_path = self._get_local_path(
-                        lot_id, position, content_type)
+                    local_path = self._get_local_path(lot_id, position, content_type)
 
                     # Create directory if needed
                     local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -157,8 +155,7 @@ class ImageDownloader:
                 if attempt == self.max_retries - 1:
                     logger.error(
                         "Failed to download image after retries",
-                        extra={"url": url, "error": error,
-                               "attempts": attempt + 1},
+                        extra={"url": url, "error": error, "attempts": attempt + 1},
                     )
                     return None, error
 
@@ -167,8 +164,7 @@ class ImageDownloader:
                 if attempt == self.max_retries - 1:
                     logger.error(
                         "Failed to download image after retries",
-                        extra={"url": url, "error": error,
-                               "attempts": attempt + 1},
+                        extra={"url": url, "error": error, "attempts": attempt + 1},
                     )
                     return None, error
 
@@ -200,8 +196,7 @@ class ImageDownloader:
         Returns:
             Tuple of (local_path, error_message).
         """
-        download_url = self._get_download_url(
-            url, size or self.DEFAULT_IMAGE_SIZE)
+        download_url = self._get_download_url(url, size or self.DEFAULT_IMAGE_SIZE)
 
         for attempt in range(self.max_retries):
             try:
@@ -209,13 +204,11 @@ class ImageDownloader:
                     response = await client.get(download_url)
                     response.raise_for_status()
 
-                    content_type = response.headers.get(
-                        "content-type", "image/jpeg")
+                    content_type = response.headers.get("content-type", "image/jpeg")
                     if ";" in content_type:
                         content_type = content_type.split(";")[0].strip()
 
-                    local_path = self._get_local_path(
-                        lot_id, position, content_type)
+                    local_path = self._get_local_path(lot_id, position, content_type)
                     local_path.parent.mkdir(parents=True, exist_ok=True)
 
                     with open(local_path, "wb") as f:

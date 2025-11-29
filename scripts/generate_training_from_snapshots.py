@@ -11,11 +11,11 @@ Usage:
     python scripts/generate_training_from_snapshots.py --output training_data/real_labels
 """
 
-from troostwatch.infrastructure.web.parsers.lot_detail import parse_lot_detail
 import argparse
 import asyncio
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -25,6 +25,7 @@ import httpx
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from troostwatch.infrastructure.web.parsers.lot_detail import parse_lot_detail
 
 # Try to import OCR dependencies
 try:
@@ -61,8 +62,7 @@ def extract_tokens_from_image(image_bytes: bytes) -> list[dict]:
     try:
         image = Image.open(io.BytesIO(image_bytes))
         # Get detailed OCR data
-        ocr_data = pytesseract.image_to_data(
-            image, output_type=pytesseract.Output.DICT)
+        ocr_data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
 
         tokens = []
         for i, text in enumerate(ocr_data["text"]):

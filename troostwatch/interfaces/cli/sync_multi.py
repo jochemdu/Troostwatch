@@ -188,8 +188,7 @@ def sync_multi(
         code = entry.get("auction_code") or entry.get("code")
         url = entry.get("url")
         if not code:
-            console.print(
-                f"[yellow]Skipping auction without code: {entry}[/yellow]")
+            console.print(f"[yellow]Skipping auction without code: {entry}[/yellow]")
             continue
         if not url:
             console.print(

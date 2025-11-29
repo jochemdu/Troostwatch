@@ -186,8 +186,7 @@ def parse_auction_page(html: str, base_url: str | None = None) -> Iterable[LotCa
         lot_code = display_id
 
         bids = lot.get("bidsCount")
-        current_bid_amount = utils.amount_from_cents_dict(
-            lot.get("currentBidAmount"))
+        current_bid_amount = utils.amount_from_cents_dict(lot.get("currentBidAmount"))
         is_price_opening_bid = None
         if bids is not None:
             is_price_opening_bid = bids == 0
@@ -204,8 +203,7 @@ def parse_auction_page(html: str, base_url: str | None = None) -> Iterable[LotCa
 
         location = lot.get("location") or {}
         loc_data = {**{"city": "", "countryCode": ""}, **location}
-        city, country = utils.split_location(
-            "{city}, {countryCode}".format(**loc_data))
+        city, country = utils.split_location("{city}, {countryCode}".format(**loc_data))
         country_code = (location.get("countryCode") or "").lower()
         country = utils.COUNTRY_CODES.get(country_code, country)
 
@@ -242,10 +240,8 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
 
     if isinstance(data, dict):
         page_props = data.get("props", {}).get("pageProps", {})
-        lots_meta = page_props.get("lots", {}) if isinstance(
-            page_props, dict) else {}
-        pagination = lots_meta.get(
-            "pagination") or page_props.get("pagination") or {}
+        lots_meta = page_props.get("lots", {}) if isinstance(page_props, dict) else {}
+        pagination = lots_meta.get("pagination") or page_props.get("pagination") or {}
 
         total_pages = (
             pagination.get("totalPages")
@@ -265,8 +261,7 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
                 total_pages = None
 
         try:
-            total_pages_int = int(
-                total_pages) if total_pages is not None else 1
+            total_pages_int = int(total_pages) if total_pages is not None else 1
         except Exception:
             total_pages_int = 1
 
@@ -274,8 +269,7 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
         if parsed_base.query:
             from urllib.parse import parse_qsl
 
-            base_query = {key: value for key,
-                          value in parse_qsl(parsed_base.query)}
+            base_query = {key: value for key, value in parse_qsl(parsed_base.query)}
 
         normalized_base = urlunsplit(
             (
@@ -329,5 +323,4 @@ def extract_page_urls(html: str, auction_url: str) -> list[str]:
     return page_urls or [auction_url]
 
 
-__all__ = ["LotCardData", "extract_page_urls",
-           "parse_auction_page", "parse_lot_card"]
+__all__ = ["LotCardData", "extract_page_urls", "parse_auction_page", "parse_lot_card"]

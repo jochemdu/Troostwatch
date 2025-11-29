@@ -17,8 +17,7 @@ from typing import Any, Iterator
 # Context variables for structured logging
 # ---------------------------------------------------------------------------
 
-_log_context: ContextVar[dict[str, Any]] = ContextVar(
-    "log_context", default={})
+_log_context: ContextVar[dict[str, Any]] = ContextVar("log_context", default={})
 
 
 class ContextualFormatter(logging.Formatter):

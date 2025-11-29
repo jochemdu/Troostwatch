@@ -41,20 +41,6 @@ class Auction:
             return []
         return [self.url] + list(self.pagination_pages)
 
-    @staticmethod
-    def parse_datetime(value: object) -> datetime | None:
-        """Parse a datetime from a string or datetime object."""
-        if value is None:
-            return None
-        if isinstance(value, datetime):
-            return value
-        if isinstance(value, str):
-            try:
-                return datetime.fromisoformat(value.replace("Z", "+00:00"))
-            except ValueError:
-                return None
-        return None
-
     @classmethod
     def from_dict(cls, data: dict) -> "Auction":
         """Create an Auction from a dictionary (e.g., from database row)."""
@@ -67,13 +53,25 @@ class Auction:
             except (json.JSONDecodeError, TypeError):
                 pagination = []
 
+        def parse_datetime(value: object) -> datetime | None:
+            if value is None:
+                return None
+            if isinstance(value, datetime):
+                return value
+            if isinstance(value, str):
+                try:
+                    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+                except ValueError:
+                    return None
+            return None
+
         return cls(
             auction_code=data.get("auction_code", ""),
             title=data.get("title"),
             url=data.get("url"),
             pagination_pages=pagination or [],
-            created_at=cls.parse_datetime(data.get("created_at")),
-            updated_at=cls.parse_datetime(data.get("updated_at")),
+            created_at=parse_datetime(data.get("created_at")),
+            updated_at=parse_datetime(data.get("updated_at")),
         )
 
 

@@ -28,16 +28,14 @@ from troostwatch.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 # Default service URL (can be overridden via environment variable)
-DEFAULT_SERVICE_URL = os.environ.get(
-    "LABEL_OCR_API_URL", "http://localhost:8001")
+DEFAULT_SERVICE_URL = os.environ.get("LABEL_OCR_API_URL", "http://localhost:8001")
 
 
 @dataclass
 class ExtractedCode:
     """A product code extracted from an image by the ML service."""
 
-    code_type: Literal["ean", "serial_number",
-                       "model_number", "part_number", "other"]
+    code_type: Literal["ean", "serial_number", "model_number", "part_number", "other"]
     value: str
     confidence: Literal["high", "medium", "low"]
     context: str | None = None

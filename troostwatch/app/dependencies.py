@@ -109,13 +109,10 @@ def get_lot_image_repository(
 # Use these instead of `param: Type = Depends(get_x)` repetition
 LotRepositoryDep = Annotated[LotRepository, Depends(get_lot_repository)]
 BuyerRepositoryDep = Annotated[BuyerRepository, Depends(get_buyer_repository)]
-PositionRepositoryDep = Annotated[PositionRepository, Depends(
-    get_position_repository)]
-AuctionRepositoryDep = Annotated[AuctionRepository, Depends(
-    get_auction_repository)]
+PositionRepositoryDep = Annotated[PositionRepository, Depends(get_position_repository)]
+AuctionRepositoryDep = Annotated[AuctionRepository, Depends(get_auction_repository)]
 BidRepositoryDep = Annotated[BidRepository, Depends(get_bid_repository)]
 ExtractedCodeRepositoryDep = Annotated[
     ExtractedCodeRepository, Depends(get_extracted_code_repository)
 ]
-LotImageRepositoryDep = Annotated[LotImageRepository, Depends(
-    get_lot_image_repository)]
+LotImageRepositoryDep = Annotated[LotImageRepository, Depends(get_lot_image_repository)]

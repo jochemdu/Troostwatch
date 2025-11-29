@@ -1,0 +1,447 @@
+{
+  "images": [
+    {
+      "path": "A1-39499-5_1_b92d47ce.jpg",
+      "tokens": {
+        "text": [
+          "O1E-2943-11EB-80E8-5405DBFBF4AE",
+          "Compliance",
+          "1D:",
+          "Ins",
+          "Compliance",
+          "Marks:",
+          "Manufactured",
+          "Lenovo",
+          "CODE:",
+          "0195348855:",
+          "tii",
+          "WLAN",
+          "MAC:",
+          "SCFCE8BA34AC",
+          "Merona",
+          "Proaust",
+          "Key",
+          "ssoszezeaves",
+          "Th.",
+          "PO:",
+          "7516977131",
+          "Sty",
+          "LOPE:",
+          "1811080."
+        ],
+        "conf": [
+          46,
+          82,
+          73,
+          37,
+          63,
+          96,
+          38,
+          84,
+          96,
+          91,
+          42,
+          94,
+          91,
+          68,
+          31,
+          48,
+          57,
+          30,
+          32,
+          84,
+          37,
+          41,
+          56,
+          49
+        ]
+      },
+      "labels": {
+        "7": "brand"
+      },
+      "metadata": {
+        "lot_code": "A1-39499-5",
+        "lot_title": "Lenovo Thinkbook X1 Fold Gen 1 Laptop",
+        "source_url": "https://media.tbauctions.com/image-media/c6967e4c-9e50-4180-9051-773126a109c1/file"
+      }
+    },
+    {
+      "path": "A1-39499-5_2_4452c0cb.jpg",
+      "tokens": {
+        "text": [
+          "case",
+          "Attn:",
+          "NIA",
+          "Wieben",
+          "6608",
+          "1H,",
+          "eine",
+          "\u2018paso",
+          "EXDO",
+          "CTNLAZ",
+          "unt",
+          "rie"
+        ],
+        "conf": [
+          54,
+          54,
+          71,
+          43,
+          62,
+          44,
+          46,
+          48,
+          86,
+          62,
+          40,
+          40
+        ]
+      },
+      "labels": {},
+      "metadata": {
+        "lot_code": "A1-39499-5",
+        "lot_title": "Lenovo Thinkbook X1 Fold Gen 1 Laptop",
+        "source_url": "https://media.tbauctions.com/image-media/37148538-ce0a-4b55-bc87-6e8ad354dd6e/file"
+      }
+    },
+    {
+      "path": "A1-39499-4_2_0bc881c8.jpg",
+      "tokens": {
+        "text": [
+          "ThinkPad",
+          "Fold",
+          "Gen",
+          "MTM:",
+          "20RL-000xMH",
+          "Serlal",
+          "Number:",
+          "PF206TX7",
+          "wih\u201d",
+          "Ain",
+          "A4792370-2BDD-11EB-80E8-8C8CAA047D96",
+          "TP00122A",
+          "(4L)",
+          "Origin:",
+          "Compliance",
+          "Marks:",
+          "Ill",
+          "Max",
+          "ICT"
+        ],
+        "conf": [
+          93,
+          96,
+          96,
+          33,
+          77,
+          87,
+          93,
+          84,
+          50,
+          35,
+          73,
+          89,
+          90,
+          89,
+          48,
+          96,
+          62,
+          96,
+          91
+        ]
+      },
+      "labels": {
+        "0": "brand",
+        "4": "model_number",
+        "7": "model_number",
+        "11": "model_number"
+      },
+      "metadata": {
+        "lot_code": "A1-39499-4",
+        "lot_title": "Lenovo Thinkbook X1 Fold Gen 1 Laptop",
+        "source_url": "https://media.tbauctions.com/image-media/16d0829b-ddcc-4066-87d8-778a5bbec3c7/file"
+      }
+    },
+    {
+      "path": "A1-39499-1_0_a1593833.jpg",
+      "tokens": {
+        "text": [
+          "16.1",
+          "GAMING",
+          "LAPTOP",
+          "16.1",
+          "ORDINATEUR",
+          "PORTABLE",
+          "JEU"
+        ],
+        "conf": [
+          95,
+          95,
+          95,
+          93,
+          91,
+          95,
+          96
+        ]
+      },
+      "labels": {},
+      "metadata": {
+        "lot_code": "A1-39499-1",
+        "lot_title": "Hp Omen Gaming Laptop",
+        "source_url": "https://media.tbauctions.com/image-media/6fa30c40-8799-46f5-bee8-070c187e9097/file"
+      }
+    },
+    {
+      "path": "A1-39499-1_1_16a7d867.jpg",
+      "tokens": {
+        "text": [
+          "OMEN",
+          "Laptop",
+          "16-b1001nd",
+          "Intel\u00ae",
+          "Core\u2122",
+          "i7-12700H-processor",
+          "[2]",
+          "SSD",
+          "(solid-state",
+          "drive)",
+          "[3]",
+          "SODIMM",
+          "DDRS5",
+          "SDRAM",
+          "Geen",
+          "optischeschijfeenheid",
+          "Windows",
+          "[67]",
+          "40,89",
+          "(16,1\")",
+          "QHD",
+          "IPS",
+          "LED-beeldscherm",
+          "(300",
+          "nits,",
+          "165",
+          "Hz,",
+          "G-Sync)",
+          "[4]",
+          "NVIDIA\u00ae",
+          "GeForce",
+          "RTX\u2122",
+          "3070",
+          "NVIDIA\u00ae",
+          "Max-Q",
+          "Technologie",
+          "BANG",
+          "OLUFSEN",
+          "cellen,",
+          "[63]",
+          "{2}",
+          "Multi-core",
+          "ontwikkeld",
+          "prestaties",
+          "van",
+          "bepaalde",
+          "softwareproducten",
+          "verbeteren.",
+          "Niet",
+          "alle",
+          "klanten",
+          "softwareapplicaties",
+          "zijn",
+          "noodzakelijkerwijs",
+          "gebaat",
+          "bij",
+          "het",
+          "gebruik",
+          "van",
+          "deze",
+          "technologie.",
+          "prestaties",
+          "klokfrequentie",
+          "zijn",
+          "mede",
+          "afnankelijk",
+          "van",
+          "applicatieworkioad",
+          "hardware-",
+          "softwareconfiguraties.",
+          "Het",
+          "nummer,",
+          "merknaam",
+          "en/of",
+          "naam",
+          "hat",
+          "nrestatieniveau."
+        ],
+        "conf": [
+          96,
+          96,
+          90,
+          84,
+          93,
+          76,
+          96,
+          94,
+          96,
+          96,
+          94,
+          90,
+          33,
+          95,
+          93,
+          90,
+          94,
+          88,
+          94,
+          90,
+          95,
+          95,
+          91,
+          96,
+          96,
+          96,
+          95,
+          91,
+          96,
+          91,
+          93,
+          91,
+          95,
+          88,
+          92,
+          96,
+          93,
+          96,
+          60,
+          96,
+          77,
+          47,
+          92,
+          93,
+          93,
+          81,
+          92,
+          92,
+          96,
+          93,
+          74,
+          91,
+          96,
+          92,
+          92,
+          96,
+          96,
+          96,
+          96,
+          96,
+          95,
+          91,
+          85,
+          91,
+          91,
+          91,
+          96,
+          59,
+          90,
+          92,
+          96,
+          96,
+          91,
+          76,
+          91,
+          65,
+          43
+        ]
+      },
+      "labels": {
+        "2": "model_number"
+      },
+      "metadata": {
+        "lot_code": "A1-39499-1",
+        "lot_title": "Hp Omen Gaming Laptop",
+        "source_url": "https://media.tbauctions.com/image-media/6b5ab989-f32d-4769-9fc5-fcf874a258b1/file"
+      }
+    },
+    {
+      "path": "A1-39499-1_2_f007f0d8.jpg",
+      "tokens": {
+        "text": [
+          "hp\u2019",
+          "OMEN",
+          "WINN",
+          "PIN",
+          "Pe,",
+          "Illy"
+        ],
+        "conf": [
+          59,
+          96,
+          34,
+          96,
+          40,
+          39
+        ]
+      },
+      "labels": {},
+      "metadata": {
+        "lot_code": "A1-39499-1",
+        "lot_title": "Hp Omen Gaming Laptop",
+        "source_url": "https://media.tbauctions.com/image-media/9b9fc677-deb5-48cd-aa48-e59374dbdc6e/file"
+      }
+    },
+    {
+      "path": "A1-39499-2_0_6afe5ace.jpg",
+      "tokens": {
+        "text": [
+          "TLD",
+          "WELCOME",
+          "THE",
+          "CULT",
+          "RAZER"
+        ],
+        "conf": [
+          37,
+          96,
+          95,
+          96,
+          92
+        ]
+      },
+      "labels": {},
+      "metadata": {
+        "lot_code": "A1-39499-2",
+        "lot_title": "Blade RZ09-0166 Gaming Laptop",
+        "source_url": "https://media.tbauctions.com/image-media/8e80b5c9-8840-4234-8a8b-dfe311875b04/file"
+      }
+    },
+    {
+      "path": "A1-39499-2_3_4f8deff4.jpg",
+      "tokens": {
+        "text": [
+          "NVIDIA\u00ae",
+          "GeForce\u00ae",
+          "GTX",
+          "1080",
+          "Desktop",
+          "Class",
+          "Graphics"
+        ],
+        "conf": [
+          76,
+          92,
+          95,
+          96,
+          96,
+          97,
+          96
+        ]
+      },
+      "labels": {},
+      "metadata": {
+        "lot_code": "A1-39499-2",
+        "lot_title": "Blade RZ09-0166 Gaming Laptop",
+        "source_url": "https://media.tbauctions.com/image-media/04f74eab-6e00-42d9-97b0-c64e852113b2/file"
+      }
+    }
+  ]
+}

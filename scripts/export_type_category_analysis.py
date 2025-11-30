@@ -18,7 +18,7 @@ with open(csv_path, "w") as f:
             f.write(f"{entry['type']},{cat['category']},{cat['count']}\n")
 
 # Visualisatie: bar chart per type
-plt.figure(figsize=(10,6))
+plt.figure(figsize=(10, 6))
 types = [entry["type"] for entry in data]
 counts = [entry["count"] for entry in data]
 plt.bar(types, counts)
@@ -30,8 +30,10 @@ plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "type_counts.png"))
 
 # Visualisatie: stacked bar per type/category
-plt.figure(figsize=(10,6))
-category_labels = list({cat['category'] for entry in data for cat in entry['categories']})
+plt.figure(figsize=(10, 6))
+category_labels = list(
+    {cat["category"] for entry in data for cat in entry["categories"]}
+)
 category_labels.sort()
 bar_data = {cat: [] for cat in category_labels}
 for entry in data:
@@ -39,7 +41,7 @@ for entry in data:
     cat_counts = {cat["category"]: cat["count"] for cat in entry["categories"]}
     for cat in category_labels:
         bar_data[cat].append(cat_counts.get(cat, 0))
-bottom = [0]*len(types)
+bottom = [0] * len(types)
 for cat in category_labels:
     plt.bar(types, bar_data[cat], bottom=bottom, label=cat)
     bottom = [bottom[i] + bar_data[cat][i] for i in range(len(types))]

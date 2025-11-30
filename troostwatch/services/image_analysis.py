@@ -15,7 +15,7 @@ import asyncio
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, cast
 
 from troostwatch.infrastructure.ai.image_analyzer import (
     ExtractedCode,
@@ -34,8 +34,7 @@ from troostwatch.infrastructure.ai.image_hashing import (
 )
 from troostwatch.infrastructure.ai.code_validation import (
     CodeType,
-    ValidationResult,
-    detect_code_type,
+    CodeType,
     normalize_code,
     validate_code,
     validate_and_correct_ean,
@@ -52,7 +51,6 @@ from troostwatch.infrastructure.observability.metrics import (
     record_image_download,
     record_image_analysis,
     record_code_approval,
-    Timer,
 )
 from troostwatch.infrastructure.persistence.images import ImageDownloader
 
@@ -120,7 +118,16 @@ class ImageAnalysisService(BaseService):
     # Confidence threshold above which codes are auto-approved
     DEFAULT_AUTO_APPROVE_THRESHOLD = 0.85
 
-    def record_training_run(self, status: str, model_path: str | None = None, metrics: dict | None = None, notes: str | None = None, created_by: str | None = None, training_data_filter: str | None = None, error_message: str | None = None) -> int:
+    def record_training_run(
+        self,
+        status: str,
+        model_path: str | None = None,
+        metrics: dict | None = None,
+        notes: str | None = None,
+        created_by: str | None = None,
+        training_data_filter: str | None = None,
+        error_message: str | None = None,
+    ) -> int:
         """Record a new ML training run in the database.
 
         Args:
@@ -156,12 +163,21 @@ class ImageAnalysisService(BaseService):
             )
             run_id = cur.lastrowid
             conn.commit()
-        return run_id
+        return int(run_id or 0)
 
-    def update_training_run(self, run_id: int, status: str | None = None, finished_at: str | None = None, model_path: str | None = None, metrics: dict | None = None, notes: str | None = None, error_message: str | None = None) -> None:
+    def update_training_run(
+        self,
+        run_id: int,
+        status: str | None = None,
+        finished_at: str | None = None,
+        model_path: str | None = None,
+        metrics: dict | None = None,
+        notes: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
         """Update an existing ML training run record."""
-        fields = []
-        params = []
+        fields: list[str] = []
+        params: list[object] = []
         if status:
             fields.append("status = ?")
             params.append(status)
@@ -189,11 +205,13 @@ class ImageAnalysisService(BaseService):
             )
             conn.commit()
 
-    def get_training_runs(self, limit: int = 20, status: str | None = None) -> list[dict]:
+    def get_training_runs(
+        self, limit: int = 20, status: str | None = None
+    ) -> list[dict]:
         """Fetch recent ML training runs, optionally filtered by status."""
         with self._connection_factory() as conn:
             query = "SELECT * FROM ml_training_runs"
-            params = []
+            params: list[object] = []
             if status:
                 query += " WHERE status = ?"
                 params.append(status)
@@ -202,6 +220,7 @@ class ImageAnalysisService(BaseService):
             cur = conn.execute(query, tuple(params))
             columns = [c[0] for c in cur.description]
             return [dict(zip(columns, row)) for row in cur.fetchall()]
+
     # Confidence threshold above which codes are auto-approved
     DEFAULT_AUTO_APPROVE_THRESHOLD = 0.85
 
@@ -391,6 +410,7 @@ class ImageAnalysisService(BaseService):
         Returns:
             ImageAnalysisResult with extracted codes.
         """
+
         async def _run() -> ParseLabelResult:
             async with LabelAPIClient() as client:
                 return await client.parse_label_file(image_path)
@@ -413,14 +433,45 @@ class ImageAnalysisService(BaseService):
         # Convert ML codes to standard ExtractedCode format
         codes = []
         for ml_code in ml_result.codes:
-            # Map ML code types to standard types
-            code_type = ml_code.code_type
-            if code_type == "part_number":
-                code_type = "product_code"
+            # Map ML code types to standard types and coerce unknowns to 'other'
+            raw_type: str = ml_code.code_type
+            if raw_type == "part_number":
+                mapped = "product_code"
+            else:
+                mapped = raw_type
+
+            normalized_type: str
+            if mapped not in (
+                "product_code",
+                "model_number",
+                "ean",
+                "serial_number",
+                "part_number",
+                "mac_address",
+                "service_tag",
+                "other",
+            ):
+                normalized_type = "other"
+            else:
+                normalized_type = mapped
+
+            code_type_cast = cast(
+                Literal[
+                    "product_code",
+                    "model_number",
+                    "ean",
+                    "serial_number",
+                    "part_number",
+                    "mac_address",
+                    "service_tag",
+                    "other",
+                ],
+                normalized_type,
+            )
 
             codes.append(
                 ExtractedCode(
-                    code_type=code_type,
+                    code_type=code_type_cast,
                     value=ml_code.value,
                     confidence=ml_code.confidence,
                     context=ml_code.context,
@@ -675,9 +726,7 @@ class ImageAnalysisService(BaseService):
                             for code in result.codes:
                                 record_code_approval("openai", code.code_type)
 
-                record_image_analysis(
-                    "openai", status, 0.0, len(result.codes)
-                )
+                record_image_analysis("openai", status, 0.0, len(result.codes))
 
             conn.commit()
 
@@ -754,13 +803,15 @@ class ImageAnalysisService(BaseService):
                     (record.lot_image_id,),
                 )
                 if image:
-                    export_data["images"].append({
-                        "lot_image_id": record.lot_image_id,
-                        "lot_id": image.get("lot_id"),
-                        "local_path": image.get("local_path"),
-                        "tokens": record.tokens,
-                        "has_labels": record.has_labels,
-                    })
+                    export_data["images"].append(
+                        {
+                            "lot_image_id": record.lot_image_id,
+                            "lot_id": image.get("lot_id"),
+                            "local_path": image.get("local_path"),
+                            "tokens": record.tokens,
+                            "has_labels": record.has_labels,
+                        }
+                    )
 
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -1006,11 +1057,13 @@ class ImageAnalysisService(BaseService):
                 groups = []
                 for phash, images in db_duplicates:
                     lot_ids = list(set(img.lot_id for img in images))
-                    groups.append(DuplicateGroup(
-                        phash=phash,
-                        images=images,
-                        lot_ids=lot_ids,
-                    ))
+                    groups.append(
+                        DuplicateGroup(
+                            phash=phash,
+                            images=images,
+                            lot_ids=lot_ids,
+                        )
+                    )
                 return groups
 
             # Fuzzy matching - need to compare hashes using Hamming distance
@@ -1046,7 +1099,7 @@ class ImageAnalysisService(BaseService):
 
             # Compare all pairs and union similar ones
             for i, h1 in enumerate(hashes):
-                for h2 in hashes[i + 1:]:
+                for h2 in hashes[i + 1 :]:
                     try:
                         dist = hamming_distance(h1, h2)
                         if dist <= threshold:
@@ -1072,11 +1125,13 @@ class ImageAnalysisService(BaseService):
 
                 if len(cluster_images) > 1:
                     lot_ids = list(set(img.lot_id for img in cluster_images))
-                    groups.append(DuplicateGroup(
-                        phash=cluster_hashes[0],  # Use first hash as representative
-                        images=cluster_images,
-                        lot_ids=lot_ids,
-                    ))
+                    groups.append(
+                        DuplicateGroup(
+                            phash=cluster_hashes[0],  # Use first hash as representative
+                            images=cluster_images,
+                            lot_ids=lot_ids,
+                        )
+                    )
 
             # Sort by number of duplicates (most first)
             groups.sort(key=lambda g: g.count, reverse=True)

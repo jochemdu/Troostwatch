@@ -7,7 +7,6 @@ and storing them locally for OCR analysis and ML training.
 from __future__ import annotations
 
 import hashlib
-import mimetypes
 from pathlib import Path
 from typing import TYPE_CHECKING
 

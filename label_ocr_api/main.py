@@ -146,7 +146,11 @@ def extract_codes_ml(text: str, token_data: dict) -> list[ExtractedCode]:
 
             if prediction != "none":
                 max_proba = max(proba)
-                confidence = "high" if max_proba > 0.8 else "medium" if max_proba > 0.5 else "low"
+                confidence = (
+                    "high"
+                    if max_proba > 0.8
+                    else "medium" if max_proba > 0.5 else "low"
+                )
                 codes.append(
                     ExtractedCode(
                         code_type=prediction,

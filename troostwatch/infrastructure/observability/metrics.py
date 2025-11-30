@@ -14,6 +14,7 @@ import time
 import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Mapping
 
 
 # ---------------------------------------------------------------------------
@@ -27,26 +28,28 @@ class Counter:
 
     name: str
     help_text: str = ""
-    _values: dict[tuple[tuple[str, str], ...], float] = field(
+    _values: dict[tuple[tuple[str, str | None], ...], float] = field(
         default_factory=lambda: defaultdict(float)
     )
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
-    def inc(self, value: float = 1.0, labels: dict[str, str | None] = None) -> None:
+    def inc(
+        self, value: float = 1.0, labels: Mapping[str, str | None] | None = None
+    ) -> None:
         """Increment the counter by the given value."""
         key = self._labels_to_key(labels)
         with self._lock:
             self._values[key] += value
 
-    def get(self, labels: dict[str, str | None] = None) -> float:
+    def get(self, labels: Mapping[str, str | None] | None = None) -> float:
         """Get the current counter value."""
         key = self._labels_to_key(labels)
         with self._lock:
             return self._values[key]
 
     def _labels_to_key(
-        self, labels: dict[str, str | None]
-    ) -> tuple[tuple[str, str], ...]:
+        self, labels: Mapping[str, str | None] | None
+    ) -> tuple[tuple[str, str | None], ...]:
         if labels is None:
             return ()
         return tuple(sorted(labels.items()))
@@ -75,18 +78,20 @@ class Histogram:
         5,
         10,
     )
-    _observations: dict[tuple[tuple[str, str], ...], list[float]] = field(
+    _observations: dict[tuple[tuple[str, str | None], ...], list[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
-    def observe(self, value: float, labels: dict[str, str | None] = None) -> None:
+    def observe(
+        self, value: float, labels: Mapping[str, str | None] | None = None
+    ) -> None:
         """Record an observation."""
         key = self._labels_to_key(labels)
         with self._lock:
             self._observations[key].append(value)
 
-    def get_stats(self, labels: dict[str, str | None] = None) -> dict[str, float]:
+    def get_stats(self, labels: Mapping[str, str | None] | None = None) -> dict[str, float]:
         """Get summary statistics for the histogram."""
         key = self._labels_to_key(labels)
         with self._lock:
@@ -100,8 +105,8 @@ class Histogram:
             }
 
     def _labels_to_key(
-        self, labels: dict[str, str | None]
-    ) -> tuple[tuple[str, str], ...]:
+        self, labels: Mapping[str, str | None] | None
+    ) -> tuple[tuple[str, str | None], ...]:
         if labels is None:
             return ()
         return tuple(sorted(labels.items()))
@@ -131,7 +136,7 @@ class MetricRegistry:
         self,
         name: str,
         help_text: str = "",
-        buckets: tuple[float, ... | None] = None,
+        buckets: tuple[float, ...] | None = None,
     ) -> Histogram:
         """Get or create a histogram."""
         with self._lock:
@@ -165,7 +170,7 @@ _registry = MetricRegistry()
 def increment_counter(
     name: str,
     value: float = 1.0,
-    labels: dict[str, str | None] = None,
+    labels: Mapping[str, str | None] | None = None,
     help_text: str = "",
 ) -> None:
     """Increment a counter by name.
@@ -178,7 +183,7 @@ def increment_counter(
 def observe_histogram(
     name: str,
     value: float,
-    labels: dict[str, str | None] = None,
+    labels: Mapping[str, str | None] | None = None,
     help_text: str = "",
 ) -> None:
     """Record an observation in a histogram.
@@ -194,7 +199,7 @@ class Timer:
     def __init__(
         self,
         histogram_name: str,
-        labels: dict[str, str | None] = None,
+        labels: Mapping[str, str | None] | None = None,
         help_text: str = "",
     ) -> None:
         self.histogram_name = histogram_name
@@ -374,7 +379,9 @@ def get_image_pipeline_stats() -> dict[str, object]:
         },
         "analysis": {
             "local_success": analysis.get({"backend": "local", "status": "success"}),
-            "local_review": analysis.get({"backend": "local", "status": "needs_review"}),
+            "local_review": analysis.get(
+                {"backend": "local", "status": "needs_review"}
+            ),
             "local_failed": analysis.get({"backend": "local", "status": "failed"}),
             "openai_success": analysis.get({"backend": "openai", "status": "success"}),
         },

@@ -37,6 +37,7 @@ logger = get_logger(__name__)
 # Try to import PIL, gracefully handle if not available
 try:
     from PIL import Image
+
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
@@ -47,8 +48,7 @@ def _ensure_pil() -> None:
     """Raise ImportError if PIL is not available."""
     if not PIL_AVAILABLE:
         raise ImportError(
-            "Pillow is required for image hashing. "
-            "Install with: pip install Pillow"
+            "Pillow is required for image hashing. " "Install with: pip install Pillow"
         )
 
 
@@ -103,7 +103,9 @@ def compute_phash(
                     total = 0
                     for dy in range(block_size):
                         for dx in range(block_size):
-                            idx = (row * block_size + dy) * width + (col * block_size + dx)
+                            idx = (row * block_size + dy) * width + (
+                                col * block_size + dx
+                            )
                             total += pixels[idx]
                     blocks.append(total / (block_size * block_size))
 
@@ -117,7 +119,9 @@ def compute_phash(
             return format(hash_int, f"0{hash_size * hash_size // 4}x")
 
     except Exception as e:
-        logger.error("Failed to compute pHash", extra={"path": str(path), "error": str(e)})
+        logger.error(
+            "Failed to compute pHash", extra={"path": str(path), "error": str(e)}
+        )
         raise ValueError(f"Cannot compute pHash for {path}: {e}") from e
 
 
@@ -165,7 +169,9 @@ def compute_dhash(
             return format(hash_int, f"0{hash_size * hash_size // 4}x")
 
     except Exception as e:
-        logger.error("Failed to compute dHash", extra={"path": str(path), "error": str(e)})
+        logger.error(
+            "Failed to compute dHash", extra={"path": str(path), "error": str(e)}
+        )
         raise ValueError(f"Cannot compute dHash for {path}: {e}") from e
 
 
@@ -206,7 +212,9 @@ def compute_ahash(
             return format(hash_int, f"0{hash_size * hash_size // 4}x")
 
     except Exception as e:
-        logger.error("Failed to compute aHash", extra={"path": str(path), "error": str(e)})
+        logger.error(
+            "Failed to compute aHash", extra={"path": str(path), "error": str(e)}
+        )
         raise ValueError(f"Cannot compute aHash for {path}: {e}") from e
 
 
@@ -227,9 +235,7 @@ def hamming_distance(hash1: str, hash2: str) -> int:
         ValueError: If hashes have different lengths.
     """
     if len(hash1) != len(hash2):
-        raise ValueError(
-            f"Hash lengths must match: {len(hash1)} vs {len(hash2)}"
-        )
+        raise ValueError(f"Hash lengths must match: {len(hash1)} vs {len(hash2)}")
 
     # Convert hex to binary and count differences
     int1 = int(hash1, 16)
@@ -320,7 +326,7 @@ def find_duplicates(
     paths = list(hashes.keys())
 
     for i, path1 in enumerate(paths):
-        for path2 in paths[i + 1:]:
+        for path2 in paths[i + 1 :]:
             try:
                 dist = hamming_distance(hashes[path1], hashes[path2])
                 if dist <= threshold:

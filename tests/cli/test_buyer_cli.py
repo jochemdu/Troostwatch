@@ -12,7 +12,17 @@ def test_add_and_list_buyers(tmp_path: Path) -> None:
     runner = CliRunner()
 
     add_result = runner.invoke(
-        buyer, ["--db", str(db_file), "add", "B-1", "--name", "Example Buyer", "--notes", "VIP"]
+        buyer,
+        [
+            "--db",
+            str(db_file),
+            "add",
+            "B-1",
+            "--name",
+            "Example Buyer",
+            "--notes",
+            "VIP",
+        ],
     )
 
     assert add_result.exit_code == 0

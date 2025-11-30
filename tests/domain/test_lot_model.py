@@ -160,4 +160,3 @@ class TestLot:
             location_city="Amsterdam",
         )
         assert lot.location == "Amsterdam"
-

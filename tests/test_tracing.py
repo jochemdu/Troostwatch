@@ -28,6 +28,7 @@ class TestTracingDisabled:
 
     def test_traced_decorator_works_when_disabled(self):
         """@traced decorator works but doesn't create spans when disabled."""
+
         @traced("test_function")
         def my_function(x: int) -> int:
             return x * 2
@@ -90,6 +91,7 @@ class TestTracedDecorator:
 
     def test_traced_preserves_function_name(self):
         """@traced preserves the original function name."""
+
         @traced("custom_name")
         def original_function():
             pass
@@ -98,6 +100,7 @@ class TestTracedDecorator:
 
     def test_traced_uses_function_name_by_default(self):
         """@traced uses function name when no name provided."""
+
         @traced()
         def my_special_function():
             return 42
@@ -108,6 +111,7 @@ class TestTracedDecorator:
 
     def test_traced_passes_arguments(self):
         """@traced passes all arguments to the function."""
+
         @traced("test")
         def add(a: int, b: int, *, c: int = 0) -> int:
             return a + b + c
@@ -117,6 +121,7 @@ class TestTracedDecorator:
 
     def test_traced_propagates_exceptions(self):
         """@traced propagates exceptions from the function."""
+
         @traced("failing_function")
         def failing():
             raise ValueError("expected error")

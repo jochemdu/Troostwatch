@@ -21,7 +21,12 @@ def test_sync_stores_lots_even_when_detail_fetch_fails(monkeypatch, tmp_path):
     base_url = "https://example.com/a/test"
 
     def fake_collect_pages(*_args, **_kwargs):
-        return [PageResult(url=base_url, html="<html><title>Test</title></html>")], [], [base_url], None
+        return (
+            [PageResult(url=base_url, html="<html><title>Test</title></html>")],
+            [],
+            [base_url],
+            None,
+        )
 
     class DummyFetcher:
         def __init__(self, *args, **kwargs):
@@ -31,11 +36,17 @@ def test_sync_stores_lots_even_when_detail_fetch_fails(monkeypatch, tmp_path):
             return RequestResult(url=url, text="<html></html>", error=None, status=200)
 
         async def fetch_many(self, urls):
-            return [RequestResult(url=u, text=None, error="fail", status=500) for u in urls]
+            return [
+                RequestResult(url=u, text=None, error="fail", status=500) for u in urls
+            ]
 
     monkeypatch.setattr(sync_impl_module, "_collect_pages", fake_collect_pages)
     monkeypatch.setattr(sync_impl_module, "HttpFetcher", DummyFetcher)
-    monkeypatch.setattr(sync_impl_module, "_wait_and_fetch", lambda *args, **kwargs: ("<html></html>", None, time.time()))
+    monkeypatch.setattr(
+        sync_impl_module,
+        "_wait_and_fetch",
+        lambda *args, **kwargs: ("<html></html>", None, time.time()),
+    )
     monkeypatch.setattr(
         sync_impl_module,
         "parse_auction_page",
@@ -49,7 +60,9 @@ def test_sync_stores_lots_even_when_detail_fetch_fails(monkeypatch, tmp_path):
             )
         ],
     )
-    monkeypatch.setattr(sync_impl_module, "_iter_lot_card_blocks", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        sync_impl_module, "_iter_lot_card_blocks", lambda *_args, **_kwargs: []
+    )
 
     db_path = tmp_path / "sync.db"
     result = sync_auction_to_db(
@@ -79,7 +92,12 @@ def test_sync_run_updated_when_processing_raises(monkeypatch, tmp_path):
     """Ensure the sync run record is updated even if lot processing crashes."""
 
     def fake_collect_pages(*_args, **_kwargs):
-        return [PageResult(url="https://example.com/page", html="<html></html>")], [], [], None
+        return (
+            [PageResult(url="https://example.com/page", html="<html></html>")],
+            [],
+            [],
+            None,
+        )
 
     def explode_parse(*_args, **_kwargs):
         raise RuntimeError("boom during lot parsing")

@@ -16,12 +16,14 @@ from troostwatch.infrastructure.ai import (
     ParsedLabel,
 )
 
+
 @dataclass
 class LabelExtractionResult:
     text: str
     label: Optional[ParsedLabel]
     preprocessing_steps: list[str]
     ocr_confidence: Optional[float]
+
 
 def extract_label_from_image(
     image_bytes: bytes,
@@ -51,7 +53,7 @@ def extract_label_from_image(
     label = parse_label(ocr_result.text)
 
     # Preprocessing steps (from config, not from result)
-    steps = []
+    steps: list[str] = []
     if hasattr(config, "steps_applied"):
         steps = config.steps_applied
 

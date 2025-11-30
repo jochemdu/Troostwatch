@@ -29,7 +29,16 @@ logger = get_logger(__name__)
 class ExtractedCode:
     """A single extracted code from an image."""
 
-    code_type: Literal["product_code", "model_number", "ean", "serial_number", "other"]
+    code_type: Literal[
+        "product_code",
+        "model_number",
+        "ean",
+        "serial_number",
+        "part_number",
+        "mac_address",
+        "service_tag",
+        "other",
+    ]
     value: str
     confidence: Literal["high", "medium", "low"]
     context: str | None = None  # Where on the image this was found
@@ -85,10 +94,7 @@ def _validate_ean13(code: str) -> bool:
     """Validate EAN-13 check digit."""
     if len(code) != 13 or not code.isdigit():
         return False
-    total = sum(
-        int(d) * (1 if i % 2 == 0 else 3)
-        for i, d in enumerate(code[:12])
-    )
+    total = sum(int(d) * (1 if i % 2 == 0 else 3) for i, d in enumerate(code[:12]))
     check = (10 - (total % 10)) % 10
     return int(code[12]) == check
 
@@ -97,10 +103,7 @@ def _validate_ean8(code: str) -> bool:
     """Validate EAN-8 check digit."""
     if len(code) != 8 or not code.isdigit():
         return False
-    total = sum(
-        int(d) * (3 if i % 2 == 0 else 1)
-        for i, d in enumerate(code[:7])
-    )
+    total = sum(int(d) * (3 if i % 2 == 0 else 1) for i, d in enumerate(code[:7]))
     check = (10 - (total % 10)) % 10
     return int(code[7]) == check
 
@@ -130,24 +133,28 @@ def extract_codes_from_text(text: str) -> list[ExtractedCode]:
         value = match.group(1)
         if value not in seen and _validate_ean13(value):
             seen.add(value)
-            codes.append(ExtractedCode(
-                code_type="ean",
-                value=value,
-                confidence="high",
-                context="EAN-13 barcode",
-            ))
+            codes.append(
+                ExtractedCode(
+                    code_type="ean",
+                    value=value,
+                    confidence="high",
+                    context="EAN-13 barcode",
+                )
+            )
 
     # Extract EAN-8 codes
     for match in EAN8_PATTERN.finditer(text):
         value = match.group(1)
         if value not in seen and _validate_ean8(value):
             seen.add(value)
-            codes.append(ExtractedCode(
-                code_type="ean",
-                value=value,
-                confidence="high",
-                context="EAN-8 barcode",
-            ))
+            codes.append(
+                ExtractedCode(
+                    code_type="ean",
+                    value=value,
+                    confidence="high",
+                    context="EAN-8 barcode",
+                )
+            )
 
     # Extract UPC codes (12 digits, less common in EU)
     for match in UPC_PATTERN.finditer(text):
@@ -155,52 +162,61 @@ def extract_codes_from_text(text: str) -> list[ExtractedCode]:
         if value not in seen:
             # UPC validation is complex, mark as medium confidence
             seen.add(value)
-            codes.append(ExtractedCode(
-                code_type="ean",
-                value=value,
-                confidence="medium",
-                context="UPC-A barcode",
-            ))
+            codes.append(
+                ExtractedCode(
+                    code_type="ean",
+                    value=value,
+                    confidence="medium",
+                    context="UPC-A barcode",
+                )
+            )
 
     # Extract model numbers (with label)
     for match in MODEL_PATTERN.finditer(text):
         value = match.group(1).strip().upper()
         if value not in seen and len(value) >= 3:
             seen.add(value)
-            codes.append(ExtractedCode(
-                code_type="model_number",
-                value=value,
-                confidence="high",
-                context="Labeled model number",
-            ))
+            codes.append(
+                ExtractedCode(
+                    code_type="model_number",
+                    value=value,
+                    confidence="high",
+                    context="Labeled model number",
+                )
+            )
 
     # Extract serial numbers
     for match in SERIAL_PATTERN.finditer(text):
         value = match.group(1).strip().upper()
         if value not in seen and len(value) >= 6:
             seen.add(value)
-            codes.append(ExtractedCode(
-                code_type="serial_number",
-                value=value,
-                confidence="high",
-                context="Labeled serial number",
-            ))
+            codes.append(
+                ExtractedCode(
+                    code_type="serial_number",
+                    value=value,
+                    confidence="high",
+                    context="Labeled serial number",
+                )
+            )
 
     # Extract product codes (generic pattern)
     for match in PRODUCT_CODE_PATTERN.finditer(text):
         value = match.group(1).upper()
         if value not in seen and _is_likely_product_code(value):
             seen.add(value)
-            codes.append(ExtractedCode(
-                code_type="product_code",
-                value=value,
-                confidence="medium",
-                context="Product code pattern",
-            ))
+            codes.append(
+                ExtractedCode(
+                    code_type="product_code",
+                    value=value,
+                    confidence="medium",
+                    context="Product code pattern",
+                )
+            )
 
     # Try vendor-specific extraction for higher accuracy
     try:
         from .vendor_profiles import extract_vendor_codes
+
         vendor_codes = extract_vendor_codes(text)
         for vc in vendor_codes:
             if vc.value not in seen:
@@ -215,6 +231,7 @@ def extract_codes_from_text(text: str) -> list[ExtractedCode]:
 # =============================================================================
 # Local OCR Analyzer (Tesseract)
 # =============================================================================
+
 
 class LocalOCRAnalyzer:
     """Analyzes images using local Tesseract OCR."""
@@ -234,7 +251,8 @@ class LocalOCRAnalyzer:
             return self._tesseract_available
 
         try:
-            import pytesseract
+            import pytesseract  # type: ignore[import]
+
             if self.tesseract_cmd:
                 pytesseract.pytesseract.tesseract_cmd = self.tesseract_cmd
             # Test that tesseract works
@@ -259,12 +277,12 @@ class LocalOCRAnalyzer:
             return ImageAnalysisResult(
                 image_url=image_url,
                 error="Tesseract OCR niet geïnstalleerd. "
-                      "Installeer met: pip install pytesseract && "
-                      "apt-get install tesseract-ocr tesseract-ocr-nld",
+                "Installeer met: pip install pytesseract && "
+                "apt-get install tesseract-ocr tesseract-ocr-nld",
             )
 
         try:
-            import pytesseract
+            import pytesseract  # type: ignore[import]
             from PIL import Image
 
             # Download the image
@@ -475,6 +493,7 @@ class LocalOCRAnalyzer:
 # OpenAI Vision Analyzer
 # =============================================================================
 
+
 class OpenAIAnalyzer:
     """Analyzes images using OpenAI's GPT-4 Vision API."""
 
@@ -659,6 +678,7 @@ Wees nauwkeurig - alleen codes die je duidelijk kunt lezen."""
 # =============================================================================
 # Unified Image Analyzer
 # =============================================================================
+
 
 class ImageAnalyzer:
     """Unified image analyzer with multiple backend options.

@@ -43,7 +43,9 @@ def load_fixture(folder: str, name: str) -> str:
 
 def test_parse_auction_page_next_data_live_snapshot():
     base_url = "https://www.troostwijkauctions.com"
-    fixtures = list(parse_auction_page(load_fixture("live_pages", "auction"), base_url=base_url))
+    fixtures = list(
+        parse_auction_page(load_fixture("live_pages", "auction"), base_url=base_url)
+    )
 
     assert len(fixtures) == 2
 
@@ -51,7 +53,10 @@ def test_parse_auction_page_next_data_live_snapshot():
     assert first.auction_code == "A1-39500"
     assert first.lot_code == "A1-39500-1801"
     assert first.title == "Samsung WM75A Flip interactive display 75"
-    assert first.url == f"{base_url}/l/samsung-wm75a-flip-interactive-display-75-A1-39500-1801"
+    assert (
+        first.url
+        == f"{base_url}/l/samsung-wm75a-flip-interactive-display-75-A1-39500-1801"
+    )
     assert first.state == "running"
     assert first.opens_at == "2025-11-14T15:00:00"
     assert first.closing_time_current == "2025-12-02T18:56:00"
@@ -106,7 +111,9 @@ def test_extract_page_urls_from_lot_totals():
 def test_parse_lot_cards_from_snapshots():
     base_url = "https://www.troostwijkauctions.com"
 
-    running = parse_lot_card(load_fixture("lot_cards", "running"), auction_code="A1-39478", base_url=base_url)
+    running = parse_lot_card(
+        load_fixture("lot_cards", "running"), auction_code="A1-39478", base_url=base_url
+    )
     assert running.auction_code == "A1-39478"
     assert running.lot_code == "03T-SMD-1"
     assert running.title.startswith("DAIMLER-BENZ")
@@ -120,14 +127,20 @@ def test_parse_lot_cards_from_snapshots():
     assert running.price_eur == 12500.0
     assert running.is_price_opening_bid is False
 
-    scheduled = parse_lot_card(load_fixture("lot_cards", "scheduled"), auction_code="A1-40000", base_url=base_url)
+    scheduled = parse_lot_card(
+        load_fixture("lot_cards", "scheduled"),
+        auction_code="A1-40000",
+        base_url=base_url,
+    )
     assert scheduled.state == "scheduled"
     assert scheduled.opens_at == "2024-02-10T09:00:00"
     assert scheduled.closing_time_current == "2024-02-12T16:00:00"
     assert scheduled.is_price_opening_bid is True
     assert scheduled.bid_count == 0
 
-    closed = parse_lot_card(load_fixture("lot_cards", "closed"), auction_code="A1-38000", base_url=base_url)
+    closed = parse_lot_card(
+        load_fixture("lot_cards", "closed"), auction_code="A1-38000", base_url=base_url
+    )
     assert closed.state == "closed"
     assert closed.closing_time_current == "2024-01-08T12:30:00"
     assert closed.price_eur == 8750.0
@@ -137,7 +150,9 @@ def test_parse_lot_cards_from_snapshots():
 def test_parse_lot_details_from_snapshots():
     base_url = "https://www.troostwijkauctions.com"
 
-    running = parse_lot_detail(load_fixture("lot_details", "running"), lot_code="ignored", base_url=base_url)
+    running = parse_lot_detail(
+        load_fixture("lot_details", "running"), lot_code="ignored", base_url=base_url
+    )
     assert running.lot_code == "03T-SMD-1"
     assert running.state == "running"
     assert running.opens_at == "2024-01-01T08:00:00"
@@ -156,7 +171,9 @@ def test_parse_lot_details_from_snapshots():
     assert running.seller_allocation_note == "Seller decides"
     assert running.url.endswith("/daimler-benz-mb-trac-1300-voorlader-03T-SMD-1")
 
-    scheduled = parse_lot_detail(load_fixture("lot_details", "scheduled"), lot_code="ignored", base_url=base_url)
+    scheduled = parse_lot_detail(
+        load_fixture("lot_details", "scheduled"), lot_code="ignored", base_url=base_url
+    )
     assert scheduled.state == "scheduled"
     assert scheduled.opens_at == "2024-02-07T01:00:00"
     assert scheduled.closing_time_current == "2024-02-08T01:00:00"
@@ -166,7 +183,9 @@ def test_parse_lot_details_from_snapshots():
     assert scheduled.location_city == "Utrecht"
     assert scheduled.location_country == "Netherlands"
 
-    closed = parse_lot_detail(load_fixture("lot_details", "closed"), lot_code="ignored", base_url=base_url)
+    closed = parse_lot_detail(
+        load_fixture("lot_details", "closed"), lot_code="ignored", base_url=base_url
+    )
     assert closed.state == "closed"
     assert closed.closing_time_current == "2023-12-31T18:00:00"
     assert closed.closing_time_original == "2023-12-31T17:00:00"
@@ -184,7 +203,9 @@ def test_parse_lot_details_from_snapshots():
 
 def test_parse_lot_detail_live_snapshot():
     base_url = "https://www.troostwijkauctions.com"
-    detail = parse_lot_detail(load_fixture("live_pages", "lot"), lot_code="ignored", base_url=base_url)
+    detail = parse_lot_detail(
+        load_fixture("live_pages", "lot"), lot_code="ignored", base_url=base_url
+    )
 
     assert detail.lot_code == "A1-39500-1802"
     assert detail.title == "Samsung VM55T-E smart signage led display 55"
@@ -195,4 +216,7 @@ def test_parse_lot_detail_live_snapshot():
     assert detail.current_bid_eur is None
     assert detail.location_city == "Deurne"
     assert detail.location_country == "Netherlands"
-    assert detail.url == "https://www.troostwijkauctions.com/l/samsung-vm55t-e-smart-signage-led-display-55-A1-39500-1802"
+    assert (
+        detail.url
+        == "https://www.troostwijkauctions.com/l/samsung-vm55t-e-smart-signage-led-display-55-A1-39500-1802"
+    )

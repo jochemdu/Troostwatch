@@ -26,7 +26,7 @@ import functools
 from contextlib import AbstractContextManager
 from contextvars import ContextVar
 from typing import Any, Callable, TypeVar
-    
+
 from .logging import get_logger
 
 logger = get_logger(__name__)
@@ -45,9 +45,7 @@ _tracer: Any = None
 _tracing_enabled: bool = False
 
 # Context variable for trace/span IDs (used for log correlation)
-_trace_context: ContextVar[dict[str, str]] = ContextVar(
-    "trace_context", default={}
-)
+_trace_context: ContextVar[dict[str, str]] = ContextVar("trace_context", default={})
 
 
 def is_tracing_enabled() -> bool:
@@ -193,10 +191,12 @@ class trace_span(AbstractContextManager):
                     self.span.set_attribute(key, str(value))
             ctx = self.span.get_span_context()
             if ctx.is_valid:
-                self.ctx_token = _trace_context.set({
-                    "trace_id": format(ctx.trace_id, "032x"),
-                    "span_id": format(ctx.span_id, "016x"),
-                })
+                self.ctx_token = _trace_context.set(
+                    {
+                        "trace_id": format(ctx.trace_id, "032x"),
+                        "span_id": format(ctx.span_id, "016x"),
+                    }
+                )
             return self.span
         except Exception as e:
             logger.debug(f"Tracing error: {e}")
@@ -230,6 +230,7 @@ def traced(
         def process_lot(lot: Lot) -> None:
             ...
     """
+
     def decorator(func: F) -> F:
         span_name = name or func.__name__
 
@@ -244,6 +245,7 @@ def traced(
                 return await func(*args, **kwargs)
 
         import inspect
+
         if inspect.iscoroutinefunction(func):
             return async_wrapper  # type: ignore
         return sync_wrapper  # type: ignore
@@ -312,4 +314,3 @@ def record_exception(exception: BaseException) -> None:
             span.set_status(trace.Status(trace.StatusCode.ERROR))
     except Exception:
         pass
-    

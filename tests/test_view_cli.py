@@ -89,7 +89,9 @@ def test_view_cli_text_output(tmp_path: Path) -> None:
     _seed_db(db_file)
 
     runner = CliRunner()
-    result = runner.invoke(view, ["--db", str(db_file), "--auction-code", "A1-111", "--limit", "1"])
+    result = runner.invoke(
+        view, ["--db", str(db_file), "--auction-code", "A1-111", "--limit", "1"]
+    )
 
     assert result.exit_code == 0
     assert "Showing 1 lot(s):" in result.output
@@ -103,7 +105,17 @@ def test_view_cli_json_output(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         view,
-        ["--db", str(db_file), "--auction-code", "A1-111", "--state", "open", "--limit", "0", "--json-output"],
+        [
+            "--db",
+            str(db_file),
+            "--auction-code",
+            "A1-111",
+            "--state",
+            "open",
+            "--limit",
+            "0",
+            "--json-output",
+        ],
     )
 
     assert result.exit_code == 0
@@ -118,7 +130,9 @@ def test_view_cli_json_output_no_limit(tmp_path: Path) -> None:
     _seed_db(db_file)
 
     runner = CliRunner()
-    result = runner.invoke(view, ["--db", str(db_file), "--limit", "0", "--json-output"])
+    result = runner.invoke(
+        view, ["--db", str(db_file), "--limit", "0", "--json-output"]
+    )
 
     assert result.exit_code == 0
     payload = json.loads(result.output)

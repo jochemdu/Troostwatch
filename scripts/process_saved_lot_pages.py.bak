@@ -9,7 +9,7 @@ Instructions:
 2. Right-click -> "Save Page As" -> "Webpage, Complete" or just the HTML
 3. Save to a directory (e.g., ./saved_lots/)
 4. Run this script:
-
+   
    python scripts/process_saved_lot_pages.py --html-dir ./saved_lots/
 
 The script will:
@@ -40,7 +40,7 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from troostwatch.infrastructure.web.parsers import parse_lot_detail  # noqa: E402
+from troostwatch.infrastructure.web.parsers import parse_lot_detail
 
 # Try to import OCR dependencies
 try:
@@ -172,7 +172,7 @@ async def process_html_file(
 
         image_bytes = await download_image(client, image_url)
         if not image_bytes:
-            print("    Failed to download")
+            print(f"    Failed to download")
             continue
 
         # Save image
@@ -192,48 +192,17 @@ async def process_html_file(
         if tokens:
             print(f"    OCR: {len(tokens)} tokens")
 
+
+
         # Extra velden: brand, type, category
         def extract_brand(title):
             brands = [
-                "LENOVO",
-                "HP",
-                "DELL",
-                "SAMSUNG",
-                "LG",
-                "ACER",
-                "ASUS",
-                "CANON",
-                "EPSON",
-                "BROTHER",
-                "LEXMARK",
-                "FUJITSU",
-                "TOSHIBA",
-                "SONY",
-                "PANASONIC",
-                "PHILIPS",
-                "APPLE",
-                "MICROSOFT",
-                "LOGITECH",
-                "CISCO",
-                "NETGEAR",
-                "THINKPAD",
-                "THINKCENTRE",
-                "OPTIPLEX",
-                "LATITUDE",
-                "PROBOOK",
-                "ELITEBOOK",
-                "IDEAPAD",
-                "PAVILION",
-                "INSPIRON",
-                "VOSTRO",
-                "PRECISION",
-                "AMD",
-                "NVIDIA",
-                "GIGABYTE",
-                "HUAWEI",
-                "UBIQUITI",
-                "WESTERN DIGITAL",
-                "POWERCOLOUR",
+                "LENOVO", "HP", "DELL", "SAMSUNG", "LG", "ACER", "ASUS", "CANON",
+                "EPSON", "BROTHER", "LEXMARK", "FUJITSU", "TOSHIBA", "SONY", "PANASONIC",
+                "PHILIPS", "APPLE", "MICROSOFT", "LOGITECH", "CISCO", "NETGEAR",
+                "THINKPAD", "THINKCENTRE", "OPTIPLEX", "LATITUDE", "PROBOOK", "ELITEBOOK",
+                "IDEAPAD", "PAVILION", "INSPIRON", "VOSTRO", "PRECISION", "AMD", "NVIDIA",
+                "GIGABYTE", "HUAWEI", "UBIQUITI", "WESTERN DIGITAL", "POWERCOLOUR"
             ]
             title_up = title.upper()
             for b in brands:
@@ -241,30 +210,14 @@ async def process_html_file(
                     return b
             return None
 
+
         brand = extract_brand(lot_data.title)
-        auction_code = (
-            lot_data.lot_code.split("-")[0]
-            if "-" in lot_data.lot_code
-            else lot_data.lot_code
-        )
+        auction_code = lot_data.lot_code.split('-')[0] if '-' in lot_data.lot_code else lot_data.lot_code
         date_captured = datetime.now().isoformat()
 
         # Detect type/category from OCR tokens only
         type_keywords = {
-            "laptop": [
-                "LAPTOP",
-                "CHROMEBOOK",
-                "NOTEBOOK",
-                "ELITEBOOK",
-                "PROBOOK",
-                "THINKPAD",
-                "IDEAPAD",
-                "PAVILION",
-                "INSPIRON",
-                "VOSTRO",
-                "PRECISION",
-                "GAMING",
-            ],
+            "laptop": ["LAPTOP", "CHROMEBOOK", "NOTEBOOK", "ELITEBOOK", "PROBOOK", "THINKPAD", "IDEAPAD", "PAVILION", "INSPIRON", "VOSTRO", "PRECISION", "GAMING"],
             "tablet": ["TABLET", "TAB"],
             "smartwatch": ["SMARTWATCH", "WATCH"],
             "videokaart": ["VIDEOKAART", "RTX", "RADEON", "GEFORCE"],
@@ -303,9 +256,7 @@ async def process_html_file(
             return None
 
         type_detected = detect_type_from_tokens(tokens)
-        category_detected = (
-            category_map.get(type_detected, None) if type_detected else None
-        )
+        category_detected = category_map.get(type_detected, None) if type_detected else None
 
         # Classify and save
         for idx, token in enumerate(tokens):
@@ -346,12 +297,7 @@ async def process_html_file(
                 features.append(pos_ratio)
                 return features
 
-            X = np.array(
-                [
-                    prepare_features(token, i, len(tokens))
-                    for i, token in enumerate(tokens)
-                ]
-            )
+            X = np.array([prepare_features(token, i, len(tokens)) for i, token in enumerate(tokens)])
             y_pred = clf.predict(X)
             for i, token in enumerate(tokens):
                 token["ml_label"] = str(y_pred[i])

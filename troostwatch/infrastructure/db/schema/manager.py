@@ -151,6 +151,4 @@ def _ensure_lot_images_phash(conn, migrator: SchemaMigrator) -> None:
             migrator.record(migration_name, "phash")
 
     # Ensure index exists
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_lot_images_phash ON lot_images(phash)"
-    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_lot_images_phash ON lot_images(phash)")

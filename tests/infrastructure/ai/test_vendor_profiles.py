@@ -1,7 +1,5 @@
 """Tests for vendor-specific code extraction profiles."""
 
-import pytest
-
 from troostwatch.infrastructure.ai.vendor_profiles import (
     VENDOR_PROFILES,
     detect_vendor,

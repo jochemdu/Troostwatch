@@ -386,8 +386,6 @@ def sync_auction_to_db(
 
         def _notes_text() -> str | None:
             parts: list[str] = []
-        def _notes_text() -> str | None:
-            parts: list[str] = []
             if errors:
                 parts.append("; ".join(errors))
             if discovered_page_urls:

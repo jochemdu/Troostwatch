@@ -33,7 +33,10 @@ def test_record_bid_missing_buyer_raises(tmp_path: Path) -> None:
     try:
         ensure_schema(conn)
         auction_id = _create_auction(conn, "A1")
-        conn.execute("INSERT INTO lots (auction_id, lot_code) VALUES (?, ?)", (auction_id, "A1-1"))
+        conn.execute(
+            "INSERT INTO lots (auction_id, lot_code) VALUES (?, ?)",
+            (auction_id, "A1-1"),
+        )
         conn.commit()
 
         repo = BidRepository(conn)
@@ -49,11 +52,15 @@ def test_record_bid_missing_lot_raises(tmp_path: Path) -> None:
     try:
         ensure_schema(conn)
         _create_auction(conn, "A1")
-        conn.execute("INSERT INTO buyers (label, name) VALUES (?, ?)", ("buyer-1", "Buyer 1"))
+        conn.execute(
+            "INSERT INTO buyers (label, name) VALUES (?, ?)", ("buyer-1", "Buyer 1")
+        )
         conn.commit()
 
         repo = BidRepository(conn)
-        with pytest.raises(ValueError, match="Lot 'A1-2' in auction 'A1' does not exist"):
+        with pytest.raises(
+            ValueError, match="Lot 'A1-2' in auction 'A1' does not exist"
+        ):
             repo.record_bid("buyer-1", "A1", "A1-2", 10.0, None)
     finally:
         conn.close()
@@ -65,13 +72,18 @@ def test_submit_bid_surfaces_persistence_failure(tmp_path: Path) -> None:
     try:
         ensure_schema(conn)
         auction_id = _create_auction(conn, "A1")
-        conn.execute("INSERT INTO lots (auction_id, lot_code) VALUES (?, ?)", (auction_id, "A1-1"))
+        conn.execute(
+            "INSERT INTO lots (auction_id, lot_code) VALUES (?, ?)",
+            (auction_id, "A1-1"),
+        )
         conn.commit()
     finally:
         conn.close()
 
     client = DummyClient()
-    service = BiddingService.from_sqlite_path(client, str(db_path), api_base_url="http://example.com/api")
+    service = BiddingService.from_sqlite_path(
+        client, str(db_path), api_base_url="http://example.com/api"
+    )
 
     with pytest.raises(
         BidError, match="Failed to persist bid locally: Buyer 'missing' does not exist"

@@ -7,8 +7,9 @@ to fetch Troostwijk pages, bypassing any IP/bot blocks.
 Setup:
 1. Start Chrome with remote debugging:
 
-   # macOS
-   /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222
+    # macOS
+    /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome
+    --remote-debugging-port=9222
 
    # Windows
    chrome.exe --remote-debugging-port=9222

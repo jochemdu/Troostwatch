@@ -149,10 +149,14 @@ async def main():
             print(f"\n✓ HTML files saved to: {args.output}")
             print("\nNext steps:")
             print("  1. Process HTML files:")
-            print(f"     python scripts/process_saved_lot_pages.py --html-dir {args.output}")
+            print(
+                "     python scripts/process_saved_lot_pages.py --html-dir "
+                f"{args.output}"
+            )
             print("  2. Or download images directly:")
             print(
-                f"     python scripts/download_images.py --urls {args.output}/image_urls.json"
+                "     python scripts/download_images.py --urls "
+                f"{args.output}/image_urls.json"
             )
 
         return 0

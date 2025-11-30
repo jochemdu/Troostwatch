@@ -137,7 +137,10 @@ def check_sync_imports(base_path: Path) -> List[ImportViolation]:
                                 line_number=line_no,
                                 import_statement=module,
                                 forbidden_module=forbidden,
-                                reason="Import sync from troostwatch.services.sync, not submodules",
+                                reason=(
+                                    "Import sync from troostwatch.services.sync, "
+                                    "not submodules"
+                                ),
                             )
                         )
 

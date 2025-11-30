@@ -6,10 +6,7 @@ from HTML snapshots, downloads the images, runs OCR, and generates
 training data for the label classifier.
 
 Usage:
-    python scripts/generate_training_from_snapshots.py \
-        --snapshot tests/snapshots/live_pages/lot.html
-    python scripts/generate_training_from_snapshots.py --html-dir ./lot_pages/
-    python scripts/generate_training_from_snapshots.py --output training_data/real_labels
+    generate_training_from_snapshots.py --snapshot <snapshot> --html-dir <dir> --output <out>
 """
 
 import argparse

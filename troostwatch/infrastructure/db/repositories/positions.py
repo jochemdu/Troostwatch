@@ -6,9 +6,9 @@ from .base import BaseRepository
 from .buyers import BuyerRepository
 from .lots import LotRepository
 
-# flake8: noqa: E501  # repository contains intentionally long SQL strings
-
-
+# This repository contains some longer SQL fragments used for
+# readability. Keep SQL readable while ensuring source line lengths
+# remain under the configured maximum by joining short fragments.
 
 
 class PositionRepository(BaseRepository):
@@ -40,42 +40,43 @@ class PositionRepository(BaseRepository):
             raise ValueError(
                 f"Lot with code '{lot_code}' not found (auction: {auction_code})"
             )
-        self._execute(
-            """
-            INSERT INTO my_lot_positions (buyer_id, lot_id, track_active, max_budget_total_eur, my_highest_bid_eur)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(buyer_id, lot_id) DO UPDATE SET
-                track_active = excluded.track_active,
-                max_budget_total_eur = excluded.max_budget_total_eur,
-                my_highest_bid_eur = excluded.my_highest_bid_eur
-            """,
-            (
-                buyer_id,
-                lot_id,
-                1 if track_active else 0,
-                max_budget_total_eur,
-                my_highest_bid_eur,
-            ),
+        sql = "\n".join([
+            "INSERT INTO my_lot_positions (",
+            "    buyer_id, lot_id, track_active, max_budget_total_eur,",
+            "    my_highest_bid_eur)",
+            "VALUES (?, ?, ?, ?, ?)",
+            "ON CONFLICT(buyer_id, lot_id) DO UPDATE SET",
+            "    track_active = excluded.track_active,",
+            "    max_budget_total_eur = excluded.max_budget_total_eur,",
+            "    my_highest_bid_eur = excluded.my_highest_bid_eur",
+        ])
+        params = (
+            buyer_id,
+            lot_id,
+            1 if track_active else 0,
+            max_budget_total_eur,
+            my_highest_bid_eur,
         )
+        self._execute(sql, params)
         self.conn.commit()
 
     def list(self, buyer_label: str | None = None) -> list[dict[str, str | None]]:
         params: list[str] = []
-        query = """
-            SELECT b.label AS buyer_label,
-                   a.auction_code AS auction_code,
-                   l.lot_code AS lot_code,
-                   p.track_active,
-                   p.max_budget_total_eur,
-                   p.my_highest_bid_eur,
-                   l.title AS lot_title,
-                   l.state AS lot_state,
-                   l.current_bid_eur
-            FROM my_lot_positions p
-            JOIN buyers b ON p.buyer_id = b.id
-            JOIN lots l ON p.lot_id = l.id
-            JOIN auctions a ON l.auction_id = a.id
-        """
+        query = "\n".join([
+            "SELECT b.label AS buyer_label,",
+            "       a.auction_code AS auction_code,",
+            "       l.lot_code AS lot_code,",
+            "       p.track_active,",
+            "       p.max_budget_total_eur,",
+            "       p.my_highest_bid_eur,",
+            "       l.title AS lot_title,",
+            "       l.state AS lot_state,",
+            "       l.current_bid_eur",
+            "FROM my_lot_positions p",
+            "JOIN buyers b ON p.buyer_id = b.id",
+            "JOIN lots l ON p.lot_id = l.id",
+            "JOIN auctions a ON l.auction_id = a.id",
+        ])
         if buyer_label:
             query += " WHERE b.label = ?"
             params.append(buyer_label)

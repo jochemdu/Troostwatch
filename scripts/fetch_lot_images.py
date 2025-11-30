@@ -32,14 +32,14 @@ import httpx
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from troostwatch.infrastructure.http import (
+from troostwatch.infrastructure.http import (  # noqa: E402
     LoginCredentials,
     TroostwatchHttpClient,
-)  # noqa: E402
-from troostwatch.infrastructure.web.parsers import (
+)
+from troostwatch.infrastructure.web.parsers import (  # noqa: E402
     parse_auction_page,
     parse_lot_detail,
-)  # noqa: E402
+)
 
 # OCR imports
 try:

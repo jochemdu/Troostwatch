@@ -112,8 +112,9 @@ def configure_tracing(
         # Configure exporter if endpoint provided
         if endpoint:
             try:
-                from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
-                    OTLPSpanExporter
+                from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+                    OTLPSpanExporter,
+                )
                 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
                 exporter = OTLPSpanExporter(endpoint=endpoint)
@@ -130,7 +131,9 @@ def configure_tracing(
                 import os
 
                 from opentelemetry.sdk.trace.export import (
-                    ConsoleSpanExporter, SimpleSpanProcessor)
+                    ConsoleSpanExporter,
+                    SimpleSpanProcessor,
+                )
 
                 if os.environ.get("OTEL_TRACES_CONSOLE", "").lower() == "true":
                     provider.add_span_processor(

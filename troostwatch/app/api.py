@@ -9,31 +9,53 @@ import asyncio
 import os
 from typing import Annotated, Any, cast
 
-from fastapi import (APIRouter, Depends, FastAPI, File, HTTPException, Query,
-                     Response, UploadFile, WebSocket, WebSocketDisconnect,
-                     status)
+from fastapi import (
+    APIRouter,
+    Depends,
+    FastAPI,
+    File,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from troostwatch import __version__
+
 # Annotated dependency types (modern FastAPI pattern)
-from troostwatch.app.dependencies import (AuctionRepositoryDep,
-                                          BidRepositoryDep, BuyerRepositoryDep,
-                                          ExtractedCodeRepositoryDep,
-                                          LotImageRepositoryDep,
-                                          LotRepositoryDep,
-                                          PositionRepositoryDep)
-from troostwatch.app.ws_messages import (MESSAGE_FORMAT_VERSION,
-                                         ConnectionReadyMessage,
-                                         create_message)
+from troostwatch.app.dependencies import (
+    AuctionRepositoryDep,
+    BidRepositoryDep,
+    BuyerRepositoryDep,
+    ExtractedCodeRepositoryDep,
+    LotImageRepositoryDep,
+    LotRepositoryDep,
+    PositionRepositoryDep,
+)
+from troostwatch.app.ws_messages import (
+    MESSAGE_FORMAT_VERSION,
+    ConnectionReadyMessage,
+    create_message,
+)
 from troostwatch.infrastructure.ai import ImageAnalyzer
 from troostwatch.services import positions as position_service
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
 from troostwatch.services.dto import BuyerCreateDTO
-from troostwatch.services.label_extraction import (LabelExtractionResult,
-                                                   extract_label_from_image)
-from troostwatch.services.lots import (LotInput, LotManagementService, LotView,
-                                       LotViewService)
+from troostwatch.services.label_extraction import (
+    LabelExtractionResult,
+    extract_label_from_image,
+)
+from troostwatch.services.lots import (
+    LotInput,
+    LotManagementService,
+    LotView,
+    LotViewService,
+)
 from troostwatch.services.positions import PositionUpdateData
 from troostwatch.services.reporting import ReportingService
 from troostwatch.services.sync_service import SyncService
@@ -1433,8 +1455,7 @@ async def export_training_data(
     service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
     # Haal alle records op
     with service._connection_factory() as conn:
-        from troostwatch.infrastructure.db.repositories.images import \
-            OcrTokenRepository
+        from troostwatch.infrastructure.db.repositories.images import OcrTokenRepository
 
         token_repo = OcrTokenRepository(conn)
         # Simpele fetch, kan later uitgebreid worden

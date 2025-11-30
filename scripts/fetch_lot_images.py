@@ -24,19 +24,17 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
 import httpx
-import re
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from troostwatch.infrastructure.http import (  # noqa: E402
-    LoginCredentials,
-    TroostwatchHttpClient,
-)
+from troostwatch.infrastructure.http import LoginCredentials  # noqa: E402
+from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.web.parsers import (  # noqa: E402
     parse_auction_page,
     parse_lot_detail,

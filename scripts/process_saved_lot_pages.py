@@ -42,8 +42,7 @@ import numpy as np
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from troostwatch.infrastructure.web.parsers import \
-    parse_lot_detail  # noqa: E402
+from troostwatch.infrastructure.web.parsers import parse_lot_detail  # noqa: E402
 
 # Try to import OCR dependencies
 try:

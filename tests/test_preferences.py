@@ -4,8 +4,10 @@ import sqlite3
 from pathlib import Path
 
 from troostwatch.infrastructure.db import ensure_schema
-from troostwatch.infrastructure.db.repositories import (AuctionRepository,
-                                                        PreferenceRepository)
+from troostwatch.infrastructure.db.repositories import (
+    AuctionRepository,
+    PreferenceRepository,
+)
 
 
 def _seed_auctions(conn: sqlite3.Connection) -> None:

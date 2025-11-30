@@ -1,17 +1,23 @@
 """Tests for WebSocket message types."""
 
-from troostwatch.app.ws_messages import (MESSAGE_FORMAT_VERSION,
-                                         BidPlacedMessage, BuyerCreatedMessage,
-                                         BuyerDeletedMessage,
-                                         ConnectionReadyMessage,
-                                         HeartbeatMessage, LotClosedMessage,
-                                         LotUpdatedMessage,
-                                         PositionsBatchUpdatedMessage,
-                                         PositionUpdatedMessage,
-                                         SyncCompletedMessage,
-                                         SyncErrorMessage, SyncStartedMessage,
-                                         WireMessage, create_message,
-                                         parse_message)
+from troostwatch.app.ws_messages import (
+    MESSAGE_FORMAT_VERSION,
+    BidPlacedMessage,
+    BuyerCreatedMessage,
+    BuyerDeletedMessage,
+    ConnectionReadyMessage,
+    HeartbeatMessage,
+    LotClosedMessage,
+    LotUpdatedMessage,
+    PositionsBatchUpdatedMessage,
+    PositionUpdatedMessage,
+    SyncCompletedMessage,
+    SyncErrorMessage,
+    SyncStartedMessage,
+    WireMessage,
+    create_message,
+    parse_message,
+)
 
 
 class TestWireFormat:

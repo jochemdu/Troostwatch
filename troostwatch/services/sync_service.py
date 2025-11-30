@@ -3,15 +3,24 @@ from __future__ import annotations
 import asyncio
 from dataclasses import asdict, dataclass
 
-from troostwatch.infrastructure.db import (ensure_core_schema, ensure_schema,
-                                           get_connection, get_path_config)
-from troostwatch.infrastructure.db.repositories import (AuctionRepository,
-                                                        PreferenceRepository)
+from troostwatch.infrastructure.db import (
+    ensure_core_schema,
+    ensure_schema,
+    get_connection,
+    get_path_config,
+)
+from troostwatch.infrastructure.db.repositories import (
+    AuctionRepository,
+    PreferenceRepository,
+)
 from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.observability import get_logger
 from troostwatch.services.dto import EventPublisher, noop_event_publisher
-from troostwatch.services.live_runner import (LiveSyncConfig, LiveSyncRunner,
-                                              LiveSyncState)
+from troostwatch.services.live_runner import (
+    LiveSyncConfig,
+    LiveSyncRunner,
+    LiveSyncState,
+)
 from troostwatch.services.sync import SyncRunResult, sync_auction_to_db
 
 

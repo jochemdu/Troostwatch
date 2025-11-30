@@ -19,9 +19,11 @@ from __future__ import annotations
 import click
 from rich.console import Console
 
-from troostwatch.infrastructure.diagnostics.debug_tools import (db_integrity,
-                                                                db_stats,
-                                                                db_view)
+from troostwatch.infrastructure.diagnostics.debug_tools import (
+    db_integrity,
+    db_stats,
+    db_view,
+)
 from troostwatch.interfaces.cli.context import build_cli_context
 
 console = Console()

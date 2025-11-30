@@ -8,9 +8,11 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from troostwatch.infrastructure.db.repositories import (AuctionRepository,
-                                                        LotRepository,
-                                                        PreferenceRepository)
+from troostwatch.infrastructure.db.repositories import (
+    AuctionRepository,
+    LotRepository,
+    PreferenceRepository,
+)
 
 from .context import build_cli_context
 

@@ -15,8 +15,8 @@ Usage:
 import argparse
 import json
 import re
-import time
 import sys
+import time
 from pathlib import Path
 
 try:

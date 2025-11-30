@@ -24,10 +24,10 @@ Implementation Note:
   directly outside of tests. They are implementation details that may change.
 """
 
+from . import sync as _sync
 from .fetcher import HttpFetcher, RateLimiter, RequestResult
 from .service import sync_auction
 from .sync import SyncRunResult  # noqa: F401
-from . import sync as _sync
 
 # Expose selected names from the internal module while keeping flake8 happy
 PageResult = _sync.PageResult

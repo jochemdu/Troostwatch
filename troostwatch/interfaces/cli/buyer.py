@@ -11,8 +11,11 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from troostwatch.interfaces.cli.context import (CLIContext, build_cli_context,
-                                                buyer_service)
+from troostwatch.interfaces.cli.context import (
+    CLIContext,
+    build_cli_context,
+    buyer_service,
+)
 from troostwatch.services.buyers import BuyerAlreadyExistsError
 
 console = Console()

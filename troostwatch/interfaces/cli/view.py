@@ -7,8 +7,11 @@ import json
 import click
 from rich.console import Console
 
-from troostwatch.interfaces.cli.context import (CLIContext, build_cli_context,
-                                                lot_view_service)
+from troostwatch.interfaces.cli.context import (
+    CLIContext,
+    build_cli_context,
+    lot_view_service,
+)
 from troostwatch.services.lots import LotView
 
 console = Console()

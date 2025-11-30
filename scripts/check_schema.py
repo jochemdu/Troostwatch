@@ -13,16 +13,15 @@ Prints:
 from __future__ import annotations
 
 import argparse
+import json
 import sqlite3
 import sys
 from pathlib import Path
-import json
 
 # Ensure package is importable when run as script
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from troostwatch.infrastructure.db.schema import \
-    CURRENT_SCHEMA_VERSION  # noqa: E402
+from troostwatch.infrastructure.db.schema import CURRENT_SCHEMA_VERSION  # noqa: E402
 
 
 def get_db_path() -> Path:

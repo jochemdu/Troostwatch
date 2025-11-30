@@ -16,8 +16,12 @@ from .add_lot import add_lot
 from .bid import bid
 from .buyer import buyer
 from .context import build_cli_context
-from .context_helpers import (get_preference, load_auctions,
-                              load_lots_for_auction, set_preference)
+from .context_helpers import (
+    get_preference,
+    load_auctions,
+    load_lots_for_auction,
+    set_preference,
+)
 from .debug import debug
 from .positions import positions
 from .report import report

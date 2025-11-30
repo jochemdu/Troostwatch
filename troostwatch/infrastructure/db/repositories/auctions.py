@@ -27,14 +27,16 @@ class AuctionRepository(BaseRepository):
         normalized_pages = list(dict.fromkeys(pagination_pages or []))
         pages_json = json.dumps(normalized_pages) if normalized_pages else None
 
-        sql = "\n".join([
-            "INSERT INTO auctions (auction_code, title, url, pagination_pages)",
-            "VALUES (?, ?, ?, ?)",
-            "ON CONFLICT(auction_code) DO UPDATE SET",
-            "    title = excluded.title,",
-            "    url = excluded.url,",
-            "    pagination_pages = excluded.pagination_pages",
-        ])
+        sql = "\n".join(
+            [
+                "INSERT INTO auctions (auction_code, title, url, pagination_pages)",
+                "VALUES (?, ?, ?, ?)",
+                "ON CONFLICT(auction_code) DO UPDATE SET",
+                "    title = excluded.title,",
+                "    url = excluded.url,",
+                "    pagination_pages = excluded.pagination_pages",
+            ]
+        )
         params = (auction_code, auction_title, auction_url, pages_json)
         self._execute(sql, params)
         auction_id = self._fetch_scalar(
@@ -45,23 +47,25 @@ class AuctionRepository(BaseRepository):
         return int(auction_id)
 
     def list(self, only_active: bool = True) -> list[dict[str, str | None]]:
-        query = "\n".join([
-            "SELECT a.auction_code,",
-            "       a.title,",
-            "       a.url,",
-            "       a.starts_at,",
-            "       a.ends_at_planned,",
-            "       SUM(CASE WHEN l.state IS NULL",
-            "           OR l.state NOT IN ('closed', 'ended')",
-            "           THEN 1 ELSE 0 END) AS active_lots,",
-            "       COUNT(l.id) AS lot_count",
-            "FROM auctions a",
-            "LEFT JOIN lots l ON l.auction_id = a.id",
-            "GROUP BY a.id",
-            "ORDER BY a.ends_at_planned IS NULL DESC,",
-            "         a.ends_at_planned DESC,",
-            "         a.auction_code",
-        ])
+        query = "\n".join(
+            [
+                "SELECT a.auction_code,",
+                "       a.title,",
+                "       a.url,",
+                "       a.starts_at,",
+                "       a.ends_at_planned,",
+                "       SUM(CASE WHEN l.state IS NULL",
+                "           OR l.state NOT IN ('closed', 'ended')",
+                "           THEN 1 ELSE 0 END) AS active_lots,",
+                "       COUNT(l.id) AS lot_count",
+                "FROM auctions a",
+                "LEFT JOIN lots l ON l.auction_id = a.id",
+                "GROUP BY a.id",
+                "ORDER BY a.ends_at_planned IS NULL DESC,",
+                "         a.ends_at_planned DESC,",
+                "         a.auction_code",
+            ]
+        )
         rows = self.conn.execute(query).fetchall()
         auctions = [
             {
@@ -81,16 +85,18 @@ class AuctionRepository(BaseRepository):
 
     def get_by_code(self, auction_code: str) -> dict[str, Any | None] | None:
         """Get a single auction by code."""
-        sql = "\n".join([
-            "SELECT a.id, a.auction_code, a.title, a.url,",
-            "       a.pagination_pages,",
-            "       a.starts_at, a.ends_at_planned,",
-            "       COUNT(l.id) AS lot_count",
-            "FROM auctions a",
-            "LEFT JOIN lots l ON l.auction_id = a.id",
-            "WHERE a.auction_code = ?",
-            "GROUP BY a.id",
-        ])
+        sql = "\n".join(
+            [
+                "SELECT a.id, a.auction_code, a.title, a.url,",
+                "       a.pagination_pages,",
+                "       a.starts_at, a.ends_at_planned,",
+                "       COUNT(l.id) AS lot_count",
+                "FROM auctions a",
+                "LEFT JOIN lots l ON l.auction_id = a.id",
+                "WHERE a.auction_code = ?",
+                "GROUP BY a.id",
+            ]
+        )
         cur = self.conn.execute(sql, (auction_code,))
         row = cur.fetchone()
         if not row:

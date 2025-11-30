@@ -7,8 +7,8 @@ eliminating duplicate cursor→dict conversion logic.
 from __future__ import annotations
 
 import sqlite3
-from typing import Any
 from collections.abc import Sequence
+from typing import Any
 
 
 class BaseRepository:

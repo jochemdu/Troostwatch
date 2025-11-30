@@ -14,17 +14,26 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
-from troostwatch.infrastructure.db import (ensure_core_schema, ensure_schema,
-                                           get_connection, iso_utcnow)
-from troostwatch.infrastructure.db.repositories import (AuctionRepository,
-                                                        LotImageRepository,
-                                                        LotRepository)
+from troostwatch.infrastructure.db import (
+    ensure_core_schema,
+    ensure_schema,
+    get_connection,
+    iso_utcnow,
+)
+from troostwatch.infrastructure.db.repositories import (
+    AuctionRepository,
+    LotImageRepository,
+    LotRepository,
+)
 from troostwatch.infrastructure.http import TroostwatchHttpClient
-from troostwatch.infrastructure.web.parsers import (LotCardData, LotDetailData,
-                                                    extract_page_urls,
-                                                    parse_auction_page,
-                                                    parse_lot_card,
-                                                    parse_lot_detail)
+from troostwatch.infrastructure.web.parsers import (
+    LotCardData,
+    LotDetailData,
+    extract_page_urls,
+    parse_auction_page,
+    parse_lot_card,
+    parse_lot_detail,
+)
 
 from .fetcher import HttpFetcher, RequestResult
 

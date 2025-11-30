@@ -3,10 +3,19 @@
 import pytest
 
 from troostwatch.infrastructure.ai.code_validation import (
-    CodeType, calculate_gs1_check_digit, detect_code_type, normalize_code,
-    validate_and_correct_ean, validate_ean_8, validate_ean_13,
-    validate_isbn_10, validate_isbn_13, validate_mac_address, validate_upc_a,
-    validate_uuid)
+    CodeType,
+    calculate_gs1_check_digit,
+    detect_code_type,
+    normalize_code,
+    validate_and_correct_ean,
+    validate_ean_8,
+    validate_ean_13,
+    validate_isbn_10,
+    validate_isbn_13,
+    validate_mac_address,
+    validate_upc_a,
+    validate_uuid,
+)
 
 
 class TestGS1CheckDigit:

@@ -1,8 +1,14 @@
 from .auctions import AuctionRepository
 from .bids import BidRepository
 from .buyers import BuyerRepository
-from .images import (ExtractedCode, ExtractedCodeRepository, LotImage,
-                     LotImageRepository, OcrTokenData, OcrTokenRepository)
+from .images import (
+    ExtractedCode,
+    ExtractedCodeRepository,
+    LotImage,
+    LotImageRepository,
+    OcrTokenData,
+    OcrTokenRepository,
+)
 from .lots import LotRepository
 from .positions import PositionRepository
 from .preferences import PreferenceRepository

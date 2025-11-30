@@ -8,9 +8,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from troostwatch.infrastructure.ai import (ParsedLabel, PreprocessingConfig,
-                                           TesseractOCR, parse_label,
-                                           preprocess_for_ocr)
+from troostwatch.infrastructure.ai import (
+    ParsedLabel,
+    PreprocessingConfig,
+    TesseractOCR,
+    parse_label,
+    preprocess_for_ocr,
+)
 
 
 @dataclass

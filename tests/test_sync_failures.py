@@ -10,6 +10,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from troostwatch.infrastructure.web.parsers import LotCardData  # noqa: E402
+
 # Import the internal sync module for monkeypatching internals.
 # This is intentional for test purposes – see scripts/check_imports.py exceptions.
 from troostwatch.services.sync import sync_auction_to_db  # noqa: E402

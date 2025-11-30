@@ -14,11 +14,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
 
-from troostwatch.infrastructure.db import (ensure_schema, get_connection,
-                                           get_path_config, iso_utcnow)
-from troostwatch.infrastructure.db.repositories import (AuctionRepository,
-                                                        BuyerRepository,
-                                                        LotRepository)
+from troostwatch.infrastructure.db import (
+    ensure_schema,
+    get_connection,
+    get_path_config,
+    iso_utcnow,
+)
+from troostwatch.infrastructure.db.repositories import (
+    AuctionRepository,
+    BuyerRepository,
+    LotRepository,
+)
 from troostwatch.infrastructure.db.repositories.base import BaseRepository
 from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.services.buyers import BuyerService

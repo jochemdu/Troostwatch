@@ -18,23 +18,36 @@ from pathlib import Path
 from typing import Any, Callable, Literal, cast
 
 from troostwatch.infrastructure.ai.code_validation import (
-    CodeType, normalize_code, validate_and_correct_ean, validate_code)
-from troostwatch.infrastructure.ai.image_analyzer import (ExtractedCode,
-                                                          ImageAnalysisResult,
-                                                          LocalOCRAnalyzer,
-                                                          OpenAIAnalyzer)
-from troostwatch.infrastructure.ai.image_hashing import \
-    PIL_AVAILABLE as HASH_AVAILABLE
-from troostwatch.infrastructure.ai.image_hashing import (compute_phash,
-                                                         hamming_distance)
-from troostwatch.infrastructure.ai.label_api_client import (LabelAPIClient,
-                                                            ParseLabelResult)
+    CodeType,
+    normalize_code,
+    validate_and_correct_ean,
+    validate_code,
+)
+from troostwatch.infrastructure.ai.image_analyzer import (
+    ExtractedCode,
+    ImageAnalysisResult,
+    LocalOCRAnalyzer,
+    OpenAIAnalyzer,
+)
+from troostwatch.infrastructure.ai.image_hashing import PIL_AVAILABLE as HASH_AVAILABLE
+from troostwatch.infrastructure.ai.image_hashing import compute_phash, hamming_distance
+from troostwatch.infrastructure.ai.label_api_client import (
+    LabelAPIClient,
+    ParseLabelResult,
+)
 from troostwatch.infrastructure.db import get_connection
 from troostwatch.infrastructure.db.repositories import (
-    ExtractedCodeRepository, LotImage, LotImageRepository, OcrTokenRepository)
+    ExtractedCodeRepository,
+    LotImage,
+    LotImageRepository,
+    OcrTokenRepository,
+)
 from troostwatch.infrastructure.observability import get_logger
 from troostwatch.infrastructure.observability.metrics import (
-    record_code_approval, record_image_analysis, record_image_download)
+    record_code_approval,
+    record_image_analysis,
+    record_image_download,
+)
 from troostwatch.infrastructure.persistence.images import ImageDownloader
 
 from .base import BaseService, ConnectionFactory
@@ -126,14 +139,16 @@ class ImageAnalysisService(BaseService):
             ID of the created training run.
         """
         with self._connection_factory() as conn:
-            sql = "\n".join([
-                "INSERT INTO ml_training_runs (",
-                "  started_at, status, model_path, metrics_json, notes, created_by,",
-                "  training_data_filter, error_message, created_at",
-                ") VALUES (",
-                "  datetime('now'), ?, ?, ?, ?, ?, ?, ?, datetime('now')",
-                ")",
-            ])
+            sql = "\n".join(
+                [
+                    "INSERT INTO ml_training_runs (",
+                    "  started_at, status, model_path, metrics_json, notes, created_by,",
+                    "  training_data_filter, error_message, created_at",
+                    ") VALUES (",
+                    "  datetime('now'), ?, ?, ?, ?, ?, ?, ?, datetime('now')",
+                    ")",
+                ]
+            )
             params = (
                 status,
                 model_path,
@@ -857,10 +872,12 @@ class ImageAnalysisService(BaseService):
                 # Get the lot_id for this image
                 lot_info = self._fetch_one_as_dict(
                     conn,
-                    "\n".join([
-                        "SELECT lot_id FROM lot_images",
-                        "WHERE id = ?",
-                    ]),
+                    "\n".join(
+                        [
+                            "SELECT lot_id FROM lot_images",
+                            "WHERE id = ?",
+                        ]
+                    ),
                     (code.lot_image_id,),
                 )
                 if not lot_info:
@@ -873,68 +890,84 @@ class ImageAnalysisService(BaseService):
                     # Check if lot already has this EAN in specs
                     existing = self._fetch_one_as_dict(
                         conn,
-                        "\n".join([
-                            "SELECT id FROM product_specs",
-                            "WHERE lot_id = ? AND key = 'ean' AND value = ?",
-                        ]),
+                        "\n".join(
+                            [
+                                "SELECT id FROM product_specs",
+                                "WHERE lot_id = ? AND key = 'ean' AND value = ?",
+                            ]
+                        ),
                         (lot_id, code.value),
                     )
                     if not existing:
-                        sql = "\n".join([
-                            "INSERT INTO product_specs (lot_id, key, value, source)",
-                            "VALUES (?, 'ean', ?, 'ocr')",
-                        ])
+                        sql = "\n".join(
+                            [
+                                "INSERT INTO product_specs (lot_id, key, value, source)",
+                                "VALUES (?, 'ean', ?, 'ocr')",
+                            ]
+                        )
                         conn.execute(sql, (lot_id, code.value))
                         promoted["ean"] += 1
 
                 elif code.code_type == "serial_number":
                     existing = self._fetch_one_as_dict(
                         conn,
-                        "\n".join([
-                            "SELECT id FROM product_specs",
-                            "WHERE lot_id = ? AND key = 'serial_number' AND value = ?",
-                        ]),
+                        "\n".join(
+                            [
+                                "SELECT id FROM product_specs",
+                                "WHERE lot_id = ? AND key = 'serial_number' AND value = ?",
+                            ]
+                        ),
                         (lot_id, code.value),
                     )
                     if not existing:
-                        sql = "\n".join([
-                            "INSERT INTO product_specs (lot_id, key, value, source)",
-                            "VALUES (?, 'serial_number', ?, 'ocr')",
-                        ])
+                        sql = "\n".join(
+                            [
+                                "INSERT INTO product_specs (lot_id, key, value, source)",
+                                "VALUES (?, 'serial_number', ?, 'ocr')",
+                            ]
+                        )
                         conn.execute(sql, (lot_id, code.value))
                         promoted["serial_number"] += 1
 
                 elif code.code_type == "model_number":
                     existing = self._fetch_one_as_dict(
                         conn,
-                        "\n".join([
-                            "SELECT id FROM product_specs",
-                            "WHERE lot_id = ? AND key = 'model_number' AND value = ?",
-                        ]),
+                        "\n".join(
+                            [
+                                "SELECT id FROM product_specs",
+                                "WHERE lot_id = ? AND key = 'model_number' AND value = ?",
+                            ]
+                        ),
                         (lot_id, code.value),
                     )
                     if not existing:
-                        sql = "\n".join([
-                            "INSERT INTO product_specs (lot_id, key, value, source)",
-                            "VALUES (?, 'model_number', ?, 'ocr')",
-                        ])
+                        sql = "\n".join(
+                            [
+                                "INSERT INTO product_specs (lot_id, key, value, source)",
+                                "VALUES (?, 'model_number', ?, 'ocr')",
+                            ]
+                        )
                         conn.execute(sql, (lot_id, code.value))
                         promoted["model_number"] += 1
 
                 elif code.code_type == "product_code":
                     existing = self._fetch_one_as_dict(
                         conn,
-                        "\n".join([
-                            "SELECT id FROM product_specs",
-                            "WHERE lot_id = ? AND key = 'product_code' AND value = ?",
-                        ]),
+                        "\n".join(
+                            [
+                                "SELECT id FROM product_specs",
+                                "WHERE lot_id = ? AND key = 'product_code' AND value = ?",
+                            ]
+                        ),
                         (lot_id, code.value),
                     )
                     if not existing:
-                        sql = "\n".join([
-                            "INSERT INTO product_specs (lot_id, key, value, source)",
-                            "VALUES (?, 'product_code', ?, 'ocr')",
-                        ])
+                        sql = "\n".join(
+                            [
+                                "INSERT INTO product_specs (lot_id, key, value, source)",
+                                "VALUES (?, 'product_code', ?, 'ocr')",
+                            ]
+                        )
                         conn.execute(sql, (lot_id, code.value))
                         promoted["product_code"] += 1
 
@@ -1158,27 +1191,35 @@ class ImageAnalysisService(BaseService):
             unique_hashes = cur.fetchone()[0]
 
             # Count exact duplicates (same phash appears multiple times)
-            cur = conn.execute("\n".join([
-                "SELECT COUNT(*) FROM (",
-                "  SELECT phash, COUNT(*) as cnt",
-                "  FROM lot_images",
-                "  WHERE phash IS NOT NULL",
-                "  GROUP BY phash",
-                "  HAVING cnt > 1",
-                ")",
-            ]))
+            cur = conn.execute(
+                "\n".join(
+                    [
+                        "SELECT COUNT(*) FROM (",
+                        "  SELECT phash, COUNT(*) as cnt",
+                        "  FROM lot_images",
+                        "  WHERE phash IS NOT NULL",
+                        "  GROUP BY phash",
+                        "  HAVING cnt > 1",
+                        ")",
+                    ]
+                )
+            )
             duplicate_groups = cur.fetchone()[0]
 
             # Count images that are duplicates
-            cur = conn.execute("\n".join([
-                "SELECT SUM(cnt) FROM (",
-                "  SELECT phash, COUNT(*) as cnt",
-                "  FROM lot_images",
-                "  WHERE phash IS NOT NULL",
-                "  GROUP BY phash",
-                "  HAVING cnt > 1",
-                ")",
-            ]))
+            cur = conn.execute(
+                "\n".join(
+                    [
+                        "SELECT SUM(cnt) FROM (",
+                        "  SELECT phash, COUNT(*) as cnt",
+                        "  FROM lot_images",
+                        "  WHERE phash IS NOT NULL",
+                        "  GROUP BY phash",
+                        "  HAVING cnt > 1",
+                        ")",
+                    ]
+                )
+            )
             row = cur.fetchone()
             duplicate_images = row[0] if row[0] else 0
 

@@ -12,9 +12,6 @@ from .base import BaseRepository
 # flake8: noqa: E501  # SQL-heavy repository; many long SQL strings kept for readability
 
 
-
-
-
 class LotRepository(BaseRepository):
     def __init__(self, conn: sqlite3.Connection) -> None:
         super().__init__(conn)
@@ -616,8 +613,7 @@ class LotRepository(BaseRepository):
         bid_history: list,
     ) -> None:
         """Insert or update bid history entries for a lot."""
-        from troostwatch.infrastructure.web.parsers.lot_detail import \
-            BidHistoryEntry
+        from troostwatch.infrastructure.web.parsers.lot_detail import BidHistoryEntry
 
         # Get lot_id
         lot_id = self._fetch_scalar(

@@ -16,8 +16,13 @@ from pathlib import Path
 import click
 import httpx
 from rich.console import Console
-from rich.progress import (BarColumn, Progress, SpinnerColumn,
-                           TaskProgressColumn, TextColumn)
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+)
 from rich.table import Table
 
 from troostwatch.app.config import load_config
@@ -295,8 +300,7 @@ def review_images(
     else:
         # Show review queue
         with get_connection(db_path) as conn:
-            from troostwatch.infrastructure.db.repositories import \
-                LotImageRepository
+            from troostwatch.infrastructure.db.repositories import LotImageRepository
 
             repo = LotImageRepository(conn)
             images = repo.get_needs_review(limit=limit)

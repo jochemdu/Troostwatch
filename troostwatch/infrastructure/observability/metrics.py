@@ -91,7 +91,9 @@ class Histogram:
         with self._lock:
             self._observations[key].append(value)
 
-    def get_stats(self, labels: Mapping[str, str | None] | None = None) -> dict[str, float]:
+    def get_stats(
+        self, labels: Mapping[str, str | None] | None = None
+    ) -> dict[str, float]:
         """Get summary statistics for the histogram."""
         key = self._labels_to_key(labels)
         with self._lock:

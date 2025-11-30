@@ -1469,7 +1469,9 @@ async def export_training_data(
                 (record.lot_image_id,),
             )
             lot_id_val = image.get("lot_id") if isinstance(image, dict) else None
-            local_path_val = image.get("local_path") if isinstance(image, dict) else None
+            local_path_val = (
+                image.get("local_path") if isinstance(image, dict) else None
+            )
             entry = {
                 "lot_image_id": record.lot_image_id,
                 "lot_id": lot_id_val,
@@ -1654,7 +1656,9 @@ async def update_auction(
         starts_at=payload.starts_at,
         ends_at_planned=payload.ends_at_planned,
     ):
-        raise HTTPException(status_code=404, detail=f"Auction '{auction_code}' not found")
+        raise HTTPException(
+            status_code=404, detail=f"Auction '{auction_code}' not found"
+        )
 
     updated = repo.get_by_code(auction_code)
     if not updated:

@@ -6,7 +6,9 @@ This module provides database access for the image analysis pipeline:
 - OcrTokenRepository: Store raw OCR token data for ML training
 """
 
-# flake8: noqa: E501  # SQL-heavy repository; long SQL strings intentionally formatted for readability
+# This repository contains SQL blocks that are intentionally long for
+# readability. We keep SQL strings readable while ensuring line lengths
+# remain under the configured maximum by joining short fragments.
 
 from __future__ import annotations
 
@@ -336,20 +338,26 @@ class LotImageRepository(BaseRepository):
 
     def get_stats(self) -> dict[str, int]:
         """Get counts by status for dashboard display."""
-        cur = self.conn.execute(
-            """
-            SELECT
-                COUNT(*) as total,
-                SUM(CASE WHEN download_status = 'pending' THEN 1 ELSE 0 END) as pending_download,
-                SUM(CASE WHEN download_status = 'downloaded' THEN 1 ELSE 0 END) as downloaded,
-                SUM(CASE WHEN download_status = 'failed' THEN 1 ELSE 0 END) as download_failed,
-                SUM(CASE WHEN analysis_status = 'pending' THEN 1 ELSE 0 END) as pending_analysis,
-                SUM(CASE WHEN analysis_status = 'analyzed' THEN 1 ELSE 0 END) as analyzed,
-                SUM(CASE WHEN analysis_status = 'needs_review' THEN 1 ELSE 0 END) as needs_review,
-                SUM(CASE WHEN analysis_status = 'failed' THEN 1 ELSE 0 END) as analysis_failed
-            FROM lot_images
-            """
-        )
+        sql = "\n".join([
+            "SELECT",
+            "    COUNT(*) as total,",
+            "    SUM(CASE WHEN download_status = 'pending' THEN 1 ELSE 0 END) ",
+            "    as pending_download,",
+            "    SUM(CASE WHEN download_status = 'downloaded' THEN 1 ELSE 0 END) ",
+            "    as downloaded,",
+            "    SUM(CASE WHEN download_status = 'failed' THEN 1 ELSE 0 END) ",
+            "    as download_failed,",
+            "    SUM(CASE WHEN analysis_status = 'pending' THEN 1 ELSE 0 END) ",
+            "    as pending_analysis,",
+            "    SUM(CASE WHEN analysis_status = 'analyzed' THEN 1 ELSE 0 END) ",
+            "    as analyzed,",
+            "    SUM(CASE WHEN analysis_status = 'needs_review' THEN 1 ELSE 0 END) ",
+            "    as needs_review,",
+            "    SUM(CASE WHEN analysis_status = 'failed' THEN 1 ELSE 0 END) ",
+            "    as analysis_failed",
+            "FROM lot_images",
+        ])
+        cur = self.conn.execute(sql)
         row = cur.fetchone()
         return {
             "total": row[0] or 0,
@@ -393,14 +401,14 @@ class ExtractedCodeRepository(BaseRepository):
         context: str | None = None,
     ) -> int:
         """Insert an extracted code and return its ID."""
-        cur = self.conn.execute(
-            """
-            INSERT INTO extracted_codes (lot_image_id, code_type, value, confidence, context)
-            VALUES (?, ?, ?, ?, ?)
-            RETURNING id
-            """,
-            (lot_image_id, code_type, value, confidence, context),
-        )
+        sql = "\n".join([
+            "INSERT INTO extracted_codes (lot_image_id, code_type, value,",
+            "    confidence, context)",
+            "VALUES (?, ?, ?, ?, ?)",
+            "RETURNING id",
+        ])
+        params = (lot_image_id, code_type, value, confidence, context)
+        cur = self.conn.execute(sql, params)
         row = cur.fetchone()
         return row[0] if row else 0
 
@@ -447,13 +455,12 @@ class ExtractedCodeRepository(BaseRepository):
         if not codes:
             return 0
 
-        self.conn.executemany(
-            """
-            INSERT INTO extracted_codes (lot_image_id, code_type, value, confidence, context)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            codes,
-        )
+        sql = "\n".join([
+            "INSERT INTO extracted_codes (lot_image_id, code_type, value,",
+            "    confidence, context)",
+            "VALUES (?, ?, ?, ?, ?)",
+        ])
+        self.conn.executemany(sql, codes)
         return len(codes)
 
     def get_by_image_id(self, lot_image_id: int) -> list[ExtractedCode]:
@@ -470,15 +477,13 @@ class ExtractedCodeRepository(BaseRepository):
 
     def get_by_lot_id(self, lot_id: int) -> list[ExtractedCode]:
         """Get all codes for a lot (across all images)."""
-        rows = self._fetch_all_as_dicts(
-            """
-            SELECT ec.* FROM extracted_codes ec
-            JOIN lot_images li ON ec.lot_image_id = li.id
-            WHERE li.lot_id = ?
-            ORDER BY ec.code_type, ec.value
-            """,
-            (lot_id,),
-        )
+        sql = "\n".join([
+            "SELECT ec.* FROM extracted_codes ec",
+            "JOIN lot_images li ON ec.lot_image_id = li.id",
+            "WHERE li.lot_id = ?",
+            "ORDER BY ec.code_type, ec.value",
+        ])
+        rows = self._fetch_all_as_dicts(sql, (lot_id,))
         return [self._row_to_code(row) for row in rows]
 
     def delete_by_image_id(self, lot_image_id: int) -> int:
@@ -579,18 +584,22 @@ class ExtractedCodeRepository(BaseRepository):
 
     def get_approval_stats(self) -> dict[str, int]:
         """Get statistics about code approvals."""
-        cur = self.conn.execute(
-            """
-            SELECT
-                COUNT(*) as total,
-                SUM(CASE WHEN approved = 1 THEN 1 ELSE 0 END) as approved,
-                SUM(CASE WHEN approved = 0 THEN 1 ELSE 0 END) as pending,
-                SUM(CASE WHEN promoted_to_lot = 1 THEN 1 ELSE 0 END) as promoted,
-                SUM(CASE WHEN approved_by = 'auto' THEN 1 ELSE 0 END) as auto_approved,
-                SUM(CASE WHEN approved_by = 'manual' THEN 1 ELSE 0 END) as manually_approved
-            FROM extracted_codes
-            """
-        )
+        sql = "\n".join([
+            "SELECT",
+            "    COUNT(*) as total,",
+            "    SUM(CASE WHEN approved = 1 THEN 1 ELSE 0 END) ",
+            "    as approved,",
+            "    SUM(CASE WHEN approved = 0 THEN 1 ELSE 0 END) ",
+            "    as pending,",
+            "    SUM(CASE WHEN promoted_to_lot = 1 THEN 1 ELSE 0 END) ",
+            "    as promoted,",
+            "    SUM(CASE WHEN approved_by = 'auto' THEN 1 ELSE 0 END) ",
+            "    as auto_approved,",
+            "    SUM(CASE WHEN approved_by = 'manual' THEN 1 ELSE 0 END) ",
+            "    as manually_approved",
+            "FROM extracted_codes",
+        ])
+        cur = self.conn.execute(sql)
         row = cur.fetchone()
         return {
             "total": row[0] or 0,
@@ -647,16 +656,14 @@ class ExtractedCodeRepository(BaseRepository):
         """
         # For now, we don't delete - just ensure it stays unapproved
         # Could add a rejected_at column in future
-        self.conn.execute(
-            """
-            UPDATE extracted_codes
-            SET approved = 0,
-                approved_by = NULL,
-                approved_at = NULL
-            WHERE id = ?
-            """,
-            (code_id,),
-        )
+        sql = "\n".join([
+            "UPDATE extracted_codes",
+            "SET approved = 0,",
+            "    approved_by = NULL,",
+            "    approved_at = NULL",
+            "WHERE id = ?",
+        ])
+        self.conn.execute(sql, (code_id,))
 
 
 class OcrTokenRepository(BaseRepository):
@@ -681,21 +688,21 @@ class OcrTokenRepository(BaseRepository):
         tokens_json = json.dumps(tokens)
         token_count = len(tokens.get("text", []))
 
-        cur = self.conn.execute(
-            """
-            INSERT INTO ocr_token_data (lot_image_id, tokens_json, token_count, has_labels)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT (lot_image_id) DO UPDATE SET
-                tokens_json = excluded.tokens_json,
-                token_count = excluded.token_count,
-                has_labels = CASE
-                    WHEN excluded.has_labels = 1 THEN 1
-                    ELSE ocr_token_data.has_labels
-                END
-            RETURNING id
-            """,
-            (lot_image_id, tokens_json, token_count, 1 if has_labels else 0),
-        )
+        sql = "\n".join([
+            "INSERT INTO ocr_token_data (lot_image_id, tokens_json,",
+            "    token_count, has_labels)",
+            "VALUES (?, ?, ?, ?)",
+            "ON CONFLICT (lot_image_id) DO UPDATE SET",
+            "    tokens_json = excluded.tokens_json,",
+            "    token_count = excluded.token_count,",
+            "    has_labels = CASE",
+            "        WHEN excluded.has_labels = 1 THEN 1",
+            "        ELSE ocr_token_data.has_labels",
+            "    END",
+            "RETURNING id",
+        ])
+        params = (lot_image_id, tokens_json, token_count, 1 if has_labels else 0)
+        cur = self.conn.execute(sql, params)
         row = cur.fetchone()
         return row[0] if row else 0
 
@@ -741,15 +748,15 @@ class OcrTokenRepository(BaseRepository):
 
     def get_stats(self) -> dict[str, int]:
         """Get statistics for token data."""
-        cur = self.conn.execute(
-            """
-            SELECT
-                COUNT(*) as total,
-                SUM(CASE WHEN has_labels = 1 THEN 1 ELSE 0 END) as labeled,
-                SUM(token_count) as total_tokens
-            FROM ocr_token_data
-            """
-        )
+        sql = "\n".join([
+            "SELECT",
+            "    COUNT(*) as total,",
+            "    SUM(CASE WHEN has_labels = 1 THEN 1 ELSE 0 END) ",
+            "    as labeled,",
+            "    SUM(token_count) as total_tokens",
+            "FROM ocr_token_data",
+        ])
+        cur = self.conn.execute(sql)
         row = cur.fetchone()
         return {
             "total": row[0] or 0,

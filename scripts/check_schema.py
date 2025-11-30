@@ -16,6 +16,7 @@ import argparse
 import sqlite3
 import sys
 from pathlib import Path
+import json
 
 # Ensure package is importable when run as script
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -28,8 +29,6 @@ def get_db_path() -> Path:
     """Return the default database path from config or fallback."""
     config_path = Path(__file__).resolve().parents[1] / "config.json"
     if config_path.exists():
-        import json
-
         with open(config_path) as f:
             cfg = json.load(f)
             return Path(cfg.get("database", "troostwatch.db"))

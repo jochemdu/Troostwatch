@@ -5,6 +5,7 @@ for a fresh installation of Troostwatch.
 """
 
 import json
+import sqlite3
 from pathlib import Path
 
 
@@ -32,8 +33,6 @@ def main() -> None:
     if not db_path.exists():
         schema_path = root / "schema" / "schema.sql"
         if schema_path.exists():
-            import sqlite3
-
             conn = sqlite3.connect(db_path)
             with open(schema_path, "r", encoding="utf-8") as f:
                 conn.executescript(f.read())

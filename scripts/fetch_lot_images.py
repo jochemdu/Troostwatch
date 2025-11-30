@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 import httpx
+import re
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -55,7 +56,6 @@ except ImportError:
 
 def classify_token(text: str) -> str:
     """Classify a token based on its content."""
-    import re
 
     text = text.strip().upper()
     if not text:

@@ -16,6 +16,7 @@ import argparse
 import json
 import re
 import time
+import sys
 from pathlib import Path
 
 try:
@@ -23,7 +24,6 @@ try:
 except ImportError:
     print("Installing requests...")
     import subprocess
-    import sys
 
     subprocess.run([sys.executable, "-m", "pip", "install", "requests"], check=True)
     import requests

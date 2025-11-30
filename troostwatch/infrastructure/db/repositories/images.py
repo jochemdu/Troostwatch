@@ -282,7 +282,7 @@ class LotImageRepository(BaseRepository):
             WHERE phash IS NOT NULL
             ORDER BY created_at
         """
-        params: tuple = ()
+        params: tuple[Any, ...] = ()
         if limit:
             query += " LIMIT ?"
             params = (limit,)
@@ -725,7 +725,7 @@ class OcrTokenRepository(BaseRepository):
     def get_all_for_export(self, limit: int | None = None) -> list[OcrTokenData]:
         """Get all token data for export (with or without labels)."""
         query = "SELECT * FROM ocr_token_data ORDER BY created_at"
-        params: tuple = ()
+        params: tuple[Any, ...] = ()
         if limit:
             query += " LIMIT ?"
             params = (limit,)

@@ -7,9 +7,9 @@ from typing import Any
 from ..schema import ensure_schema
 from .base import BaseRepository
 
-# flake8: noqa: E501  # repository contains SQL blocks that are intentionally long for readability
-
-
+# This repository contains SQL blocks that are intentionally long for
+# readability. We'll keep SQL readable while ensuring source line lengths
+# remain under the configured maximum by joining short fragments.
 
 
 class AuctionRepository(BaseRepository):
@@ -27,17 +27,16 @@ class AuctionRepository(BaseRepository):
         normalized_pages = list(dict.fromkeys(pagination_pages or []))
         pages_json = json.dumps(normalized_pages) if normalized_pages else None
 
-        self._execute(
-            """
-            INSERT INTO auctions (auction_code, title, url, pagination_pages)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(auction_code) DO UPDATE SET
-                title = excluded.title,
-                url = excluded.url,
-                pagination_pages = excluded.pagination_pages
-            """,
-            (auction_code, auction_title, auction_url, pages_json),
-        )
+        sql = "\n".join([
+            "INSERT INTO auctions (auction_code, title, url, pagination_pages)",
+            "VALUES (?, ?, ?, ?)",
+            "ON CONFLICT(auction_code) DO UPDATE SET",
+            "    title = excluded.title,",
+            "    url = excluded.url,",
+            "    pagination_pages = excluded.pagination_pages",
+        ])
+        params = (auction_code, auction_title, auction_url, pages_json)
+        self._execute(sql, params)
         auction_id = self._fetch_scalar(
             "SELECT id FROM auctions WHERE auction_code = ?", (auction_code,)
         )
@@ -46,23 +45,23 @@ class AuctionRepository(BaseRepository):
         return int(auction_id)
 
     def list(self, only_active: bool = True) -> list[dict[str, str | None]]:
-        query = """
-            SELECT a.auction_code,
-                   a.title,
-                   a.url,
-                   a.starts_at,
-                   a.ends_at_planned,
-                   SUM(CASE WHEN l.state IS NULL
-                       OR l.state NOT IN ('closed', 'ended')
-                       THEN 1 ELSE 0 END) AS active_lots,
-                   COUNT(l.id) AS lot_count
-            FROM auctions a
-            LEFT JOIN lots l ON l.auction_id = a.id
-            GROUP BY a.id
-            ORDER BY a.ends_at_planned IS NULL DESC,
-                     a.ends_at_planned DESC,
-                     a.auction_code
-        """
+        query = "\n".join([
+            "SELECT a.auction_code,",
+            "       a.title,",
+            "       a.url,",
+            "       a.starts_at,",
+            "       a.ends_at_planned,",
+            "       SUM(CASE WHEN l.state IS NULL",
+            "           OR l.state NOT IN ('closed', 'ended')",
+            "           THEN 1 ELSE 0 END) AS active_lots,",
+            "       COUNT(l.id) AS lot_count",
+            "FROM auctions a",
+            "LEFT JOIN lots l ON l.auction_id = a.id",
+            "GROUP BY a.id",
+            "ORDER BY a.ends_at_planned IS NULL DESC,",
+            "         a.ends_at_planned DESC,",
+            "         a.auction_code",
+        ])
         rows = self.conn.execute(query).fetchall()
         auctions = [
             {
@@ -82,18 +81,17 @@ class AuctionRepository(BaseRepository):
 
     def get_by_code(self, auction_code: str) -> dict[str, Any | None] | None:
         """Get a single auction by code."""
-        cur = self.conn.execute(
-            """
-            SELECT a.id, a.auction_code, a.title, a.url, a.pagination_pages,
-                   a.starts_at, a.ends_at_planned,
-                   COUNT(l.id) AS lot_count
-            FROM auctions a
-            LEFT JOIN lots l ON l.auction_id = a.id
-            WHERE a.auction_code = ?
-            GROUP BY a.id
-            """,
-            (auction_code,),
-        )
+        sql = "\n".join([
+            "SELECT a.id, a.auction_code, a.title, a.url,",
+            "       a.pagination_pages,",
+            "       a.starts_at, a.ends_at_planned,",
+            "       COUNT(l.id) AS lot_count",
+            "FROM auctions a",
+            "LEFT JOIN lots l ON l.auction_id = a.id",
+            "WHERE a.auction_code = ?",
+            "GROUP BY a.id",
+        ])
+        cur = self.conn.execute(sql, (auction_code,))
         row = cur.fetchone()
         if not row:
             return None
@@ -160,7 +158,8 @@ class AuctionRepository(BaseRepository):
         lots_deleted = 0
 
         if delete_lots:
-            # Delete associated data first (bid_history, reference_prices, product_layers)
+            # Delete associated data first.
+            # Tables: bid_history, reference_prices, product_layers
             lot_ids_rows = self._execute(
                 "SELECT id FROM lots WHERE auction_id = ?", (auction_id,)
             ).fetchall()
@@ -168,18 +167,20 @@ class AuctionRepository(BaseRepository):
 
             if lot_ids:
                 placeholders = ",".join("?" * len(lot_ids))
-                self._execute(
-                    f"DELETE FROM bid_history WHERE lot_id IN ({placeholders})",
-                    tuple(lot_ids),
-                )
-                self._execute(
-                    f"DELETE FROM reference_prices WHERE lot_id IN ({placeholders})",
-                    tuple(lot_ids),
-                )
-                self._execute(
-                    f"DELETE FROM product_layers WHERE lot_id IN ({placeholders})",
-                    tuple(lot_ids),
-                )
+                sql = "DELETE FROM bid_history WHERE lot_id IN ("
+                sql += placeholders
+                sql += ")"
+                self._execute(sql, tuple(lot_ids))
+
+                sql = "DELETE FROM reference_prices WHERE lot_id IN ("
+                sql += placeholders
+                sql += ")"
+                self._execute(sql, tuple(lot_ids))
+
+                sql = "DELETE FROM product_layers WHERE lot_id IN ("
+                sql += placeholders
+                sql += ")"
+                self._execute(sql, tuple(lot_ids))
 
             # Delete lots
             cur = self._execute("DELETE FROM lots WHERE auction_id = ?", (auction_id,))

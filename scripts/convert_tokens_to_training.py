@@ -3,7 +3,7 @@
 Convert labeled tokens to the training data format expected by train_label_classifier.py.
 
 Usage:
-    python scripts/convert_tokens_to_training.py \
+    python scripts/convert_tokens_to_training.py
         --tokens training_data/real_training/tokens.labeled.jsonl \
         --output training_data/training_data.json
 """

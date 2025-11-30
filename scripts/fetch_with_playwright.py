@@ -101,9 +101,11 @@ async def main():
         all_image_urls = []
 
         for idx, lot in enumerate(lots[: args.limit]):
-            print(
-                f"\n[{idx+1}/{min(len(lots), args.limit)}] {lot.lot_code}: {lot.title[:40]}..."
+            summary = (
+                f"[{idx+1}/{min(len(lots), args.limit)}] {lot.lot_code}: "
+                f"{lot.title[:40]}..."
             )
+            print("\n" + summary)
 
             try:
                 response = await page.goto(
@@ -147,9 +149,7 @@ async def main():
             print(f"\n✓ HTML files saved to: {args.output}")
             print("\nNext steps:")
             print("  1. Process HTML files:")
-            print(
-                f"     python scripts/process_saved_lot_pages.py --html-dir {args.output}"
-            )
+            print(f"     python scripts/process_saved_lot_pages.py --html-dir {args.output}")
             print("  2. Or download images directly:")
             print(
                 f"     python scripts/download_images.py --urls {args.output}/image_urls.json"

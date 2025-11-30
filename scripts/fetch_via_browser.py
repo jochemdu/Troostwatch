@@ -166,9 +166,8 @@ async def main():
         print("\n❌ Could not connect to Chrome!")
         print("\nStart Chrome with remote debugging:")
         print("\n  macOS:")
-        print(
-            "    /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --remote-debugging-port=9222"
-        )
+        print("    /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome")
+        print("      --remote-debugging-port=9222")
         print("\n  Windows:")
         print("    chrome.exe --remote-debugging-port=9222")
         print("\n  Linux:")

@@ -9,8 +9,9 @@ This module provides database access for the image analysis pipeline:
 # flake8: noqa: E501  # SQL-heavy repository; long SQL strings intentionally formatted for readability
 
 from __future__ import annotations
-from dataclasses import dataclass
+
 import json
+from dataclasses import dataclass
 from typing import Any
 
 from .base import BaseRepository

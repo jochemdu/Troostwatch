@@ -12,9 +12,9 @@ if str(PROJECT_ROOT) not in sys.path:
 from troostwatch.infrastructure.web.parsers import LotCardData  # noqa: E402
 # Import the internal sync module for monkeypatching internals.
 # This is intentional for test purposes – see scripts/check_imports.py exceptions.
+from troostwatch.services.sync import sync_auction_to_db  # noqa: E402
 from troostwatch.services.sync import PageResult, RequestResult  # noqa: E402
 from troostwatch.services.sync import sync as sync_impl_module  # noqa: E402
-from troostwatch.services.sync import sync_auction_to_db  # noqa: E402
 
 
 def test_sync_stores_lots_even_when_detail_fetch_fails(monkeypatch, tmp_path):

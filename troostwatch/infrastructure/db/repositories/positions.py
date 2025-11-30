@@ -1,11 +1,14 @@
 from __future__ import annotations
-# flake8: noqa: E501  # repository contains intentionally long SQL strings
 
 import sqlite3
 
 from .base import BaseRepository
 from .buyers import BuyerRepository
 from .lots import LotRepository
+
+# flake8: noqa: E501  # repository contains intentionally long SQL strings
+
+
 
 
 class PositionRepository(BaseRepository):

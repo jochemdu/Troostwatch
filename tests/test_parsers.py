@@ -7,12 +7,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.infrastructure.web.parsers import (extract_page_urls,  # noqa: E402
-                                                    parse_auction_page,  # noqa: E402
-                                                    parse_eur_to_float,  # noqa: E402
-                                                    parse_lot_card,  # noqa: E402
-                                                    parse_lot_detail,  # noqa: E402
-                                                    parse_nl_datetime)  # noqa: E402
+from troostwatch.infrastructure.web.parsers import \
+    extract_page_urls  # noqa: E402
+from troostwatch.infrastructure.web.parsers import \
+    parse_auction_page  # noqa: E402
+from troostwatch.infrastructure.web.parsers import \
+    parse_eur_to_float  # noqa: E402
+from troostwatch.infrastructure.web.parsers import parse_lot_card  # noqa: E402
+from troostwatch.infrastructure.web.parsers import \
+    parse_lot_detail  # noqa: E402
+from troostwatch.infrastructure.web.parsers import \
+    parse_nl_datetime  # noqa: E402
 
 
 def test_parse_eur_to_float():

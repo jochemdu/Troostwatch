@@ -17,15 +17,12 @@ from pydantic import BaseModel, Field
 
 from troostwatch import __version__
 # Annotated dependency types (modern FastAPI pattern)
-from troostwatch.app.dependencies import (
-    AuctionRepositoryDep,
-    BidRepositoryDep,
-    BuyerRepositoryDep,
-    ExtractedCodeRepositoryDep,
-    LotImageRepositoryDep,
-    LotRepositoryDep,
-    PositionRepositoryDep,
-)
+from troostwatch.app.dependencies import (AuctionRepositoryDep,
+                                          BidRepositoryDep, BuyerRepositoryDep,
+                                          ExtractedCodeRepositoryDep,
+                                          LotImageRepositoryDep,
+                                          LotRepositoryDep,
+                                          PositionRepositoryDep)
 from troostwatch.app.ws_messages import (MESSAGE_FORMAT_VERSION,
                                          ConnectionReadyMessage,
                                          create_message)
@@ -272,8 +269,7 @@ class LiveSyncStartRequest(BaseModel):
         None,
         ge=0,
         description=(
-            "Seconds between sync runs; "
-            "defaults to configured worker interval."
+            "Seconds between sync runs; " "defaults to configured worker interval."
         ),
     )
 
@@ -457,8 +453,7 @@ class ImageAnalysisRequest(BaseModel):
         default="local",
         pattern="^(local|openai)$",
         description=(
-            "Backend to use: 'local' (Tesseract OCR) or "
-            "'openai' (GPT-4 Vision)"
+            "Backend to use: 'local' (Tesseract OCR) or " "'openai' (GPT-4 Vision)"
         ),
     )
 
@@ -1438,9 +1433,8 @@ async def export_training_data(
     service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
     # Haal alle records op
     with service._connection_factory() as conn:
-        from troostwatch.infrastructure.db.repositories.images import (
-            OcrTokenRepository,
-        )
+        from troostwatch.infrastructure.db.repositories.images import \
+            OcrTokenRepository
 
         token_repo = OcrTokenRepository(conn)
         # Simpele fetch, kan later uitgebreid worden

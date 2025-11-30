@@ -1,5 +1,4 @@
 from __future__ import annotations
-# flake8: noqa: E501  # SQL-heavy repository; many long SQL strings kept for readability
 
 import sqlite3
 from typing import Any
@@ -9,6 +8,11 @@ from troostwatch.infrastructure.web.parsers.lot_detail import LotDetailData
 
 from ..schema import ensure_schema
 from .base import BaseRepository
+
+# flake8: noqa: E501  # SQL-heavy repository; many long SQL strings kept for readability
+
+
+
 
 
 class LotRepository(BaseRepository):

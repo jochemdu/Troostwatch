@@ -1,8 +1,8 @@
 """Service layer modules for Troostwatch."""
 
 from .bidding import BiddingService, BidError, BidResult  # noqa: F401
-from .image_analysis import (AnalysisStats, DownloadStats,  # noqa: F401
-                             ImageAnalysisService)
+from .image_analysis import DownloadStats  # noqa: F401
+from .image_analysis import AnalysisStats, ImageAnalysisService  # noqa: F401
 from .positions import PositionsService  # noqa: F401
 from .sync import *  # noqa: F401,F403
 from .sync_service import SyncService  # noqa: F401

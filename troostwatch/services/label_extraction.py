@@ -5,8 +5,10 @@ Follows Troostwatch architecture: services may import infrastructure and domain.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Optional
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
 
 from troostwatch.infrastructure.ai import (
     ParsedLabel,
@@ -17,12 +19,13 @@ from troostwatch.infrastructure.ai import (
 )
 
 
-@dataclass
-class LabelExtractionResult:
+class LabelExtractionResult(BaseModel):
     text: str
     label: Optional[ParsedLabel]
     preprocessing_steps: list[str]
     ocr_confidence: Optional[float]
+
+    model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
 
 def extract_label_from_image(

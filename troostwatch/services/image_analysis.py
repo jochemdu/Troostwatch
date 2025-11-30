@@ -142,7 +142,8 @@ class ImageAnalysisService(BaseService):
             sql = "\n".join(
                 [
                     "INSERT INTO ml_training_runs (",
-                    "  started_at, status, model_path, metrics_json, notes, created_by,",
+                    "  started_at, status, model_path, metrics_json,",
+                    "  notes, created_by,",
                     "  training_data_filter, error_message, created_at",
                     ") VALUES (",
                     "  datetime('now'), ?, ?, ?, ?, ?, ?, ?, datetime('now')",
@@ -893,7 +894,8 @@ class ImageAnalysisService(BaseService):
                         "\n".join(
                             [
                                 "SELECT id FROM product_specs",
-                                "WHERE lot_id = ? AND key = 'ean' AND value = ?",
+                                "WHERE lot_id = ? AND key = 'ean' ",
+                                "AND value = ?",
                             ]
                         ),
                         (lot_id, code.value),
@@ -901,9 +903,10 @@ class ImageAnalysisService(BaseService):
                     if not existing:
                         sql = "\n".join(
                             [
-                                "INSERT INTO product_specs (lot_id, key, value, source)",
-                                "VALUES (?, 'ean', ?, 'ocr')",
-                            ]
+                                    "INSERT INTO product_specs (lot_id, key, value,",
+                                    "    source)",
+                                    "VALUES (?, 'ean', ?, 'ocr')",
+                                ]
                         )
                         conn.execute(sql, (lot_id, code.value))
                         promoted["ean"] += 1
@@ -914,7 +917,8 @@ class ImageAnalysisService(BaseService):
                         "\n".join(
                             [
                                 "SELECT id FROM product_specs",
-                                "WHERE lot_id = ? AND key = 'serial_number' AND value = ?",
+                                "WHERE lot_id = ? AND key = 'serial_number' ",
+                                "AND value = ?",
                             ]
                         ),
                         (lot_id, code.value),
@@ -922,9 +926,10 @@ class ImageAnalysisService(BaseService):
                     if not existing:
                         sql = "\n".join(
                             [
-                                "INSERT INTO product_specs (lot_id, key, value, source)",
-                                "VALUES (?, 'serial_number', ?, 'ocr')",
-                            ]
+                                    "INSERT INTO product_specs (lot_id, key, value,",
+                                    "    source)",
+                                    "VALUES (?, 'serial_number', ?, 'ocr')",
+                                ]
                         )
                         conn.execute(sql, (lot_id, code.value))
                         promoted["serial_number"] += 1
@@ -935,7 +940,8 @@ class ImageAnalysisService(BaseService):
                         "\n".join(
                             [
                                 "SELECT id FROM product_specs",
-                                "WHERE lot_id = ? AND key = 'model_number' AND value = ?",
+                                "WHERE lot_id = ? AND key = 'model_number' ",
+                                "AND value = ?",
                             ]
                         ),
                         (lot_id, code.value),
@@ -943,9 +949,10 @@ class ImageAnalysisService(BaseService):
                     if not existing:
                         sql = "\n".join(
                             [
-                                "INSERT INTO product_specs (lot_id, key, value, source)",
-                                "VALUES (?, 'model_number', ?, 'ocr')",
-                            ]
+                                    "INSERT INTO product_specs (lot_id, key, value,",
+                                    "    source)",
+                                    "VALUES (?, 'model_number', ?, 'ocr')",
+                                ]
                         )
                         conn.execute(sql, (lot_id, code.value))
                         promoted["model_number"] += 1
@@ -956,7 +963,8 @@ class ImageAnalysisService(BaseService):
                         "\n".join(
                             [
                                 "SELECT id FROM product_specs",
-                                "WHERE lot_id = ? AND key = 'product_code' AND value = ?",
+                                "WHERE lot_id = ? AND key = 'product_code' ",
+                                "AND value = ?",
                             ]
                         ),
                         (lot_id, code.value),
@@ -964,9 +972,10 @@ class ImageAnalysisService(BaseService):
                     if not existing:
                         sql = "\n".join(
                             [
-                                "INSERT INTO product_specs (lot_id, key, value, source)",
-                                "VALUES (?, 'product_code', ?, 'ocr')",
-                            ]
+                                    "INSERT INTO product_specs (lot_id, key, value,",
+                                    "    source)",
+                                    "VALUES (?, 'product_code', ?, 'ocr')",
+                                ]
                         )
                         conn.execute(sql, (lot_id, code.value))
                         promoted["product_code"] += 1

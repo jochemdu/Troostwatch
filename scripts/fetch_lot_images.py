@@ -30,15 +30,11 @@ from pathlib import Path
 
 import httpx
 
-# Add project root to path
+# Add project root to path so we can import the package when running as a script
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from troostwatch.infrastructure.http import LoginCredentials  # noqa: E402
-from troostwatch.infrastructure.http import TroostwatchHttpClient
-from troostwatch.infrastructure.web.parsers import (  # noqa: E402
-    parse_auction_page,
-    parse_lot_detail,
-)
+# Import the troostwatch package lazily inside main() (avoids module-level
+# imports after executable statements which flake8 flags as E402)
 
 # OCR imports
 try:
@@ -137,6 +133,13 @@ def main():
         print("  export TROOSTWATCH_USERNAME=your@email.com")
         print("  export TROOSTWATCH_PASSWORD=yourpassword")
         return 1
+
+    # Import package internals after ensuring the project root is on sys.path
+    from troostwatch.infrastructure.http import LoginCredentials, TroostwatchHttpClient
+    from troostwatch.infrastructure.web.parsers import (
+        parse_auction_page,
+        parse_lot_detail,
+    )
 
     # Build authenticated client
     creds = LoginCredentials(

@@ -17,9 +17,9 @@ cli_sync_module = importlib.import_module(
 from troostwatch.interfaces.cli.context import build_sync_command_context  # noqa: E402
 from troostwatch.interfaces.cli.sync import sync  # noqa: E402
 from troostwatch.services.sync import SyncRunResult  # noqa: E402
-from troostwatch.services.sync import _upsert_auction
+from troostwatch.services.sync import _upsert_auction  # noqa: E402
 from troostwatch.services.sync_service import AuctionSelection  # noqa: E402
-from troostwatch.services.sync_service import SyncRunSummary
+from troostwatch.services.sync_service import SyncRunSummary  # noqa: E402
 
 
 def _seed_auction(db_path: Path, code: str, url: str):

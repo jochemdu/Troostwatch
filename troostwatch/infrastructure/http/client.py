@@ -160,7 +160,8 @@ class TroostwatchHttpClient:
         response = self.session.post(login_url, data=payload, headers=headers)
         if response.status_code >= 400:
             raise AuthenticationError(
-                f"Login failed with status {response.status_code}: {response.text[:200]}"
+                f"Login failed with status {response.status_code}: "
+                f"{response.text[:200]}"
             )
         self.csrf_token = self._extract_csrf(response) or csrf
         self.last_authenticated = time.time()

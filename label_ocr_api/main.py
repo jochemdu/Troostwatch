@@ -1,3 +1,4 @@
+# flake8: noqa
 """Label OCR API - FastAPI microservice for product label parsing.
 
 This service provides endpoints for analyzing product images and

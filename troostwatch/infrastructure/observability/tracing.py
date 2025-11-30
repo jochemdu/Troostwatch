@@ -121,7 +121,8 @@ def configure_tracing(
                 logger.info(f"Tracing exporter configured for {endpoint}")
             except ImportError:
                 logger.warning(
-                    "opentelemetry-exporter-otlp not installed; traces won't be exported"
+                    "opentelemetry-exporter-otlp not installed; "
+                    "traces won't be exported"
                 )
         else:
             # Check for console exporter for debugging

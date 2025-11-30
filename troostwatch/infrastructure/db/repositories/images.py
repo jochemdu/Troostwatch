@@ -6,10 +6,11 @@ This module provides database access for the image analysis pipeline:
 - OcrTokenRepository: Store raw OCR token data for ML training
 """
 
-from __future__ import annotations
+# flake8: noqa: E501  # SQL-heavy repository; long SQL strings intentionally formatted for readability
 
-import json
+from __future__ import annotations
 from dataclasses import dataclass
+import json
 from typing import Any
 
 from .base import BaseRepository

@@ -1,4 +1,5 @@
 from __future__ import annotations
+# flake8: noqa: E501  # repository contains SQL blocks that are intentionally long for readability
 
 import json
 import sqlite3

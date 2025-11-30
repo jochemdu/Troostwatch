@@ -1,11 +1,10 @@
-# Add missing exports for label extraction pipeline
-from troostwatch.infrastructure.ai.image_analyzer import ExtractedCode
+"""Simple preprocessing stubs used during tests and local scripts.
 
-from .image_analyzer import *
-from .vendor_profiles import *
-
-# Dummy stubs for missing pipeline functions/classes
-# TODO: Replace with actual implementations or import from correct modules
+This module provides lightweight placeholder implementations for the
+label-extraction pipeline used by some scripts. These are intentionally
+minimal and should be replaced by actual implementations when the
+pipeline is wired up.
+"""
 
 
 def preprocess_for_ocr(image_bytes, config=None):

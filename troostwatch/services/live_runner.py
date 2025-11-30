@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from typing import Callable, Literal
+from typing import Literal
 
 from troostwatch.infrastructure.db import iso_utcnow
 from troostwatch.infrastructure.observability import get_logger
@@ -175,7 +175,8 @@ class LiveSyncRunner:
                     for err in result.errors:
                         await self._emit_log(f"Sync error: {err}")
                 await self._emit_log(
-                    f"Sync finished with {result.lots_updated} updates across {result.lots_scanned} lots"
+                    f"Sync finished with {result.lots_updated} updates "
+                    f"across {result.lots_scanned} lots"
                 )
             except Exception as exc:  # pragma: no cover - defensive logging
                 message = f"Live sync failed: {exc}"

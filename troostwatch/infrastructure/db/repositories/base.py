@@ -134,7 +134,10 @@ class BaseRepository:
             Database cursor
 
         Example:
-            >>> cur = self._execute("UPDATE users SET active = ? WHERE id = ?", (True, 42))
+            >>> cur = self._execute(
+            ...     "UPDATE users SET active = ? WHERE id = ?",
+            ...     (True, 42)
+            ... )
             >>> cur.rowcount
             1
         """

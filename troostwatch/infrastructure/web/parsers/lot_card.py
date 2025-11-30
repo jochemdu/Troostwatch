@@ -6,7 +6,6 @@ import json
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup

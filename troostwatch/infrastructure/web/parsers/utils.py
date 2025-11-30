@@ -13,7 +13,6 @@ import logging
 import re
 from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Iterable
 
 from bs4 import BeautifulSoup, Tag
 
@@ -120,9 +119,12 @@ def _format_iso(dt: datetime, strip_timezone: bool) -> str:
 def epoch_to_iso(
     ts: int | float | None, tz: timezone = timezone.utc, strip_timezone: bool = True
 ) -> str | None:
-    """Convert epoch seconds or milliseconds to an ISO-8601 string with optional timezone stripping.
+    """
+    Convert epoch seconds or milliseconds to an ISO-8601 string with
+    optional timezone stripping.
 
-    Automatically detects if timestamp is in milliseconds (>1e12) and converts accordingly.
+    Automatically detects if timestamp is in milliseconds (>1e12)
+    and converts accordingly.
     """
 
     if ts is None:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+# flake8: noqa: E501  # repository contains intentionally long SQL strings
 
 import sqlite3
 

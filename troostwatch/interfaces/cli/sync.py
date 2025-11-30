@@ -40,7 +40,10 @@ from troostwatch.services.sync_service import SyncRunSummary, SyncService
     "--max-pages",
     type=int,
     default=None,
-    help="Optional maximum number of listing pages to fetch. If omitted, all pages are processed.",
+    help=(
+        "Optional maximum number of listing pages to fetch. "
+        "If omitted, all pages are processed."
+    ),
 )
 @click.option(
     "--dry-run",
@@ -200,7 +203,8 @@ def sync(
         default_choice_num = selection.default_choice_number or 1
         console.print(
             "Standaard keuze: "
-            f"{default_choice_num}) {selection.available[default_choice_num - 1]['auction_code']}"
+            f"{default_choice_num}) "
+            f"{selection.available[default_choice_num - 1]['auction_code']}"
         )
         choice = IntPrompt.ask(
             "Keuze",
@@ -217,7 +221,8 @@ def sync(
 
     if not resolved_code:
         console.print(
-            "[red]Auction code ontbreekt; geef --auction-code op of kies een bestaande.[/red]"
+            "[red]Auction code ontbreekt; geef --auction-code op of "
+            "kies een bestaande.[/red]"
         )
         return
 
@@ -266,16 +271,17 @@ def sync(
         or summary.result is None
         or summary.status != "success"
     ):
-        console.print(
-            f"[red]Error during sync: {getattr(summary, 'error', 'onbekende fout')}[/red]"
-        )
+        err_msg = getattr(summary, "error", "onbekende fout")
+        console.print(f"[red]Error during sync: {err_msg}[/red]")
         return
 
     result = summary.result
-    console.print(
-        f"[green]Sync {result.status}[/green] (run #{result.run_id}): pages={result.pages_scanned}, "
-        f"lots scanned={result.lots_scanned}, lots updated={result.lots_updated}, errors={result.error_count}"
+    summary_line = (
+        f"[green]Sync {result.status}[/green] (run #{result.run_id}): "
+        f"pages={result.pages_scanned}, lots scanned={result.lots_scanned}, "
+        f"lots updated={result.lots_updated}, errors={result.error_count}"
     )
+    console.print(summary_line)
     if result.errors:
         console.print("[yellow]Errors:[/yellow]")
         for err in result.errors:

@@ -7,12 +7,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.infrastructure.web.parsers import (extract_page_urls,
-                                                    parse_auction_page,
-                                                    parse_eur_to_float,
-                                                    parse_lot_card,
-                                                    parse_lot_detail,
-                                                    parse_nl_datetime)
+from troostwatch.infrastructure.web.parsers import (extract_page_urls,  # noqa: E402
+                                                    parse_auction_page,  # noqa: E402
+                                                    parse_eur_to_float,  # noqa: E402
+                                                    parse_lot_card,  # noqa: E402
+                                                    parse_lot_detail,  # noqa: E402
+                                                    parse_nl_datetime)  # noqa: E402
 
 
 def test_parse_eur_to_float():
@@ -214,7 +214,8 @@ def test_parse_lot_detail_live_snapshot():
     assert detail.current_bid_eur is None
     assert detail.location_city == "Deurne"
     assert detail.location_country == "Netherlands"
-    assert (
-        detail.url
-        == "https://www.troostwijkauctions.com/l/samsung-vm55t-e-smart-signage-led-display-55-A1-39500-1802"
+    expected_url = (
+        "https://www.troostwijkauctions.com/l/"
+        "samsung-vm55t-e-smart-signage-led-display-55-A1-39500-1802"
     )
+    assert detail.url == expected_url

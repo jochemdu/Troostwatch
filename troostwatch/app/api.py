@@ -16,10 +16,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from troostwatch import __version__
-from troostwatch.app.dependencies import (  # Annotated dependency types (modern FastAPI pattern)
-    AuctionRepositoryDep, BidRepositoryDep, BuyerRepositoryDep,
-    ExtractedCodeRepositoryDep, LotImageRepositoryDep, LotRepositoryDep,
-    PositionRepositoryDep)
+# Annotated dependency types (modern FastAPI pattern)
+from troostwatch.app.dependencies import (
+    AuctionRepositoryDep,
+    BidRepositoryDep,
+    BuyerRepositoryDep,
+    ExtractedCodeRepositoryDep,
+    LotImageRepositoryDep,
+    LotRepositoryDep,
+    PositionRepositoryDep,
+)
 from troostwatch.app.ws_messages import (MESSAGE_FORMAT_VERSION,
                                          ConnectionReadyMessage,
                                          create_message)
@@ -265,7 +271,10 @@ class LiveSyncStartRequest(BaseModel):
     interval_seconds: float | None = Field(
         None,
         ge=0,
-        description="Seconds between sync runs; defaults to configured worker interval.",
+        description=(
+            "Seconds between sync runs; "
+            "defaults to configured worker interval."
+        ),
     )
 
 
@@ -447,7 +456,10 @@ class ImageAnalysisRequest(BaseModel):
     backend: str = Field(
         default="local",
         pattern="^(local|openai)$",
-        description="Backend to use: 'local' (Tesseract OCR) or 'openai' (GPT-4 Vision)",
+        description=(
+            "Backend to use: 'local' (Tesseract OCR) or "
+            "'openai' (GPT-4 Vision)"
+        ),
     )
 
 
@@ -1377,7 +1389,10 @@ async def retrain_ml_model(
         status="pending",
         model_path=None,
         metrics=None,
-        notes=f"Retraining started with n_estimators={n_estimators}, max_depth={max_depth}",
+        notes=(
+            f"Retraining started with n_estimators={n_estimators}, "
+            f"max_depth={max_depth}"
+        ),
         created_by="api",
         training_data_filter=training_data_path,
     )
@@ -1424,10 +1439,10 @@ async def export_training_data(
     # Haal alle records op
     with service._connection_factory() as conn:
         from troostwatch.infrastructure.db.repositories.images import (
-            LotImageRepository, OcrTokenRepository)
+            OcrTokenRepository,
+        )
 
         token_repo = OcrTokenRepository(conn)
-        image_repo = LotImageRepository(conn)
         # Simpele fetch, kan later uitgebreid worden
         if include_reviewed:
             records = token_repo.get_for_training(limit=limit)
@@ -2079,7 +2094,6 @@ async def capture_training_data(
     This endpoint receives HTML from the Chrome extension and queues
     the images for download and OCR processing.
     """
-    import hashlib
     from pathlib import Path
 
     # Save HTML to training_data directory

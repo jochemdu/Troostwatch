@@ -9,9 +9,9 @@ if str(PROJECT_ROOT) not in sys.path:
 
 # Import the internal sync module for monkeypatching internals.
 # This is intentional for test purposes – see scripts/check_imports.py exceptions.
-from troostwatch.services.sync import RequestResult
-from troostwatch.services.sync import sync as sync_module
-from troostwatch.services.sync import sync_auction_to_db
+from troostwatch.services.sync import RequestResult  # noqa: E402
+from troostwatch.services.sync import sync as sync_module  # noqa: E402
+from troostwatch.services.sync import sync_auction_to_db  # noqa: E402
 
 
 def test_verbose_navigation_logging(monkeypatch, tmp_path):

@@ -177,7 +177,7 @@ def parse_lot_detail(
         image_urls = _parse_image_urls_from_json(lot) or _parse_image_urls(soup)
 
         # Determine the lot code - prefer displayId from the API data
-        # The displayId contains the full lot code (e.g., "A1-39500-1802" or "03T-SMD-1")
+        # The displayId contains the full lot code (e.g. "A1-39500-1802" or "03T-SMD-1")
         resolved_lot_code = lot.get("displayId") or lot_code
 
         return LotDetailData(

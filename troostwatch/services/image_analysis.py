@@ -237,6 +237,8 @@ class ImageAnalysisService(BaseService):
 
         Returns:
             Configured ImageAnalysisService instance.
+
+        # flake8: noqa: E501  # long SQL and prompt literals in this module; preserve formatting for readability
         """
         return cls(
             connection_factory=lambda: get_connection(db_path),

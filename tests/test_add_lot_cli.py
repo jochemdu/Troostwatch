@@ -8,7 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.interfaces.cli.add_lot import add_lot
+from troostwatch.interfaces.cli.add_lot import add_lot  # noqa: E402
 
 
 def test_add_lot_command_inserts_record(tmp_path):
@@ -43,10 +43,10 @@ def test_add_lot_command_inserts_record(tmp_path):
 
     with sqlite3.connect(db_path) as conn:
         row = conn.execute(
-            """
-            SELECT a.auction_code, a.title, l.lot_code, l.title, l.current_bid_eur, l.location_city, l.location_country
-            FROM lots l JOIN auctions a ON l.auction_id = a.id
-            """
+            "SELECT a.auction_code, a.title, "
+            "l.lot_code, l.title, l.current_bid_eur, "
+            "l.location_city, l.location_country "
+            "FROM lots l JOIN auctions a ON l.auction_id = a.id"
         ).fetchone()
 
     assert row == (

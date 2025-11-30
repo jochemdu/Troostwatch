@@ -229,7 +229,7 @@ class TestOCRCorrection:
     def test_correct_multiple_errors(self) -> None:
         """Test correction of multiple OCR errors."""
         # 5901234123457 with O and I
-        result = validate_and_correct_ean("59O12341234S7")
+        _ = validate_and_correct_ean("59O12341234S7")
         # S -> 5 but that changes the number, so this might not be correctable
         # Let's test a valid case
         pass

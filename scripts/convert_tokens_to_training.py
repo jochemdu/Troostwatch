@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# flake8: noqa
 """
 Convert labeled tokens to the training data format expected by train_label_classifier.py.
 

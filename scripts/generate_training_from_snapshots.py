@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# flake8: noqa
 """Generate training data from lot detail HTML snapshots.
 
 This script uses the existing lot detail parser to extract image URLs

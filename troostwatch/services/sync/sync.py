@@ -476,7 +476,10 @@ def sync_auction_to_db(
                     repository=auction_repo,
                 )
                 cur = conn.execute(
-                    "SELECT lot_code, listing_hash, detail_hash FROM lots WHERE auction_id = ?",
+                    (
+                        "SELECT lot_code, listing_hash, detail_hash "
+                        "FROM lots WHERE auction_id = ?"
+                    ),
                     (auction_id,),
                 )
                 for lot_code, listing_hash, detail_hash in cur.fetchall():
@@ -521,8 +524,11 @@ def sync_auction_to_db(
 
                     if not needs_detail and not dry_run and auction_id is not None:
                         conn.execute(
-                            "UPDATE lots SET last_seen_at = ?, listing_hash = COALESCE(listing_hash, ?) "
-                            "WHERE auction_id = ? AND lot_code = ?",
+                            (
+                                "UPDATE lots SET last_seen_at = ?, "
+                                "listing_hash = COALESCE(listing_hash, ?)"
+                                " WHERE auction_id = ? AND lot_code = ?"
+                            ),
                             (now_seen, listing_hash, auction_id, card.lot_code),
                         )
                         continue

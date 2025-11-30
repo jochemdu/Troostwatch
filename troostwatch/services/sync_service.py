@@ -142,7 +142,10 @@ class SyncService:
             ),
         )
         self._logger.info(
-            "Sync completed for auction %s: status=%s, lots_scanned=%d, lots_updated=%d",
+            (
+                "Sync completed for auction %s: status=%s, "
+                "lots_scanned=%d, lots_updated=%d"
+            ),
             auction_code,
             result.status,
             result.lots_scanned,

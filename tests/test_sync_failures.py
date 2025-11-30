@@ -9,12 +9,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.infrastructure.web.parsers import LotCardData
+from troostwatch.infrastructure.web.parsers import LotCardData  # noqa: E402
 # Import the internal sync module for monkeypatching internals.
 # This is intentional for test purposes – see scripts/check_imports.py exceptions.
-from troostwatch.services.sync import PageResult, RequestResult
-from troostwatch.services.sync import sync as sync_impl_module
-from troostwatch.services.sync import sync_auction_to_db
+from troostwatch.services.sync import PageResult, RequestResult  # noqa: E402
+from troostwatch.services.sync import sync as sync_impl_module  # noqa: E402
+from troostwatch.services.sync import sync_auction_to_db  # noqa: E402
 
 
 def test_sync_stores_lots_even_when_detail_fetch_fails(monkeypatch, tmp_path):
@@ -118,7 +118,8 @@ def test_sync_run_updated_when_processing_raises(monkeypatch, tmp_path):
 
     with sqlite3.connect(db_path) as conn:
         row = conn.execute(
-            "SELECT status, finished_at, error_count FROM sync_runs ORDER BY id DESC LIMIT 1"
+            "SELECT status, finished_at, error_count "
+            "FROM sync_runs ORDER BY id DESC LIMIT 1"
         ).fetchone()
 
     assert row is not None

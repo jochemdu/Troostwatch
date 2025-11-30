@@ -85,15 +85,18 @@ def check_schema(db_path: Path) -> int:
 
         # List applied migrations
         cur = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_migrations'"
+            (
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name='schema_migrations'"
+            )
         )
         if cur.fetchone():
-                cur = conn.execute(
-                    (
-                        "SELECT name, applied_at, notes FROM schema_migrations "
-                        "ORDER BY applied_at"
-                    )
+            cur = conn.execute(
+                (
+                    "SELECT name, applied_at, notes FROM schema_migrations "
+                    "ORDER BY applied_at"
                 )
+            )
             rows = cur.fetchall()
             if rows:
                 print(f"\n📜 Applied migrations ({len(rows)}):")

@@ -217,7 +217,10 @@ def analyze_images(
     console.print(f"[bold]Save tokens:[/bold] {save_tokens}")
     console.print(f"[bold]Confidence threshold:[/bold] {confidence_threshold}")
     console.print(
-        f"[bold]Auto-approve:[/bold] {auto_approve} (threshold: {auto_approve_threshold})"
+        (
+            f"[bold]Auto-approve:[/bold] {auto_approve} "
+            f"(threshold: {auto_approve_threshold})"
+        )
     )
     console.print(f"[bold]Limit:[/bold] {limit}")
     console.print()
@@ -776,7 +779,7 @@ def find_duplicates_cmd(
     # Summary
     total_duplicates = sum(g.count for g in groups)
     unique_lots = len(set(lid for g in groups for lid in g.lot_ids))
-    console.print(f"[bold]Summary:[/bold]")
+    console.print("[bold]Summary:[/bold]")
     console.print(f"  Total duplicate images: {total_duplicates}")
     console.print(f"  Unique lots affected: {unique_lots}")
     console.print(f"  Duplicate groups: {len(groups)}")
@@ -969,9 +972,11 @@ def export_training_data_cli(api_url, output, include_reviewed, only_mismatches,
             import json
 
             json.dump(data, f, indent=2, ensure_ascii=False)
-        console.print(
-            f"[green]Training data geëxporteerd:[/green] {output} ({data.get('count', 0)} records)"
+        msg = (
+            f"[green]Training data geëxporteerd:[/green] {output} "
+            f"({data.get('count', 0)} records)"
         )
+        console.print(msg)
     except Exception as e:
         console.print(f"[red]Fout bij exporteren training data:[/red] {e}")
 

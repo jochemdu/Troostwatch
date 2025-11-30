@@ -31,7 +31,8 @@ def _format_lot_line(lot: LotView) -> str:
     state = lot.state or "?"
     return (
         f"- [{lot.auction_code}/{lot.lot_code}] {title} "
-        f"| state={state} | current={bid_str} ({bids} bids) | closes={closing}{bidder_suffix}"
+        f"| state={state} | current={bid_str} ({bids} bids) | "
+        f"closes={closing}{bidder_suffix}"
     )
 
 

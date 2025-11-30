@@ -81,7 +81,9 @@ class BaseService:
         Example:
             def get_count(self) -> int:
                 return self._with_connection(
-                    lambda conn: conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+                    lambda conn: (
+                        conn.execute("SELECT COUNT(*) FROM items").fetchone()[0]
+                    )
                 )
         """
         with self._connection_factory() as conn:

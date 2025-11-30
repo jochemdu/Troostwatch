@@ -124,8 +124,10 @@ def bid(
         click.echo(f"Unexpected error while bidding: {exc}")
         return
 
-    click.echo(
-        f"Bid of €{amount:.2f} placed on lot {lot_code} in auction {auction_code} for buyer {buyer_label}."
+    msg = (
+        f"Bid of €{amount:.2f} placed on lot {lot_code} in auction {auction_code} "
+        f"for buyer {buyer_label}."
     )
+    click.echo(msg)
     if not quiet:
         click.echo(f"Response: {result.raw_response}")

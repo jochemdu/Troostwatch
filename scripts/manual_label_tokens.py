@@ -10,13 +10,14 @@ def label_tokens(input_path, output_path):
             token = json.loads(line)
             print(f"Text: {token['text']}")
             print(f"Image: {token['image_file']}")
+            lot_code = token.get('lot_code')
+            brand = token.get('brand')
+            ttype = token.get('type')
+            category = token.get('category')
             print(
-                lot_code = token.get('lot_code')
-                brand = token.get('brand')
-                ttype = token.get('type')
-                category = token.get('category')
-                print(
-                    f"Lot: {lot_code} | Brand: {brand} | Type: {ttype} | Category: {category}"
+                (
+                    f"Lot: {lot_code} | Brand: {brand} | "
+                    f"Type: {ttype} | Category: {category}"
                 )
             )
             print(f"Confidence: {token['confidence']}")

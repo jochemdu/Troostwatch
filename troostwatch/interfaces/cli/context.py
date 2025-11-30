@@ -94,7 +94,10 @@ def get_current_timestamp() -> str:
 
 
 def build_cli_context(db_path: str | Path | None = None) -> CLIContext:
-    """Build the CLI context with resolved configuration paths and connection factory."""
+    """
+    Build the CLI context with resolved configuration paths and
+    connection factory.
+    """
 
     paths = get_path_config()
     resolved_db_path = (

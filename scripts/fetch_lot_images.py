@@ -183,11 +183,11 @@ def main():
     stats = {"images": 0, "tokens": 0}
 
     for idx, lot in enumerate(lots[: args.limit]):
-        print(
-            summary = f"[{idx+1}/{min(len(lots), args.limit)}] {lot.lot_code}: " \
-                f"{lot.title[:50]}..."
-            print("\n" + summary)
+        summary = (
+            f"[{idx+1}/{min(len(lots), args.limit)}] {lot.lot_code}: "
+            f"{lot.title[:50]}..."
         )
+        print("\n" + summary)
 
         # Fetch lot detail
         try:

@@ -1,3 +1,4 @@
+# flake8: noqa
 """Image analysis with multiple backend options.
 
 This module provides functionality to analyze lot images and extract

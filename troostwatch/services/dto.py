@@ -5,8 +5,10 @@ Centralized DTOs and input/output models for Troostwatch services.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
 from typing import Any
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
 
 # --- Event Publishing Types ---
 EventPayload = dict[str, object]
@@ -19,8 +21,9 @@ async def noop_event_publisher(_: EventPayload) -> None:
 
 
 # --- Lot DTOs ---
-@dataclass
-class LotViewDTO:
+class LotViewDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     auction_code: str
     lot_code: str
     title: str | None = None
@@ -35,8 +38,9 @@ class LotViewDTO:
     effective_price: float | None = None
 
 
-@dataclass
-class LotInputDTO:
+class LotInputDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     auction_code: str
     lot_code: str
     title: str
@@ -54,24 +58,27 @@ class LotInputDTO:
 
 
 # --- Buyer DTOs ---
-@dataclass
-class BuyerDTO:
+class BuyerDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     id: int
     label: str
     name: str | None = None
     notes: str | None = None
 
 
-@dataclass
-class BuyerCreateDTO:
+class BuyerCreateDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     label: str
     name: str | None = None
     notes: str | None = None
 
 
 # --- Position DTOs ---
-@dataclass
-class PositionDTO:
+class PositionDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     buyer_label: str
     lot_code: str
     auction_code: str | None = None
@@ -83,8 +90,9 @@ class PositionDTO:
     current_bid_eur: float | None = None
 
 
-@dataclass
-class PositionUpdateDTO:
+class PositionUpdateDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     buyer_label: str
     lot_code: str
     auction_code: str | None = None
@@ -94,8 +102,9 @@ class PositionUpdateDTO:
 
 
 # --- Bid DTOs ---
-@dataclass
-class BidDTO:
+class BidDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     id: int
     buyer_label: str
     lot_code: str
@@ -106,8 +115,9 @@ class BidDTO:
     note: str | None = None
 
 
-@dataclass
-class BidCreateDTO:
+class BidCreateDTO(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     buyer_label: str
     auction_code: str
     lot_code: str
@@ -116,9 +126,10 @@ class BidCreateDTO:
 
 
 # --- Bid Result ---
-@dataclass
-class BidResultDTO:
+class BidResultDTO(BaseModel):
     """Structured response from a bid submission."""
+
+    model_config = ConfigDict(extra="forbid")
 
     lot_code: str
     auction_code: str

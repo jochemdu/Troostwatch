@@ -57,7 +57,8 @@ IMPORT_RULES: List[ImportRule] = [
             "troostwatch/interfaces/cli/context_helpers.py",
             "troostwatch/interfaces/cli/auth.py",
             "troostwatch/interfaces/cli/debug.py",  # Diagnostics are allowed
-            "troostwatch/interfaces/cli/bid.py",  # Only imports AuthenticationError exception
+            "troostwatch/interfaces/cli/bid.py",
+            # Only imports AuthenticationError exception
         ],
         reason="CLI commands should use services, not infrastructure directly",
     ),

@@ -46,7 +46,10 @@ def check_schema(db_path: Path) -> int:
     try:
         # Check schema_version table
         cur = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'"
+            (
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name='schema_version'"
+            )
         )
         has_version_table = cur.fetchone() is not None
 
@@ -85,9 +88,12 @@ def check_schema(db_path: Path) -> int:
             "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_migrations'"
         )
         if cur.fetchone():
-            cur = conn.execute(
-                "SELECT name, applied_at, notes FROM schema_migrations ORDER BY applied_at"
-            )
+                cur = conn.execute(
+                    (
+                        "SELECT name, applied_at, notes FROM schema_migrations "
+                        "ORDER BY applied_at"
+                    )
+                )
             rows = cur.fetchall()
             if rows:
                 print(f"\n📜 Applied migrations ({len(rows)}):")

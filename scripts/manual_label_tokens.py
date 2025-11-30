@@ -11,7 +11,13 @@ def label_tokens(input_path, output_path):
             print(f"Text: {token['text']}")
             print(f"Image: {token['image_file']}")
             print(
-                f"Lot: {token['lot_code']} | Brand: {token.get('brand')} | Type: {token.get('type')} | Category: {token.get('category')}"
+                lot_code = token.get('lot_code')
+                brand = token.get('brand')
+                ttype = token.get('type')
+                category = token.get('category')
+                print(
+                    f"Lot: {lot_code} | Brand: {brand} | Type: {ttype} | Category: {category}"
+                )
             )
             print(f"Confidence: {token['confidence']}")
             print(f"Current label: {token.get('ml_label', 'none')}")

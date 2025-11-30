@@ -17,7 +17,7 @@ Setup:
    google-chrome --remote-debugging-port=9222
 
 2. Run this script:
-   python scripts/fetch_via_browser.py --auction A1-39500
+    python scripts/fetch_via_browser.py --auction A1-39500
 
 The script will use your browser's session (cookies, etc.) to fetch the pages.
 """

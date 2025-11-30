@@ -21,7 +21,8 @@ The script will:
 
 Usage:
     python scripts/process_saved_lot_pages.py --html-dir ./saved_lots/
-    python scripts/process_saved_lot_pages.py --html-dir ./saved_lots/ --output training_data/real
+    python scripts/process_saved_lot_pages.py \
+        --html-dir ./saved_lots/ --output training_data/real
 """
 
 

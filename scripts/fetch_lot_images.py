@@ -6,10 +6,12 @@ with proper authentication, bypassing the 403 blocks.
 
 Usage:
     # With credentials
-    python scripts/fetch_lot_images.py --auction A1-39500 --username YOUR_EMAIL --password YOUR_PASSWORD
+    python scripts/fetch_lot_images.py --auction A1-39500 \
+        --username YOUR_EMAIL --password YOUR_PASSWORD
 
     # With saved token
-    python scripts/fetch_lot_images.py --auction A1-39500 --token-path ~/.troostwatch/session.json
+    python scripts/fetch_lot_images.py --auction A1-39500 \
+        --token-path ~/.troostwatch/session.json
 
     # From environment variables
     export TROOSTWATCH_USERNAME=your@email.com
@@ -182,7 +184,9 @@ def main():
 
     for idx, lot in enumerate(lots[: args.limit]):
         print(
-            f"\n[{idx+1}/{min(len(lots), args.limit)}] {lot.lot_code}: {lot.title[:50]}..."
+            summary = f"[{idx+1}/{min(len(lots), args.limit)}] {lot.lot_code}: " \
+                f"{lot.title[:50]}..."
+            print("\n" + summary)
         )
 
         # Fetch lot detail

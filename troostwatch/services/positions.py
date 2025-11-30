@@ -5,7 +5,8 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from dataclasses import dataclass
+from pydantic import BaseModel
+from pydantic import ConfigDict
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import PositionRepository
@@ -17,9 +18,10 @@ _logger = get_logger(__name__)
 ConnectionFactory = Callable[[], AbstractContextManager[sqlite3.Connection]]
 
 
-@dataclass
-class PositionUpdateData:
+class PositionUpdateData(BaseModel):
     """Data for updating a position."""
+
+    model_config = ConfigDict(extra="forbid")
 
     buyer_label: str
     lot_code: str

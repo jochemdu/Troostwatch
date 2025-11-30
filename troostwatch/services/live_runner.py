@@ -11,6 +11,8 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
+from pydantic import BaseModel
+from pydantic import ConfigDict
 from typing import Literal
 
 from troostwatch.infrastructure.db import iso_utcnow
@@ -22,9 +24,10 @@ SyncCallable = Callable[..., SyncRunResult]
 LiveSyncStatus = Literal["idle", "running", "paused", "stopping"]
 
 
-@dataclass
-class LiveSyncConfig:
+class LiveSyncConfig(BaseModel):
     """Configuration for a live sync loop."""
+
+    model_config = ConfigDict(extra="forbid")
 
     auction_code: str
     auction_url: str

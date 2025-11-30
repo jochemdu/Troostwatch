@@ -47,7 +47,10 @@ class LiveSyncState:
     def to_dict(self) -> dict:
         payload = asdict(self)
         if self.last_result is not None:
-            payload["last_result"] = asdict(self.last_result)
+            if hasattr(self.last_result, "model_dump"):
+                payload["last_result"] = self.last_result.model_dump()
+            else:
+                payload["last_result"] = asdict(self.last_result)
         return payload
 
 
@@ -163,12 +166,17 @@ class LiveSyncRunner:
                 )
                 self._state.last_result = result
                 self._state.last_error = None
+                result_payload = (
+                    result.model_dump()
+                    if hasattr(result, "model_dump")
+                    else asdict(result)
+                )
                 await self._publish_event(
                     {
                         "type": "live_sync_result",
                         "status": result.status,
                         "auction_code": config.auction_code,
-                        "payload": asdict(result),
+                        "payload": result_payload,
                     }
                 )
                 if result.errors:

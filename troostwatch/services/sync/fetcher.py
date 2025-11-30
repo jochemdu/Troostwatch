@@ -13,16 +13,18 @@ import asyncio
 import threading
 import time
 from collections.abc import Iterable
-from dataclasses import dataclass
+from pydantic import BaseModel
+from pydantic import ConfigDict
 from urllib.parse import urlparse
 
 import aiohttp
 import requests
 
 
-@dataclass
-class RequestResult:
+class RequestResult(BaseModel):
     """Result of a single HTTP request."""
+
+    model_config = ConfigDict(extra="forbid")
 
     url: str
     text: str | None

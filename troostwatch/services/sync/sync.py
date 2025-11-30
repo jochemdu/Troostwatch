@@ -8,7 +8,9 @@ import json
 import re
 import time
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
+from pydantic import BaseModel
+from pydantic import ConfigDict
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
@@ -38,14 +40,16 @@ from troostwatch.infrastructure.web.parsers import (
 from .fetcher import HttpFetcher, RequestResult
 
 
-@dataclass
-class PageResult:
+class PageResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     url: str
     html: str
 
 
-@dataclass
-class SyncRunResult:
+class SyncRunResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     run_id: int | None
     status: str
     pages_scanned: int

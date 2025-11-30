@@ -30,20 +30,17 @@ import httpx
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from troostwatch.infrastructure.http import (
-    LoginCredentials,
-    TroostwatchHttpClient,
-)  # noqa: E402
-from troostwatch.infrastructure.web.parsers import (
-    parse_auction_page,
-    parse_lot_detail,
-)  # noqa: E402
+from troostwatch.infrastructure.http import (LoginCredentials,  # noqa: E402
+                                             TroostwatchHttpClient)
+from troostwatch.infrastructure.web.parsers import (  # noqa: E402
+    parse_auction_page, parse_lot_detail)
 
 # OCR imports
 try:
+    import io
+
     import pytesseract
     from PIL import Image
-    import io
 
     HAS_OCR = True
 except ImportError:

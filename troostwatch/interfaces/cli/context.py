@@ -8,25 +8,19 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
 from contextlib import AbstractContextManager as ContextManager
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
 
-from troostwatch.infrastructure.http import TroostwatchHttpClient
-from troostwatch.infrastructure.db import (
-    ensure_schema,
-    get_connection,
-    get_path_config,
-    iso_utcnow,
-)
-from troostwatch.infrastructure.db.repositories import (
-    AuctionRepository,
-    BuyerRepository,
-    LotRepository,
-)
+from troostwatch.infrastructure.db import (ensure_schema, get_connection,
+                                           get_path_config, iso_utcnow)
+from troostwatch.infrastructure.db.repositories import (AuctionRepository,
+                                                        BuyerRepository,
+                                                        LotRepository)
 from troostwatch.infrastructure.db.repositories.base import BaseRepository
+from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.services.buyers import BuyerService
 from troostwatch.services.lots import LotManagementService, LotViewService
 

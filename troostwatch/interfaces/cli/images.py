@@ -14,16 +14,11 @@ import asyncio
 from pathlib import Path
 
 import click
-from rich.console import Console
-from rich.progress import (
-    Progress,
-    SpinnerColumn,
-    BarColumn,
-    TextColumn,
-    TaskProgressColumn,
-)
-from rich.table import Table
 import httpx
+from rich.console import Console
+from rich.progress import (BarColumn, Progress, SpinnerColumn,
+                           TaskProgressColumn, TextColumn)
+from rich.table import Table
 
 from troostwatch.app.config import load_config
 from troostwatch.infrastructure.db import get_connection
@@ -297,7 +292,8 @@ def review_images(
     else:
         # Show review queue
         with get_connection(db_path) as conn:
-            from troostwatch.infrastructure.db.repositories import LotImageRepository
+            from troostwatch.infrastructure.db.repositories import \
+                LotImageRepository
 
             repo = LotImageRepository(conn)
             images = repo.get_needs_review(limit=limit)

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
 import re
+from dataclasses import dataclass, field
 
 from bs4 import BeautifulSoup
 
 from troostwatch.infrastructure.observability.logging import get_logger
+
 from . import utils
 
 logger = get_logger(__name__)

@@ -9,7 +9,8 @@ from urllib.parse import urljoin
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
 from troostwatch.infrastructure.db.repositories import BidRepository
-from troostwatch.infrastructure.http import AuthenticationError, TroostwatchHttpClient
+from troostwatch.infrastructure.http import (AuthenticationError,
+                                             TroostwatchHttpClient)
 from troostwatch.infrastructure.observability import get_logger, log_context
 from troostwatch.services.dto import BidResultDTO
 

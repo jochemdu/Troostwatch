@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import click
+
 from troostwatch.infrastructure.http import AuthenticationError
-from troostwatch.services.bidding import BidError, BiddingService
+from troostwatch.services.bidding import BiddingService, BidError
 
 from .auth import build_http_client
 

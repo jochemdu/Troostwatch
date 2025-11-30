@@ -6,58 +6,34 @@ Run with ``uvicorn troostwatch.app.api:app``.
 from __future__ import annotations
 
 import asyncio
-from typing import Annotated, Any, cast
 import os
+from typing import Annotated, Any, cast
 
-from fastapi import (
-    Depends,
-    FastAPI,
-    HTTPException,
-    Query,
-    WebSocket,
-    WebSocketDisconnect,
-    status,
-    APIRouter,
-    UploadFile,
-    File,
-    Response,
-)
+from fastapi import (APIRouter, Depends, FastAPI, File, HTTPException, Query,
+                     Response, UploadFile, WebSocket, WebSocketDisconnect,
+                     status)
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from troostwatch import __version__
-from troostwatch.app.dependencies import (
-    # Annotated dependency types (modern FastAPI pattern)
-    LotRepositoryDep,
-    BuyerRepositoryDep,
-    PositionRepositoryDep,
-    AuctionRepositoryDep,
-    BidRepositoryDep,
-    ExtractedCodeRepositoryDep,
-    LotImageRepositoryDep,
-)
-from troostwatch.app.ws_messages import (
-    ConnectionReadyMessage,
-    MESSAGE_FORMAT_VERSION,
-    create_message,
-)
+from troostwatch.app.dependencies import (  # Annotated dependency types (modern FastAPI pattern)
+    AuctionRepositoryDep, BidRepositoryDep, BuyerRepositoryDep,
+    ExtractedCodeRepositoryDep, LotImageRepositoryDep, LotRepositoryDep,
+    PositionRepositoryDep)
+from troostwatch.app.ws_messages import (MESSAGE_FORMAT_VERSION,
+                                         ConnectionReadyMessage,
+                                         create_message)
+from troostwatch.infrastructure.ai import ImageAnalyzer
 from troostwatch.services import positions as position_service
 from troostwatch.services.buyers import BuyerAlreadyExistsError, BuyerService
-from troostwatch.services.lots import (
-    LotInput,
-    LotManagementService,
-    LotView,
-    LotViewService,
-)
+from troostwatch.services.dto import BuyerCreateDTO
+from troostwatch.services.label_extraction import (LabelExtractionResult,
+                                                   extract_label_from_image)
+from troostwatch.services.lots import (LotInput, LotManagementService, LotView,
+                                       LotViewService)
+from troostwatch.services.positions import PositionUpdateData
 from troostwatch.services.reporting import ReportingService
 from troostwatch.services.sync_service import SyncService
-from troostwatch.services.dto import BuyerCreateDTO
-from troostwatch.services.positions import PositionUpdateData
-from troostwatch.infrastructure.ai import ImageAnalyzer
-from troostwatch.services.label_extraction import (
-    extract_label_from_image,
-    LabelExtractionResult,
-)
 
 
 class LotEventBus:
@@ -1394,7 +1370,6 @@ async def retrain_ml_model(
 ) -> dict:
     """Trigger ML model retraining and record run in DB."""
     from troostwatch.services.image_analysis import ImageAnalysisService
-    from troostwatch.services.image_analysis import ImageAnalysisService
 
     service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
     # Record training run as 'pending'
@@ -1449,9 +1424,7 @@ async def export_training_data(
     # Haal alle records op
     with service._connection_factory() as conn:
         from troostwatch.infrastructure.db.repositories.images import (
-            OcrTokenRepository,
-            LotImageRepository,
-        )
+            LotImageRepository, OcrTokenRepository)
 
         token_repo = OcrTokenRepository(conn)
         image_repo = LotImageRepository(conn)

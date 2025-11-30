@@ -12,8 +12,8 @@ Outputs:
 """
 import argparse
 import json
-from pathlib import Path
 from collections import Counter, defaultdict
+from pathlib import Path
 
 
 def analyze_labels(input_path: Path):

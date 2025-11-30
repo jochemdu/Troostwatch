@@ -31,22 +31,25 @@ import hashlib
 import json
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
+
 import httpx
 import joblib
 import numpy as np
-from datetime import datetime
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from troostwatch.infrastructure.web.parsers import parse_lot_detail  # noqa: E402
+from troostwatch.infrastructure.web.parsers import \
+    parse_lot_detail  # noqa: E402
 
 # Try to import OCR dependencies
 try:
+    import io
+
     import pytesseract
     from PIL import Image
-    import io
 
     HAS_OCR = True
 except ImportError:

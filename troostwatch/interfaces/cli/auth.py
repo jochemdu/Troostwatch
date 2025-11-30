@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from troostwatch.infrastructure.http import LoginCredentials, TroostwatchHttpClient
+from troostwatch.infrastructure.http import (LoginCredentials,
+                                             TroostwatchHttpClient)
 
 
 def build_http_client(

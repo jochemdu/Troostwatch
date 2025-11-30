@@ -10,12 +10,11 @@ to use prometheus_client, but currently uses simple dictionaries.
 
 from __future__ import annotations
 
-import time
 import threading
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Mapping
-
 
 # ---------------------------------------------------------------------------
 # Metric storage

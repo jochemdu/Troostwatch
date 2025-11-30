@@ -3,10 +3,11 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from ..schema import ensure_schema
-from .base import BaseRepository
 from troostwatch.infrastructure.web.parsers.lot_card import LotCardData
 from troostwatch.infrastructure.web.parsers.lot_detail import LotDetailData
+
+from ..schema import ensure_schema
+from .base import BaseRepository
 
 
 class LotRepository(BaseRepository):
@@ -610,7 +611,8 @@ class LotRepository(BaseRepository):
         bid_history: list,
     ) -> None:
         """Insert or update bid history entries for a lot."""
-        from troostwatch.infrastructure.web.parsers.lot_detail import BidHistoryEntry
+        from troostwatch.infrastructure.web.parsers.lot_detail import \
+            BidHistoryEntry
 
         # Get lot_id
         lot_id = self._fetch_scalar(

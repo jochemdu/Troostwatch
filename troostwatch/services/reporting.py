@@ -8,10 +8,8 @@ from contextlib import AbstractContextManager
 
 from troostwatch.domain.analytics.summary import BuyerSummary
 from troostwatch.infrastructure.db import ensure_schema, get_connection
-from troostwatch.infrastructure.db.repositories import (
-    BuyerRepository,
-    PositionRepository,
-)
+from troostwatch.infrastructure.db.repositories import (BuyerRepository,
+                                                        PositionRepository)
 from troostwatch.infrastructure.observability import get_logger
 
 ConnectionFactory = Callable[[], AbstractContextManager[sqlite3.Connection]]

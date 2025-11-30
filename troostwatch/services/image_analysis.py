@@ -17,41 +17,24 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Literal, cast
 
-from troostwatch.infrastructure.ai.image_analyzer import (
-    ExtractedCode,
-    ImageAnalysisResult,
-    LocalOCRAnalyzer,
-    OpenAIAnalyzer,
-)
-from troostwatch.infrastructure.ai.label_api_client import (
-    LabelAPIClient,
-    ParseLabelResult,
-)
-from troostwatch.infrastructure.ai.image_hashing import (
-    compute_phash,
-    hamming_distance,
-    PIL_AVAILABLE as HASH_AVAILABLE,
-)
 from troostwatch.infrastructure.ai.code_validation import (
-    CodeType,
-    CodeType,
-    normalize_code,
-    validate_code,
-    validate_and_correct_ean,
-)
+    CodeType, normalize_code, validate_and_correct_ean, validate_code)
+from troostwatch.infrastructure.ai.image_analyzer import (ExtractedCode,
+                                                          ImageAnalysisResult,
+                                                          LocalOCRAnalyzer,
+                                                          OpenAIAnalyzer)
+from troostwatch.infrastructure.ai.image_hashing import \
+    PIL_AVAILABLE as HASH_AVAILABLE
+from troostwatch.infrastructure.ai.image_hashing import (compute_phash,
+                                                         hamming_distance)
+from troostwatch.infrastructure.ai.label_api_client import (LabelAPIClient,
+                                                            ParseLabelResult)
 from troostwatch.infrastructure.db import get_connection
 from troostwatch.infrastructure.db.repositories import (
-    ExtractedCodeRepository,
-    LotImage,
-    LotImageRepository,
-    OcrTokenRepository,
-)
+    ExtractedCodeRepository, LotImage, LotImageRepository, OcrTokenRepository)
 from troostwatch.infrastructure.observability import get_logger
 from troostwatch.infrastructure.observability.metrics import (
-    record_image_download,
-    record_image_analysis,
-    record_code_approval,
-)
+    record_code_approval, record_image_analysis, record_image_download)
 from troostwatch.infrastructure.persistence.images import ImageDownloader
 
 from .base import BaseService, ConnectionFactory

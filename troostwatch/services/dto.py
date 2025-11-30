@@ -3,10 +3,10 @@ Centralized DTOs and input/output models for Troostwatch services.
 """
 
 from __future__ import annotations
+
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
-
 
 # --- Event Publishing Types ---
 EventPayload = dict[str, object]

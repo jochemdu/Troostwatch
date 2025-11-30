@@ -7,7 +7,8 @@ from collections.abc import Iterable, Mapping
 from pydantic import BaseModel, Field
 
 from troostwatch.domain.models import Lot
-from troostwatch.infrastructure.db.repositories import AuctionRepository, LotRepository
+from troostwatch.infrastructure.db.repositories import (AuctionRepository,
+                                                        LotRepository)
 from troostwatch.infrastructure.observability import get_logger
 from troostwatch.infrastructure.web.parsers import LotCardData, LotDetailData
 from troostwatch.services.dto import LotInputDTO
@@ -182,11 +183,9 @@ class LotManagementService:
         self._logger.debug(
             "Adding lot %s in auction %s", lot_input.lot_code, lot_input.auction_code
         )
-        from troostwatch.services.sync import (
-            _listing_detail_from_card,
-            compute_detail_hash,
-            compute_listing_hash,
-        )
+        from troostwatch.services.sync import (_listing_detail_from_card,
+                                               compute_detail_hash,
+                                               compute_listing_hash)
 
         card = LotCardData(
             auction_code=lot_input.auction_code,

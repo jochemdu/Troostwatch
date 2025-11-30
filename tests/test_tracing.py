@@ -3,15 +3,8 @@
 import pytest
 
 from troostwatch.infrastructure.observability.tracing import (
-    configure_tracing,
-    is_tracing_enabled,
-    trace_span,
-    traced,
-    get_trace_context,
-    add_span_event,
-    set_span_attribute,
-    record_exception,
-)
+    add_span_event, configure_tracing, get_trace_context, is_tracing_enabled,
+    record_exception, set_span_attribute, trace_span, traced)
 
 
 class TestTracingDisabled:

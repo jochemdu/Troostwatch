@@ -8,12 +8,11 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from troostwatch.infrastructure.db.repositories import (AuctionRepository,
+                                                        LotRepository,
+                                                        PreferenceRepository)
+
 from .context import build_cli_context
-from troostwatch.infrastructure.db.repositories import (
-    AuctionRepository,
-    LotRepository,
-    PreferenceRepository,
-)
 
 
 def load_auctions(db_path: str, active_only: bool = True) -> list[dict]:

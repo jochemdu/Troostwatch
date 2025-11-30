@@ -1,8 +1,8 @@
-from .image_analyzer import *
-from .vendor_profiles import *
-
 # Add missing exports for label extraction pipeline
 from troostwatch.infrastructure.ai.image_analyzer import ExtractedCode
+
+from .image_analyzer import *
+from .vendor_profiles import *
 
 # Dummy stubs for missing pipeline functions/classes
 # TODO: Replace with actual implementations or import from correct modules

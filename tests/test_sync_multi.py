@@ -3,12 +3,9 @@ from dataclasses import dataclass
 
 from click.testing import CliRunner
 
+from troostwatch.infrastructure.db import (ensure_core_schema, ensure_schema,
+                                           get_connection)
 from troostwatch.interfaces.cli.sync_multi import sync_multi
-from troostwatch.infrastructure.db import (
-    ensure_core_schema,
-    ensure_schema,
-    get_connection,
-)
 from troostwatch.services.sync import _upsert_auction
 from troostwatch.services.sync_service import SyncRunSummary, SyncService
 

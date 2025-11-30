@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import asdict
 
 from troostwatch.services.dto import EventPublisher
+
 from . import sync as sync_module
 
 

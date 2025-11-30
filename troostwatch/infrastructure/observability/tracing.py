@@ -96,9 +96,9 @@ def configure_tracing(
 
     try:
         from opentelemetry import trace
+        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
-        from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 
         # Create resource with service name
         resource = Resource.create({SERVICE_NAME: service_name})
@@ -112,9 +112,8 @@ def configure_tracing(
         # Configure exporter if endpoint provided
         if endpoint:
             try:
-                from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-                    OTLPSpanExporter,
-                )
+                from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
+                    OTLPSpanExporter
                 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
                 exporter = OTLPSpanExporter(endpoint=endpoint)
@@ -127,11 +126,10 @@ def configure_tracing(
         else:
             # Check for console exporter for debugging
             try:
-                from opentelemetry.sdk.trace.export import (
-                    ConsoleSpanExporter,
-                    SimpleSpanProcessor,
-                )
                 import os
+
+                from opentelemetry.sdk.trace.export import (
+                    ConsoleSpanExporter, SimpleSpanProcessor)
 
                 if os.environ.get("OTEL_TRACES_CONSOLE", "").lower() == "true":
                     provider.add_span_processor(

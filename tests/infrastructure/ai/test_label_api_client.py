@@ -5,12 +5,10 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from troostwatch.infrastructure.ai.label_api_client import (
-    ExtractedCode,
-    HealthStatus,
-    LabelAPIClient,
-    ParseLabelResult,
-)
+from troostwatch.infrastructure.ai.label_api_client import (ExtractedCode,
+                                                            HealthStatus,
+                                                            LabelAPIClient,
+                                                            ParseLabelResult)
 
 
 class TestExtractedCode:

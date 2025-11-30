@@ -8,17 +8,13 @@ from typing import Annotated, Iterator
 from fastapi import Depends
 
 from troostwatch.infrastructure.db import ensure_schema, get_connection
-from troostwatch.infrastructure.db.repositories import (
-    AuctionRepository,
-    BidRepository,
-    BuyerRepository,
-    LotRepository,
-    PositionRepository,
-)
+from troostwatch.infrastructure.db.repositories import (AuctionRepository,
+                                                        BidRepository,
+                                                        BuyerRepository,
+                                                        LotRepository,
+                                                        PositionRepository)
 from troostwatch.infrastructure.db.repositories.images import (
-    ExtractedCodeRepository,
-    LotImageRepository,
-)
+    ExtractedCodeRepository, LotImageRepository)
 
 # Re-export repository types for use in api.py type hints
 # This keeps infrastructure imports centralized in the dependencies layer

@@ -1,6 +1,6 @@
-from pathlib import Path
 import sqlite3
 import sys
+from pathlib import Path
 from typing import Any
 
 from click.testing import CliRunner
@@ -14,8 +14,8 @@ import importlib
 cli_sync_module = importlib.import_module("troostwatch.interfaces.cli.sync")
 from troostwatch.interfaces.cli.context import build_sync_command_context
 from troostwatch.interfaces.cli.sync import sync
-from troostwatch.services.sync_service import AuctionSelection, SyncRunSummary
 from troostwatch.services.sync import SyncRunResult, _upsert_auction
+from troostwatch.services.sync_service import AuctionSelection, SyncRunSummary
 
 
 def _seed_auction(db_path: Path, code: str, url: str):

@@ -1,17 +1,17 @@
 import json
 import sqlite3
-from pathlib import Path
 import sys
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.services.sync import RequestResult, sync_auction_to_db
-
 # Import the internal sync module for monkeypatching internals.
 # This is intentional for test purposes – see scripts/check_imports.py exceptions.
+from troostwatch.services.sync import RequestResult
 from troostwatch.services.sync import sync as sync_module
+from troostwatch.services.sync import sync_auction_to_db
 
 
 def test_verbose_navigation_logging(monkeypatch, tmp_path):

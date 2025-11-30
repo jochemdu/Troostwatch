@@ -12,22 +12,18 @@ from typing import Sequence
 
 import click
 
+from .add_lot import add_lot
 from .bid import bid
 from .buyer import buyer
+from .context import build_cli_context
+from .context_helpers import (get_preference, load_auctions,
+                              load_lots_for_auction, set_preference)
 from .debug import debug
 from .positions import positions
 from .report import report
 from .sync import sync
 from .sync_multi import sync_multi
 from .view import view
-from .add_lot import add_lot
-from .context import build_cli_context
-from .context_helpers import (
-    load_auctions,
-    load_lots_for_auction,
-    get_preference,
-    set_preference,
-)
 
 PREFERRED_AUCTION_KEY = "preferred_auction"
 

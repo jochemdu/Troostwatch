@@ -2,14 +2,9 @@ from __future__ import annotations
 
 from .core import ensure_core_schema
 from .migrations import SchemaMigrator
-from .tables import (
-    SCHEMA_BUYERS_SQL,
-    SCHEMA_MY_BIDS_SQL,
-    SCHEMA_POSITIONS_SQL,
-    SCHEMA_PRODUCT_LAYERS_SQL,
-    SCHEMA_SYNC_RUNS_SQL,
-    SCHEMA_USER_PREFERENCES_SQL,
-)
+from .tables import (SCHEMA_BUYERS_SQL, SCHEMA_MY_BIDS_SQL,
+                     SCHEMA_POSITIONS_SQL, SCHEMA_PRODUCT_LAYERS_SQL,
+                     SCHEMA_SYNC_RUNS_SQL, SCHEMA_USER_PREFERENCES_SQL)
 
 
 def ensure_schema(conn) -> None:

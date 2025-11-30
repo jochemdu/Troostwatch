@@ -25,16 +25,11 @@ Implementation Note:
 """
 
 from .fetcher import HttpFetcher, RateLimiter, RequestResult
-from .sync import (  # noqa: F401
-    PageResult,
-    SyncRunResult,
-    _listing_detail_from_card,
-    _upsert_auction,
-    compute_detail_hash,
-    compute_listing_hash,
-    sync_auction_to_db,
-)
 from .service import sync_auction
+from .sync import (PageResult, SyncRunResult,  # noqa: F401
+                   _listing_detail_from_card, _upsert_auction,
+                   compute_detail_hash, compute_listing_hash,
+                   sync_auction_to_db)
 
 __all__ = [
     # === HTTP & Fetching Infrastructure

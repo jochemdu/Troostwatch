@@ -19,10 +19,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from playwright.async_api import async_playwright  # noqa: E402
 
-from troostwatch.infrastructure.web.parsers import (
-    parse_auction_page,
-    parse_lot_detail,
-)  # noqa: E402
+from troostwatch.infrastructure.web.parsers import (  # noqa: E402
+    parse_auction_page, parse_lot_detail)
 
 
 async def main():

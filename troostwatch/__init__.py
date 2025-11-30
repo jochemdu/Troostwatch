@@ -8,7 +8,7 @@ version of Troostwatch. The version is read from pyproject.toml via
 importlib.metadata – this is the single source of truth.
 """
 
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
 
 try:
     __version__ = version("troostwatch")

@@ -213,7 +213,8 @@ async def main():
     print(f"  Saved: {auction_file}")
 
     # Parse lots
-    from troostwatch.infrastructure.web.parsers import parse_auction_page  # noqa: E402
+    from troostwatch.infrastructure.web.parsers import \
+        parse_auction_page  # noqa: E402
 
     lots = list(parse_auction_page(html, base_url=args.base_url))
     print(f"  Found {len(lots)} lots")
@@ -238,9 +239,8 @@ async def main():
         print(f"  Saved: {lot_file}")
 
         # Parse and show image count
-        from troostwatch.infrastructure.web.parsers import (
-            parse_lot_detail,
-        )  # noqa: E402
+        from troostwatch.infrastructure.web.parsers import \
+            parse_lot_detail  # noqa: E402
 
         try:
             detail = parse_lot_detail(lot_html, lot_code=lot.lot_code)

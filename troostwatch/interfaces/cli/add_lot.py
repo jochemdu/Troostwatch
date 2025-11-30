@@ -5,11 +5,9 @@ from __future__ import annotations
 import click
 from rich.console import Console
 
-from troostwatch.interfaces.cli.context import (
-    build_cli_context,
-    get_current_timestamp,
-    lot_management_service,
-)
+from troostwatch.interfaces.cli.context import (build_cli_context,
+                                                get_current_timestamp,
+                                                lot_management_service)
 from troostwatch.services.lots import LotInput
 
 console = Console()

@@ -24,9 +24,10 @@ import httpx
 
 # Check for optional dependencies
 try:
+    import io
+
     import pytesseract
     from PIL import Image
-    import io
 
     OCR_AVAILABLE = True
 except ImportError:

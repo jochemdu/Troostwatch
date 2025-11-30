@@ -1,20 +1,20 @@
 """Regression tests for sync failure handling and cleanup."""
 
-from pathlib import Path
 import sqlite3
 import sys
 import time
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.services.sync import PageResult, RequestResult, sync_auction_to_db
 from troostwatch.infrastructure.web.parsers import LotCardData
-
 # Import the internal sync module for monkeypatching internals.
 # This is intentional for test purposes – see scripts/check_imports.py exceptions.
+from troostwatch.services.sync import PageResult, RequestResult
 from troostwatch.services.sync import sync as sync_impl_module
+from troostwatch.services.sync import sync_auction_to_db
 
 
 def test_sync_stores_lots_even_when_detail_fetch_fails(monkeypatch, tmp_path):

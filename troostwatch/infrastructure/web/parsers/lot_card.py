@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from dataclasses import dataclass
 import json
 import re
+from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Iterable
-from urllib.parse import urlsplit, urlencode, urlunsplit
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
 
 from troostwatch.infrastructure.observability.logging import get_logger
+
 from . import utils
 
 logger = get_logger(__name__)

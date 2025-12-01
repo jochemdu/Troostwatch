@@ -13,15 +13,17 @@ This module provides database access for the image analysis pipeline:
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from typing import Any
+
+from pydantic import BaseModel, ConfigDict
 
 from .base import BaseRepository
 
 
-@dataclass
-class LotImage:
+class LotImage(BaseModel):
     """A lot image record."""
+
+    model_config = ConfigDict(extra="forbid")
 
     id: int
     lot_id: int
@@ -38,9 +40,10 @@ class LotImage:
     updated_at: str | None
 
 
-@dataclass
-class ExtractedCode:
+class ExtractedCode(BaseModel):
     """An extracted product code from an image."""
+
+    model_config = ConfigDict(extra="forbid")
 
     id: int
     lot_image_id: int
@@ -55,9 +58,10 @@ class ExtractedCode:
     promoted_to_lot: bool = False
 
 
-@dataclass
-class OcrTokenData:
+class OcrTokenData(BaseModel):
     """Raw OCR token data for ML training."""
+
+    model_config = ConfigDict(extra="forbid")
 
     id: int
     lot_image_id: int

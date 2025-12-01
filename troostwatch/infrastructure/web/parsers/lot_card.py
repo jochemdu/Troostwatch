@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
+from pydantic import BaseModel, ConfigDict
 
 from troostwatch.infrastructure.observability.logging import get_logger
 
@@ -55,9 +55,10 @@ def _extract_lot_number_from_url(url: str) -> str | None:
     return None
 
 
-@dataclass
-class LotCardData:
+class LotCardData(BaseModel):
     """Data extracted from a lot card on an auction page."""
+
+    model_config = ConfigDict(extra="forbid")
 
     auction_code: str
     lot_code: str

@@ -296,7 +296,10 @@ def compute_listing_hash(card: LotCardData) -> str:
 
 
 def compute_detail_hash(detail: LotDetailData) -> str:
-    payload = asdict(detail)
+    if hasattr(detail, "model_dump"):
+        payload = detail.model_dump()
+    else:
+        payload = asdict(detail)
     return _hash_payload(payload)
 
 

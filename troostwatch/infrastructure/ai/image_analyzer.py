@@ -16,19 +16,20 @@ import base64
 import io
 import os
 import re
-from dataclasses import dataclass, field
 from typing import Literal
 
 import httpx
+from pydantic import BaseModel, ConfigDict
 
 from troostwatch.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-@dataclass
-class ExtractedCode:
+class ExtractedCode(BaseModel):
     """A single extracted code from an image."""
+
+    model_config = ConfigDict(extra="forbid")
 
     code_type: Literal[
         "product_code",
@@ -45,12 +46,13 @@ class ExtractedCode:
     context: str | None = None  # Where on the image this was found
 
 
-@dataclass
-class ImageAnalysisResult:
+class ImageAnalysisResult(BaseModel):
     """Result of analyzing an image for product codes."""
 
+    model_config = ConfigDict(extra="forbid")
+
     image_url: str
-    codes: list[ExtractedCode] = field(default_factory=list)
+    codes: list[ExtractedCode] = []
     raw_text: str | None = None  # Any other text found in the image
     error: str | None = None
 

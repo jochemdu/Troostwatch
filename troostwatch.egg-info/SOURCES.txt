@@ -1,5 +1,6 @@
 README.md
 pyproject.toml
+scripts/_flake_sweep.py
 scripts/analyze_token_labels.py
 scripts/bulk_label_tokens.py
 scripts/check_imports.py

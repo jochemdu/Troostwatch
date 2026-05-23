@@ -83,13 +83,13 @@ def compute_phash(
         # Open and convert to grayscale
         with Image.open(path) as img:
             # Resize to hash_size * 4 for DCT (will reduce to hash_size after)
-            img = img.convert("L").resize(
+            converted_img = img.convert("L").resize(
                 (hash_size * 4, hash_size * 4),
                 Image.Resampling.LANCZOS,
             )
 
             # Get pixel data
-            pixels = list(img.getdata())
+            pixels = list(converted_img.getdata())
 
             # Simple DCT-like approach: compute block averages
             # Full DCT requires numpy/scipy, this is a simplified version
@@ -150,12 +150,12 @@ def compute_dhash(
     try:
         with Image.open(path) as img:
             # Resize to (hash_size + 1) x hash_size for horizontal gradient
-            img = img.convert("L").resize(
+            converted_img = img.convert("L").resize(
                 (hash_size + 1, hash_size),
                 Image.Resampling.LANCZOS,
             )
 
-            pixels = list(img.getdata())
+            pixels = list(converted_img.getdata())
             width = hash_size + 1
 
             # Compare adjacent pixels
@@ -199,12 +199,12 @@ def compute_ahash(
 
     try:
         with Image.open(path) as img:
-            img = img.convert("L").resize(
+            converted_img = img.convert("L").resize(
                 (hash_size, hash_size),
                 Image.Resampling.LANCZOS,
             )
 
-            pixels = list(img.getdata())
+            pixels = list(converted_img.getdata())
             mean = sum(pixels) / len(pixels)
 
             bits = ["1" if p > mean else "0" for p in pixels]

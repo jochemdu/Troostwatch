@@ -59,6 +59,14 @@ from troostwatch.services.lots import (
 from troostwatch.services.positions import PositionUpdateData
 from troostwatch.services.reporting import ReportingService
 from troostwatch.services.sync_service import SyncService
+from troostwatch.services.dto import BuyerCreateDTO
+from troostwatch.services.positions import PositionUpdateData
+from troostwatch.infrastructure.ai import ImageAnalyzer
+from troostwatch.services.image_analysis import ImageAnalysisService
+from troostwatch.services.label_extraction import (
+    extract_label_from_image,
+    LabelExtractionResult,
+)
 
 
 class LotEventBus:
@@ -1398,6 +1406,7 @@ async def retrain_ml_model(
     max_depth: int | None = None,
 ) -> dict:
     """Trigger ML model retraining and record run in DB."""
+
     from troostwatch.services.image_analysis import ImageAnalysisService
 
     service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
@@ -1450,7 +1459,6 @@ async def export_training_data(
     Returns:
         Dict met images, labels, en mismatches.
     """
-    from troostwatch.services.image_analysis import ImageAnalysisService
 
     service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
     # Haal alle records op
@@ -1507,6 +1515,60 @@ async def export_training_data(
 # Use get_auction_repository from dependencies module
 
 
+class GoldenOpportunityResponse(BaseModel):
+    lot_code: str
+    title: str
+    url: str
+    current_bid_eur: float | None
+    reference_price_new: float | None
+    reference_price_used: float | None
+    potential_profit: float | None
+
+
+@app.get("/golden-opportunities", response_model=list[GoldenOpportunityResponse])
+async def get_golden_opportunities(
+    lot_repo: LotRepositoryDep,
+) -> list[GoldenOpportunityResponse]:
+    conn = lot_repo.conn
+    cur = conn.execute("""
+        SELECT l.lot_code, l.title, l.url, l.current_bid_eur,
+               r_new.price_eur as ref_new, r_used.price_eur as ref_used
+        FROM lots l
+        LEFT JOIN reference_prices r_new ON l.id = r_new.lot_id AND r_new.condition = 'new'
+        LEFT JOIN reference_prices r_used ON l.id = r_used.lot_id AND r_used.condition = 'used'
+        WHERE (l.state = 'running' OR l.state = 'scheduled')
+          AND (l.title LIKE '%bezorgveiling%' OR l.title LIKE '%bezorging%' OR l.title LIKE '%afleveren%')
+    """)
+    rows = cur.fetchall()
+
+    opportunities = []
+    for row in rows:
+        bid = row["current_bid_eur"] or 0
+        ref_new = row["ref_new"]
+        ref_used = row["ref_used"]
+
+        target_price = ref_used if ref_used else (ref_new * 0.7 if ref_new else None)
+
+        if (
+            target_price and (target_price - bid) > 20
+        ):  # arbitrary minimum profit threshold
+            opportunities.append(
+                GoldenOpportunityResponse(
+                    lot_code=row["lot_code"],
+                    title=row["title"],
+                    url=row["url"],
+                    current_bid_eur=row["current_bid_eur"],
+                    reference_price_new=ref_new,
+                    reference_price_used=ref_used,
+                    potential_profit=(target_price - bid),
+                )
+            )
+
+    # Sort by highest potential profit
+    opportunities.sort(key=lambda x: x.potential_profit or 0, reverse=True)
+    return opportunities
+
+
 # =============================================================================
 # Dashboard Stats Endpoint
 # =============================================================================
@@ -1537,11 +1599,9 @@ async def get_dashboard_stats(
 
     # Auction counts
     auction_total = conn.execute("SELECT COUNT(*) FROM auctions").fetchone()[0]
-    auction_active = conn.execute(
-        """SELECT COUNT(DISTINCT a.id) FROM auctions a
+    auction_active = conn.execute("""SELECT COUNT(DISTINCT a.id) FROM auctions a
            JOIN lots l ON l.auction_id = a.id
-           WHERE l.state IN ('running', 'scheduled')"""
-    ).fetchone()[0]
+           WHERE l.state IN ('running', 'scheduled')""").fetchone()[0]
 
     # Lot counts by state
     lot_total = conn.execute("SELECT COUNT(*) FROM lots").fetchone()[0]
@@ -1724,7 +1784,6 @@ LotManagementServiceDep = Annotated[
 @app.get("/ml/training-status", response_model=dict)
 async def get_training_status() -> dict:
     """Return latest ML training run status and metrics from DB."""
-    from troostwatch.services.image_analysis import ImageAnalysisService
 
     service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
     runs = service.get_training_runs(limit=1)
@@ -2000,6 +2059,47 @@ async def approve_code(
         raise HTTPException(status_code=404, detail="Code not found")
 
     code_repo.approve_code(code_id, approved_by="manual")
+    # ML Feedback Loop
+    if code and code.lot_image_id:
+        from troostwatch.infrastructure.db.core import get_connection
+        from troostwatch.infrastructure.db.repositories.images import OcrTokenRepository
+
+        with get_connection() as conn:
+            ocr_repo = OcrTokenRepository(conn)
+            ocr_repo.mark_as_labeled(code.lot_image_id)
+            conn.commit()
+
+    if code and code.lot_image_id:
+        from troostwatch.infrastructure.db.core import get_connection
+
+        with get_connection() as conn:
+            cur = conn.execute(
+                "SELECT lot_id FROM lot_images WHERE id = ?", (code.lot_image_id,)
+            )
+            img_row = cur.fetchone()
+            if img_row:
+                l_id = img_row["lot_id"]
+                if code.code_type in ("ean", "model_number", "product_code"):
+                    cur = conn.execute(
+                        "SELECT id FROM products WHERE title = ?", (code.value,)
+                    )
+                    prod = cur.fetchone()
+                    if prod:
+                        p_id = prod["id"]
+                    else:
+                        cur = conn.execute(
+                            "INSERT INTO products (title, category) VALUES (?, ?)",
+                            (code.value, code.code_type),
+                        )
+                        p_id = cur.lastrowid
+                    try:
+                        conn.execute(
+                            "INSERT INTO lot_items (lot_id, product_id, quantity) VALUES (?, ?, 1)",
+                            (l_id, p_id),
+                        )
+                    except:
+                        pass
+                conn.commit()
 
     # Fetch updated code
     updated = code_repo.get_by_id(code_id)
@@ -2047,6 +2147,51 @@ async def bulk_approve_codes(
 
         if request.approved:
             code_repo.approve_code(code_id, approved_by="manual")
+            # ML Feedback Loop
+            if code and code.lot_image_id:
+                from troostwatch.infrastructure.db.core import get_connection
+                from troostwatch.infrastructure.db.repositories.images import (
+                    OcrTokenRepository,
+                )
+
+                with get_connection() as conn:
+                    ocr_repo = OcrTokenRepository(conn)
+                    ocr_repo.mark_as_labeled(code.lot_image_id)
+                    conn.commit()
+
+            if code and code.lot_image_id:
+                from troostwatch.infrastructure.db.core import get_connection
+
+                with get_connection() as conn:
+                    cur = conn.execute(
+                        "SELECT lot_id FROM lot_images WHERE id = ?",
+                        (code.lot_image_id,),
+                    )
+                    img_row = cur.fetchone()
+                    if img_row:
+                        l_id = img_row["lot_id"]
+                        if code.code_type in ("ean", "model_number", "product_code"):
+                            cur = conn.execute(
+                                "SELECT id FROM products WHERE title = ?", (code.value,)
+                            )
+                            prod = cur.fetchone()
+                            if prod:
+                                p_id = prod["id"]
+                            else:
+                                cur = conn.execute(
+                                    "INSERT INTO products (title, category) VALUES (?, ?)",
+                                    (code.value, code.code_type),
+                                )
+                                p_id = cur.lastrowid
+                            try:
+                                conn.execute(
+                                    "INSERT INTO lot_items (lot_id, product_id, quantity) VALUES (?, ?, 1)",
+                                    (l_id, p_id),
+                                )
+                            except:
+                                pass
+                        conn.commit()
+
             approved_count += 1
         else:
             code_repo.reject_code(code_id)

@@ -17,9 +17,10 @@ Usage:
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
+
+from pydantic import BaseModel, ConfigDict
 
 import httpx
 
@@ -31,9 +32,10 @@ logger = get_logger(__name__)
 DEFAULT_SERVICE_URL = os.environ.get("LABEL_OCR_API_URL", "http://localhost:8001")
 
 
-@dataclass
-class ExtractedCode:
+class ExtractedCode(BaseModel):
     """A product code extracted from an image by the ML service."""
+
+    model_config = ConfigDict(extra="forbid")
 
     code_type: Literal["ean", "serial_number", "model_number", "part_number", "other"]
     value: str
@@ -41,19 +43,21 @@ class ExtractedCode:
     context: str | None = None
 
 
-@dataclass
-class ParseLabelResult:
+class ParseLabelResult(BaseModel):
     """Result from the Label OCR API."""
 
-    codes: list[ExtractedCode] = field(default_factory=list)
+    model_config = ConfigDict(extra="forbid")
+
+    codes: list[ExtractedCode] = []
     raw_text: str = ""
     processing_time_ms: int = 0
     error: str | None = None
 
 
-@dataclass
-class HealthStatus:
+class HealthStatus(BaseModel):
     """Health status of the Label OCR API service."""
+
+    model_config = ConfigDict(extra="forbid")
 
     status: str
     model_loaded: bool

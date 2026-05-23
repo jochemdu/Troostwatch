@@ -1,3 +1,16 @@
+## Gerelateerde documentatie
+- [Architecture](architecture.md) — Laag structuur en import regels
+- [Sync](sync.md) — Hoe de sync pipeline werkt
+- [API](api.md) — API endpoint documentatie
+- [Migration Policy](migration_policy.md) — Schema migratie workflow
+- [ML Training](ml_training.md) — Machine learning training workflow
+## Roadmap: Volgende verbeteringen
+- ML model retraining met meer gelabelde data
+- UI bulk review en feedback-loop
+- Image preprocessing pipeline (contrast, binarization, rotatie)
+- Metrics dashboard in UI
+- Vendor-detectie en automatische profielen
+- API/CLI uitbreidingen voor retraining en data management
 # Image OCR/AI Pipeline Roadmap
 
 Dit document beschrijft de roadmap voor het implementeren van een image analyse pipeline

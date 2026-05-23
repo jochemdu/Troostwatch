@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { fetchBuyers, fetchBuyerSummary, type BuyerSummaryReport } from '../lib/api';
 import type { BuyerResponse } from '../lib/api';
+import ExampleLotEventConsumer from '../components/ExampleLotEventConsumer';
 
 export default function ReportsPage() {
   const [buyers, setBuyers] = useState<BuyerResponse[]>([]);
@@ -190,6 +191,7 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
+      <ExampleLotEventConsumer />
     </Layout>
   );
 }

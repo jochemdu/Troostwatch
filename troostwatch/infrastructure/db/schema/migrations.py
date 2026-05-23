@@ -6,7 +6,6 @@ from pathlib import Path
 from ..connection import iso_utcnow
 from .tables import SCHEMA_MIGRATIONS_SQL, SCHEMA_VERSION_SQL
 
-
 # Current schema version - increment when making structural changes.
 # This must match the version comment in schema/schema.sql.
 CURRENT_SCHEMA_VERSION = 10

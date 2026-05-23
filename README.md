@@ -1,4 +1,18 @@
 # Troostwatch
+This repository hosts the code for the Troostwatch project.
+
+See `docs/architecture.md` for layer rules and `docs/review_checklist.md` for PR review guidelines.
+## TODO
+- [ ] ML model retraining met nieuwe gelabelde data
+- [ ] UI bulk review en feedback-loop naar training data
+- [ ] Image preprocessing (contrast, binarization, rotatie)
+- [ ] Metrics dashboard in UI
+- [ ] Vendor-detectie en automatische profielen
+- [ ] API/CLI uitbreidingen voor retraining/data management
+- [ ] Add button to fetch lot images
+- [ ] Save extracted label data to lot
+- [ ] Show extracted label data with lot details
+# Troostwatch
 
 This repository hosts the code for the Troostwatch project.
 

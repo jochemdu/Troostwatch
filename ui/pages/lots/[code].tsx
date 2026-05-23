@@ -4,8 +4,10 @@ import Link from 'next/link';
 import Layout from '../../components/Layout';
 import LotEditModal from '../../components/LotEditModal';
 import ImageAnalyzer from '../../components/ImageAnalyzer';
+import LabelExtractor from '../../components/LabelExtractor';
+import SpecSuggestionEditor from '../../components/SpecSuggestionEditor';
 import type { LotDetailResponse, SpecTemplate, BidHistoryEntry } from '../../lib/api';
-import { fetchLotDetail, fetchSpecTemplates, fetchBidHistory } from '../../lib/api';
+import { fetchLotDetail, fetchSpecTemplates, fetchBidHistory, fetchLotImages, saveExtractedLabelToLot } from '../../lib/api';
 import { buildSpecTree, getDepthColor, type SpecNode } from '../../lib/specs';
 
 export default function LotDetailPage() {
@@ -19,6 +21,12 @@ export default function LotDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [images, setImages] = useState<string[]>([]);
+  const [imgLoading, setImgLoading] = useState(false);
+  const [labelSaveLoading, setLabelSaveLoading] = useState(false);
+  const [labelSaveError, setLabelSaveError] = useState<string | null>(null);
+  const [batchExtractLoading, setBatchExtractLoading] = useState(false);
+  const [batchExtractResults, setBatchExtractResults] = useState<Array<{url: string; status: string; label?: any; error?: string}>>([]);
 
   const loadLot = useCallback(async (lotCode: string) => {
     setLoading(true);
@@ -64,6 +72,66 @@ export default function LotDetailPage() {
     if (typeof code === 'string') {
       loadLot(code);
     }
+  };
+
+  const handleFetchImages = async () => {
+    if (!lot) return;
+    setImgLoading(true);
+    try {
+      const imgs = await fetchLotImages(lot.lot_code, lot.auction_code);
+      setImages(imgs);
+    } catch (err) {
+      setImages([]);
+    } finally {
+      setImgLoading(false);
+    }
+  };
+
+  const handleSaveLabel = async (label: any) => {
+    if (!lot) return;
+    setLabelSaveLoading(true);
+    setLabelSaveError(null);
+    try {
+      await saveExtractedLabelToLot(lot.lot_code, label, lot.auction_code);
+      await loadLot(lot.lot_code); // refresh lot details
+    } catch (err: any) {
+      setLabelSaveError(err.message || 'Opslaan mislukt');
+    } finally {
+      setLabelSaveLoading(false);
+    }
+  };
+
+  const handleBatchExtractLabels = async () => {
+    if (!images || images.length === 0) return;
+    setBatchExtractLoading(true);
+    setBatchExtractResults([]);
+    const results: Array<{url: string; status: string; label?: any; error?: string}> = [];
+    for (const url of images) {
+      if (!lot) continue;
+      try {
+        // Fetch image as blob
+        const imgRes = await fetch(url);
+        const imgBlob = await imgRes.blob();
+        const formData = new FormData();
+        formData.append("file", imgBlob, "lot-image.png");
+        formData.append("ocr_language", "eng+nld");
+        // Send to extract-label endpoint
+        const res = await fetch("/extract-label", {
+          method: "POST",
+          body: formData,
+        });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const data = await res.json();
+        // Save label to lot
+        await saveExtractedLabelToLot(lot.lot_code, data.label, lot.auction_code);
+        results.push({ url, status: "success", label: data.label });
+      } catch (err: any) {
+        results.push({ url, status: "error", error: err.message || "Extractie mislukt" });
+      }
+    }
+    setBatchExtractResults(results);
+    setBatchExtractLoading(false);
+    if (lot) await loadLot(lot.lot_code); // refresh lot details
   };
 
   if (loading) {
@@ -265,6 +333,93 @@ export default function LotDetailPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Label Extraction */}
+        <div style={{ margin: '32px 0' }}>
+          <h3>Label Extractie (afbeelding uploaden)</h3>
+          <LabelExtractor
+            onSaveLabel={handleSaveLabel}
+            saveLoading={labelSaveLoading}
+            saveError={labelSaveError}
+          />
+          <button onClick={handleFetchImages} disabled={imgLoading} style={{ marginTop: 16 }}>
+            {imgLoading ? 'Bezig met ophalen...' : 'Haal afbeeldingen op van lot'}
+          </button>
+          {images.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <strong>Lot afbeeldingen:</strong>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {images.map((url) => (
+                  <img key={url} src={url} alt="Lot afbeelding" style={{ maxWidth: 120, maxHeight: 120, borderRadius: 4, border: '1px solid #ccc' }} />
+                ))}
+              </div>
+              <button
+                onClick={handleBatchExtractLabels}
+                disabled={batchExtractLoading}
+                style={{ marginTop: 16, background: '#1976d2', color: '#fff', padding: '8px 16px', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+              >
+                {batchExtractLoading ? 'Extractie & opslaan bezig...' : 'Extracteer en sla alle labels'}
+              </button>
+              {batchExtractResults.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <strong>Batch extractie status:</strong>
+                  <ul style={{ paddingLeft: 18 }}>
+                    {batchExtractResults.map((r) => (
+                      <li key={r.url} style={{ color: r.status === 'success' ? '#388e3c' : '#d32f2f' }}>
+                        {r.status === 'success'
+                          ? `✅ Gelukt voor afbeelding: ${r.url}`
+                          : `❌ Mislukt voor afbeelding: ${r.url} (${r.error})`}
+                      </li>
+                    ))}
+                  </ul>
+                  {/* Samenvatting van alle gevonden labels */}
+                  <div style={{ marginTop: 18, background: '#f8f8f8', padding: 12, borderRadius: 6 }}>
+                    <strong>Samenvatting gevonden labels:</strong>
+                    {batchExtractResults.filter(r => r.status === 'success' && r.label).length === 0 ? (
+                      <div style={{ color: '#999', fontStyle: 'italic' }}>Geen labels gevonden.</div>
+                    ) : (
+                      <ul style={{ paddingLeft: 18 }}>
+                        {batchExtractResults.filter(r => r.status === 'success' && r.label).map((r, idx) => (
+                          <li key={r.url + '-label'}>
+                            <div><span style={{ fontWeight: 'bold' }}>Afbeelding:</span> {r.url}</div>
+                            {Object.entries(r.label).map(([key, value]) => (
+                              <div key={key}>
+                                <span style={{ fontWeight: 'bold', color: key === 'vendor' ? '#1976d2' : '#333' }}>{key}:</span> <span>{String(value)}</span>
+                              </div>
+                            ))}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  {/* Suggestie voor automatische koppeling aan lot-specs */}
+                  <div style={{ marginTop: 18, background: '#f8f8f8', padding: 12, borderRadius: 6 }}>
+                    <strong>Suggestie voor automatische koppeling aan lot-specs:</strong>
+                    {batchExtractResults.filter(r => r.status === 'success' && r.label).length === 0 ? (
+                      <div style={{ color: '#999', fontStyle: 'italic' }}>Geen labels gevonden.</div>
+                    ) : (
+                      <SpecSuggestionEditor
+                        labels={batchExtractResults.filter(r => r.status === 'success' && r.label).map(r => r.label)}
+                        lotSpecs={lot?.specs || []}
+                        lotCode={lot?.lot_code || ''}
+                        auctionCode={lot?.auction_code || ''}
+                        onApply={async () => await loadLot(lot?.lot_code || '')}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {lot && lot.notes && (
+          <div style={{ marginTop: 24, background: '#f8f8f8', padding: 12, borderRadius: 6 }}>
+            <strong>Extracted label data:</strong>
+            <div>{lot.notes}</div>
+            {lot.ean && <div>EAN: {lot.ean}</div>}
           </div>
         )}
       </div>

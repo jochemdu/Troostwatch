@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { fetchBuyers, fetchLots, fetchBids, createBid, type Bid } from '../lib/api';
 import type { BuyerResponse, LotView } from '../lib/api';
+import ExampleLotEventConsumer from '../components/ExampleLotEventConsumer';
 
 export default function BidsPage() {
   const [bids, setBids] = useState<Bid[]>([]);
@@ -238,6 +239,7 @@ export default function BidsPage() {
           </table>
         )}
       </div>
+      <ExampleLotEventConsumer />
     </Layout>
   );
 }

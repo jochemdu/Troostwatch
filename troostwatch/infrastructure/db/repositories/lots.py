@@ -3,10 +3,13 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from ..schema import ensure_schema
-from .base import BaseRepository
 from troostwatch.infrastructure.web.parsers.lot_card import LotCardData
 from troostwatch.infrastructure.web.parsers.lot_detail import LotDetailData
+
+from ..schema import ensure_schema
+from .base import BaseRepository
+
+# flake8: noqa: E501  # SQL-heavy repository; many long SQL strings kept for readability
 
 
 class LotRepository(BaseRepository):
@@ -18,7 +21,7 @@ class LotRepository(BaseRepository):
         query = "SELECT l.id FROM lots l JOIN auctions a ON l.auction_id = a.id WHERE l.lot_code = ?"
 
         def _lookup(code: str) -> int | None:
-            params: list = [code]
+            params: list[Any] = [code]
             local_query = query
             if auction_code is not None:
                 local_query += " AND a.auction_code = ?"
@@ -95,7 +98,7 @@ class LotRepository(BaseRepository):
         """
 
         conditions: list[str] = []
-        params: list = []
+        params: list[Any] = []
         if auction_code:
             conditions.append("a.auction_code = ?")
             params.append(auction_code)
@@ -117,7 +120,7 @@ class LotRepository(BaseRepository):
 
     def get_lot_detail(
         self, lot_code: str, auction_code: str | None = None
-    ) -> dict[str, Any | None]:
+    ) -> dict[str, Any | None] | None:
         """Get detailed lot information."""
         query = """
             SELECT a.auction_code, l.lot_code, l.title, l.url, l.state,
@@ -386,7 +389,7 @@ class LotRepository(BaseRepository):
                 "FROM spec_templates ORDER BY parent_id NULLS FIRST, title"
             )
 
-    def get_spec_template(self, template_id: int) -> dict[str, Any | None]:
+    def get_spec_template(self, template_id: int) -> dict[str, Any | None] | None:
         """Get a single spec template by id."""
         return self._fetch_one_as_dict(
             "SELECT id, parent_id, title, value, ean, price_eur, "
@@ -480,7 +483,7 @@ class LotRepository(BaseRepository):
 
         return self.upsert_lot_spec(
             lot_code=lot_code,
-            key=template["title"],
+            key=str(template.get("title") or ""),
             value=template.get("value") or "",
             auction_code=auction_code,
             parent_id=parent_id,

@@ -10,3 +10,4 @@ ui/.next/
 .venv/
 *.egg-info/
 ui/.next/
+data/images

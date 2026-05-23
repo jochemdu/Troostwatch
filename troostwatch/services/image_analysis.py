@@ -15,30 +15,25 @@ import asyncio
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, cast
 
+from troostwatch.infrastructure.ai.code_validation import (
+    CodeType,
+    normalize_code,
+    validate_and_correct_ean,
+    validate_code,
+)
 from troostwatch.infrastructure.ai.image_analyzer import (
     ExtractedCode,
     ImageAnalysisResult,
     LocalOCRAnalyzer,
     OpenAIAnalyzer,
 )
+from troostwatch.infrastructure.ai.image_hashing import PIL_AVAILABLE as HASH_AVAILABLE
+from troostwatch.infrastructure.ai.image_hashing import compute_phash, hamming_distance
 from troostwatch.infrastructure.ai.label_api_client import (
     LabelAPIClient,
     ParseLabelResult,
-)
-from troostwatch.infrastructure.ai.image_hashing import (
-    compute_phash,
-    hamming_distance,
-    PIL_AVAILABLE as HASH_AVAILABLE,
-)
-from troostwatch.infrastructure.ai.code_validation import (
-    CodeType,
-    ValidationResult,
-    detect_code_type,
-    normalize_code,
-    validate_code,
-    validate_and_correct_ean,
 )
 from troostwatch.infrastructure.db import get_connection
 from troostwatch.infrastructure.db.repositories import (
@@ -49,10 +44,9 @@ from troostwatch.infrastructure.db.repositories import (
 )
 from troostwatch.infrastructure.observability import get_logger
 from troostwatch.infrastructure.observability.metrics import (
-    record_image_download,
-    record_image_analysis,
     record_code_approval,
-    Timer,
+    record_image_analysis,
+    record_image_download,
 )
 from troostwatch.infrastructure.persistence.images import ImageDownloader
 
@@ -120,6 +114,115 @@ class ImageAnalysisService(BaseService):
     # Confidence threshold above which codes are auto-approved
     DEFAULT_AUTO_APPROVE_THRESHOLD = 0.85
 
+    def record_training_run(
+        self,
+        status: str,
+        model_path: str | None = None,
+        metrics: dict | None = None,
+        notes: str | None = None,
+        created_by: str | None = None,
+        training_data_filter: str | None = None,
+        error_message: str | None = None,
+    ) -> int:
+        """Record a new ML training run in the database.
+
+        Args:
+            status: Run status ('pending', 'running', 'completed', 'failed').
+            model_path: Path to saved model file.
+            metrics: Training metrics (accuracy, loss, etc.).
+            notes: Optional notes.
+            created_by: User/process that triggered the run.
+            training_data_filter: Description of training data selection/filter.
+            error_message: Error message if failed.
+
+        Returns:
+            ID of the created training run.
+        """
+        with self._connection_factory() as conn:
+            sql = "\n".join(
+                [
+                    "INSERT INTO ml_training_runs (",
+                    "  started_at, status, model_path, metrics_json,",
+                    "  notes, created_by,",
+                    "  training_data_filter, error_message, created_at",
+                    ") VALUES (",
+                    "  datetime('now'), ?, ?, ?, ?, ?, ?, ?, datetime('now')",
+                    ")",
+                ]
+            )
+            params = (
+                status,
+                model_path,
+                json.dumps(metrics) if metrics else None,
+                notes,
+                created_by,
+                training_data_filter,
+                error_message,
+            )
+            cur = conn.execute(sql, params)
+            run_id = cur.lastrowid
+            conn.commit()
+        return int(run_id or 0)
+
+    def update_training_run(
+        self,
+        run_id: int,
+        status: str | None = None,
+        finished_at: str | None = None,
+        model_path: str | None = None,
+        metrics: dict | None = None,
+        notes: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        """Update an existing ML training run record."""
+        fields: list[str] = []
+        params: list[object] = []
+        if status:
+            fields.append("status = ?")
+            params.append(status)
+        if finished_at:
+            fields.append("finished_at = ?")
+            params.append(finished_at)
+        if model_path:
+            fields.append("model_path = ?")
+            params.append(model_path)
+        if metrics:
+            fields.append("metrics_json = ?")
+            params.append(json.dumps(metrics))
+        if notes:
+            fields.append("notes = ?")
+            params.append(notes)
+        if error_message:
+            fields.append("error_message = ?")
+            params.append(error_message)
+        fields.append("updated_at = datetime('now')")
+        params.append(run_id)
+        with self._connection_factory() as conn:
+            conn.execute(
+                f"UPDATE ml_training_runs SET {', '.join(fields)} WHERE id = ?",
+                tuple(params),
+            )
+            conn.commit()
+
+    def get_training_runs(
+        self, limit: int = 20, status: str | None = None
+    ) -> list[dict]:
+        """Fetch recent ML training runs, optionally filtered by status."""
+        with self._connection_factory() as conn:
+            query = "SELECT * FROM ml_training_runs"
+            params: list[object] = []
+            if status:
+                query += " WHERE status = ?"
+                params.append(status)
+            query += " ORDER BY started_at DESC LIMIT ?"
+            params.append(limit)
+            cur = conn.execute(query, tuple(params))
+            columns = [c[0] for c in cur.description]
+            return [dict(zip(columns, row)) for row in cur.fetchall()]
+
+    # Confidence threshold above which codes are auto-approved
+    DEFAULT_AUTO_APPROVE_THRESHOLD = 0.85
+
     def __init__(
         self,
         connection_factory: ConnectionFactory,
@@ -150,6 +253,8 @@ class ImageAnalysisService(BaseService):
 
         Returns:
             Configured ImageAnalysisService instance.
+
+        # Note: this module contains multi-line SQL fragments; keep changes minimal.
         """
         return cls(
             connection_factory=lambda: get_connection(db_path),
@@ -306,6 +411,7 @@ class ImageAnalysisService(BaseService):
         Returns:
             ImageAnalysisResult with extracted codes.
         """
+
         async def _run() -> ParseLabelResult:
             async with LabelAPIClient() as client:
                 return await client.parse_label_file(image_path)
@@ -328,14 +434,45 @@ class ImageAnalysisService(BaseService):
         # Convert ML codes to standard ExtractedCode format
         codes = []
         for ml_code in ml_result.codes:
-            # Map ML code types to standard types
-            code_type = ml_code.code_type
-            if code_type == "part_number":
-                code_type = "product_code"
+            # Map ML code types to standard types and coerce unknowns to 'other'
+            raw_type: str = ml_code.code_type
+            if raw_type == "part_number":
+                mapped = "product_code"
+            else:
+                mapped = raw_type
+
+            normalized_type: str
+            if mapped not in (
+                "product_code",
+                "model_number",
+                "ean",
+                "serial_number",
+                "part_number",
+                "mac_address",
+                "service_tag",
+                "other",
+            ):
+                normalized_type = "other"
+            else:
+                normalized_type = mapped
+
+            code_type_cast = cast(
+                Literal[
+                    "product_code",
+                    "model_number",
+                    "ean",
+                    "serial_number",
+                    "part_number",
+                    "mac_address",
+                    "service_tag",
+                    "other",
+                ],
+                normalized_type,
+            )
 
             codes.append(
                 ExtractedCode(
-                    code_type=code_type,
+                    code_type=code_type_cast,
                     value=ml_code.value,
                     confidence=ml_code.confidence,
                     context=ml_code.context,
@@ -556,7 +693,8 @@ class ImageAnalysisService(BaseService):
                 # Calculate confidence
                 avg_confidence = self._calculate_confidence(result.codes)
 
-                # OpenAI results are generally higher quality, so we use a lower threshold
+                # OpenAI results are generally higher quality.
+                # Use a lower threshold for marking as analyzed.
                 if avg_confidence >= 0.5 or not result.codes:
                     status = "analyzed"
                     stats.images_analyzed += 1
@@ -590,9 +728,7 @@ class ImageAnalysisService(BaseService):
                             for code in result.codes:
                                 record_code_approval("openai", code.code_type)
 
-                record_image_analysis(
-                    "openai", status, 0.0, len(result.codes)
-                )
+                record_image_analysis("openai", status, 0.0, len(result.codes))
 
             conn.commit()
 
@@ -649,7 +785,6 @@ class ImageAnalysisService(BaseService):
         """
         with self._connection_factory() as conn:
             token_repo = OcrTokenRepository(conn)
-            image_repo = LotImageRepository(conn)
 
             if include_reviewed:
                 records = token_repo.get_for_training(limit=limit or 10000)
@@ -669,13 +804,15 @@ class ImageAnalysisService(BaseService):
                     (record.lot_image_id,),
                 )
                 if image:
-                    export_data["images"].append({
-                        "lot_image_id": record.lot_image_id,
-                        "lot_id": image.get("lot_id"),
-                        "local_path": image.get("local_path"),
-                        "tokens": record.tokens,
-                        "has_labels": record.has_labels,
-                    })
+                    export_data["images"].append(
+                        {
+                            "lot_image_id": record.lot_image_id,
+                            "lot_id": image.get("lot_id"),
+                            "local_path": image.get("local_path"),
+                            "tokens": record.tokens,
+                            "has_labels": record.has_labels,
+                        }
+                    )
 
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -736,7 +873,12 @@ class ImageAnalysisService(BaseService):
                 # Get the lot_id for this image
                 lot_info = self._fetch_one_as_dict(
                     conn,
-                    "SELECT lot_id FROM lot_images WHERE id = ?",
+                    "\n".join(
+                        [
+                            "SELECT lot_id FROM lot_images",
+                            "WHERE id = ?",
+                        ]
+                    ),
                     (code.lot_image_id,),
                 )
                 if not lot_info:
@@ -749,65 +891,93 @@ class ImageAnalysisService(BaseService):
                     # Check if lot already has this EAN in specs
                     existing = self._fetch_one_as_dict(
                         conn,
-                        "SELECT id FROM product_specs WHERE lot_id = ? AND key = 'ean' AND value = ?",
+                        "\n".join(
+                            [
+                                "SELECT id FROM product_specs",
+                                "WHERE lot_id = ? AND key = 'ean' ",
+                                "AND value = ?",
+                            ]
+                        ),
                         (lot_id, code.value),
                     )
                     if not existing:
-                        conn.execute(
-                            """
-                            INSERT INTO product_specs (lot_id, key, value, source)
-                            VALUES (?, 'ean', ?, 'ocr')
-                            """,
-                            (lot_id, code.value),
+                        sql = "\n".join(
+                            [
+                                    "INSERT INTO product_specs (lot_id, key, value,",
+                                    "    source)",
+                                    "VALUES (?, 'ean', ?, 'ocr')",
+                                ]
                         )
+                        conn.execute(sql, (lot_id, code.value))
                         promoted["ean"] += 1
 
                 elif code.code_type == "serial_number":
                     existing = self._fetch_one_as_dict(
                         conn,
-                        "SELECT id FROM product_specs WHERE lot_id = ? AND key = 'serial_number' AND value = ?",
+                        "\n".join(
+                            [
+                                "SELECT id FROM product_specs",
+                                "WHERE lot_id = ? AND key = 'serial_number' ",
+                                "AND value = ?",
+                            ]
+                        ),
                         (lot_id, code.value),
                     )
                     if not existing:
-                        conn.execute(
-                            """
-                            INSERT INTO product_specs (lot_id, key, value, source)
-                            VALUES (?, 'serial_number', ?, 'ocr')
-                            """,
-                            (lot_id, code.value),
+                        sql = "\n".join(
+                            [
+                                    "INSERT INTO product_specs (lot_id, key, value,",
+                                    "    source)",
+                                    "VALUES (?, 'serial_number', ?, 'ocr')",
+                                ]
                         )
+                        conn.execute(sql, (lot_id, code.value))
                         promoted["serial_number"] += 1
 
                 elif code.code_type == "model_number":
                     existing = self._fetch_one_as_dict(
                         conn,
-                        "SELECT id FROM product_specs WHERE lot_id = ? AND key = 'model_number' AND value = ?",
+                        "\n".join(
+                            [
+                                "SELECT id FROM product_specs",
+                                "WHERE lot_id = ? AND key = 'model_number' ",
+                                "AND value = ?",
+                            ]
+                        ),
                         (lot_id, code.value),
                     )
                     if not existing:
-                        conn.execute(
-                            """
-                            INSERT INTO product_specs (lot_id, key, value, source)
-                            VALUES (?, 'model_number', ?, 'ocr')
-                            """,
-                            (lot_id, code.value),
+                        sql = "\n".join(
+                            [
+                                    "INSERT INTO product_specs (lot_id, key, value,",
+                                    "    source)",
+                                    "VALUES (?, 'model_number', ?, 'ocr')",
+                                ]
                         )
+                        conn.execute(sql, (lot_id, code.value))
                         promoted["model_number"] += 1
 
                 elif code.code_type == "product_code":
                     existing = self._fetch_one_as_dict(
                         conn,
-                        "SELECT id FROM product_specs WHERE lot_id = ? AND key = 'product_code' AND value = ?",
+                        "\n".join(
+                            [
+                                "SELECT id FROM product_specs",
+                                "WHERE lot_id = ? AND key = 'product_code' ",
+                                "AND value = ?",
+                            ]
+                        ),
                         (lot_id, code.value),
                     )
                     if not existing:
-                        conn.execute(
-                            """
-                            INSERT INTO product_specs (lot_id, key, value, source)
-                            VALUES (?, 'product_code', ?, 'ocr')
-                            """,
-                            (lot_id, code.value),
+                        sql = "\n".join(
+                            [
+                                    "INSERT INTO product_specs (lot_id, key, value,",
+                                    "    source)",
+                                    "VALUES (?, 'product_code', ?, 'ocr')",
+                                ]
                         )
+                        conn.execute(sql, (lot_id, code.value))
                         promoted["product_code"] += 1
 
                 # Mark code as promoted
@@ -921,11 +1091,13 @@ class ImageAnalysisService(BaseService):
                 groups = []
                 for phash, images in db_duplicates:
                     lot_ids = list(set(img.lot_id for img in images))
-                    groups.append(DuplicateGroup(
-                        phash=phash,
-                        images=images,
-                        lot_ids=lot_ids,
-                    ))
+                    groups.append(
+                        DuplicateGroup(
+                            phash=phash,
+                            images=images,
+                            lot_ids=lot_ids,
+                        )
+                    )
                 return groups
 
             # Fuzzy matching - need to compare hashes using Hamming distance
@@ -961,7 +1133,7 @@ class ImageAnalysisService(BaseService):
 
             # Compare all pairs and union similar ones
             for i, h1 in enumerate(hashes):
-                for h2 in hashes[i + 1:]:
+                for h2 in hashes[i + 1 :]:
                     try:
                         dist = hamming_distance(h1, h2)
                         if dist <= threshold:
@@ -987,11 +1159,13 @@ class ImageAnalysisService(BaseService):
 
                 if len(cluster_images) > 1:
                     lot_ids = list(set(img.lot_id for img in cluster_images))
-                    groups.append(DuplicateGroup(
-                        phash=cluster_hashes[0],  # Use first hash as representative
-                        images=cluster_images,
-                        lot_ids=lot_ids,
-                    ))
+                    groups.append(
+                        DuplicateGroup(
+                            phash=cluster_hashes[0],  # Use first hash as representative
+                            images=cluster_images,
+                            lot_ids=lot_ids,
+                        )
+                    )
 
             # Sort by number of duplicates (most first)
             groups.sort(key=lambda g: g.count, reverse=True)
@@ -1004,7 +1178,6 @@ class ImageAnalysisService(BaseService):
             Dictionary with duplicate-related counts.
         """
         with self._connection_factory() as conn:
-            image_repo = LotImageRepository(conn)
 
             # Count images with phash
             cur = conn.execute(
@@ -1013,12 +1186,11 @@ class ImageAnalysisService(BaseService):
             with_phash = cur.fetchone()[0]
 
             # Count images without phash
-            cur = conn.execute(
-                """
-                SELECT COUNT(*) FROM lot_images
-                WHERE download_status = 'downloaded' AND phash IS NULL
-                """
-            )
+            sql_lines = [
+                "SELECT COUNT(*) FROM lot_images",
+                "WHERE download_status = 'downloaded' AND phash IS NULL",
+            ]
+            cur = conn.execute("\n".join(sql_lines))
             without_phash = cur.fetchone()[0]
 
             # Count unique hashes
@@ -1029,29 +1201,33 @@ class ImageAnalysisService(BaseService):
 
             # Count exact duplicates (same phash appears multiple times)
             cur = conn.execute(
-                """
-                SELECT COUNT(*) FROM (
-                    SELECT phash, COUNT(*) as cnt
-                    FROM lot_images
-                    WHERE phash IS NOT NULL
-                    GROUP BY phash
-                    HAVING cnt > 1
+                "\n".join(
+                    [
+                        "SELECT COUNT(*) FROM (",
+                        "  SELECT phash, COUNT(*) as cnt",
+                        "  FROM lot_images",
+                        "  WHERE phash IS NOT NULL",
+                        "  GROUP BY phash",
+                        "  HAVING cnt > 1",
+                        ")",
+                    ]
                 )
-                """
             )
             duplicate_groups = cur.fetchone()[0]
 
             # Count images that are duplicates
             cur = conn.execute(
-                """
-                SELECT SUM(cnt) FROM (
-                    SELECT phash, COUNT(*) as cnt
-                    FROM lot_images
-                    WHERE phash IS NOT NULL
-                    GROUP BY phash
-                    HAVING cnt > 1
+                "\n".join(
+                    [
+                        "SELECT SUM(cnt) FROM (",
+                        "  SELECT phash, COUNT(*) as cnt",
+                        "  FROM lot_images",
+                        "  WHERE phash IS NOT NULL",
+                        "  GROUP BY phash",
+                        "  HAVING cnt > 1",
+                        ")",
+                    ]
                 )
-                """
             )
             row = cur.fetchone()
             duplicate_images = row[0] if row[0] else 0
@@ -1112,15 +1288,7 @@ class ImageAnalysisService(BaseService):
         Returns:
             Tuple of (normalized_value, updated_code_type, is_valid).
         """
-        # Map internal code types to validation CodeType
-        type_mapping = {
-            "ean": None,  # Auto-detect EAN-8 vs EAN-13
-            "serial_number": CodeType.SERIAL_NUMBER,
-            "model_number": CodeType.MODEL_NUMBER,
-            "product_code": CodeType.PRODUCT_CODE,
-            "mac": CodeType.MAC_ADDRESS,
-            "uuid": CodeType.UUID,
-        }
+        # Map internal code types to validation CodeType (handled inline below)
 
         normalized = normalize_code(value)
 

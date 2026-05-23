@@ -4,6 +4,7 @@ import type { LotView } from '../lib/api';
 import { fetchLots, getLiveSyncStatus, startLiveSync, pauseLiveSync, stopLiveSync } from '../lib/api';
 import type { LotEvent } from '../lib/ws';
 import { createLotSocket } from '../lib/ws';
+import ExampleLotEventConsumer from '../components/ExampleLotEventConsumer';
 
 /**
  * Extended lot with live WebSocket updates.
@@ -177,6 +178,8 @@ export default function LivePage() {
           {events.length === 0 && <div className="muted">Nog geen events ontvangen.</div>}
         </div>
       </div>
+
+      <ExampleLotEventConsumer />
     </Layout>
   );
 }

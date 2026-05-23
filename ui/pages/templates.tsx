@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import ExampleLotEventConsumer from '../components/ExampleLotEventConsumer';
 import type { SpecTemplate, SpecTemplateCreateRequest, SpecTemplateUpdateRequest } from '../lib/api';
 import { fetchSpecTemplates, createSpecTemplate, deleteSpecTemplate, updateSpecTemplate } from '../lib/api';
 import { buildTemplateTree, getDepthColor, type TemplateNode } from '../lib/specs';
@@ -363,6 +364,8 @@ export default function TemplatesPage() {
           {templateTree.map(template => renderTemplateRow(template))}
         </div>
       )}
+
+      <ExampleLotEventConsumer />
 
       <style jsx>{`
         .page-header { margin-bottom: 24px; }

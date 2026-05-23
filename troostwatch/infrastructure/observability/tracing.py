@@ -23,9 +23,9 @@ Usage:
 from __future__ import annotations
 
 import functools
-from contextlib import contextmanager
+from contextlib import AbstractContextManager
 from contextvars import ContextVar
-from typing import Any, Callable, Iterator, TypeVar
+from typing import Any, Callable, TypeVar
 
 from .logging import get_logger
 
@@ -45,9 +45,7 @@ _tracer: Any = None
 _tracing_enabled: bool = False
 
 # Context variable for trace/span IDs (used for log correlation)
-_trace_context: ContextVar[dict[str, str]] = ContextVar(
-    "trace_context", default={}
-)
+_trace_context: ContextVar[dict[str, str]] = ContextVar("trace_context", default={})
 
 
 def is_tracing_enabled() -> bool:
@@ -98,9 +96,9 @@ def configure_tracing(
 
     try:
         from opentelemetry import trace
+        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
-        from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 
         # Create resource with service name
         resource = Resource.create({SERVICE_NAME: service_name})
@@ -124,16 +122,18 @@ def configure_tracing(
                 logger.info(f"Tracing exporter configured for {endpoint}")
             except ImportError:
                 logger.warning(
-                    "opentelemetry-exporter-otlp not installed; traces won't be exported"
+                    "opentelemetry-exporter-otlp not installed; "
+                    "traces won't be exported"
                 )
         else:
             # Check for console exporter for debugging
             try:
+                import os
+
                 from opentelemetry.sdk.trace.export import (
                     ConsoleSpanExporter,
                     SimpleSpanProcessor,
                 )
-                import os
 
                 if os.environ.get("OTEL_TRACES_CONSOLE", "").lower() == "true":
                     provider.add_span_processor(
@@ -164,66 +164,52 @@ def configure_tracing(
 # ---------------------------------------------------------------------------
 
 
-@contextmanager
-def trace_span(
-    name: str,
-    *,
-    kind: str = "internal",
-    **attributes: Any,
-) -> Iterator[Any]:
-    """Create a trace span for the enclosed code block.
+class trace_span(AbstractContextManager):
+    def __init__(self, name: str, *, kind: str = "internal", **attributes: Any):
+        self.name = name
+        self.kind = kind
+        self.attributes = attributes
+        self.span = None
+        self.ctx_token = None
 
-    Args:
-        name: Name of the span (e.g., "sync_auction", "fetch_page").
-        kind: Span kind - "internal", "server", "client", "producer", "consumer".
-        **attributes: Additional attributes to attach to the span.
+    def __enter__(self):
+        if not _tracing_enabled or _tracer is None:
+            return None
+        try:
+            from opentelemetry.trace import SpanKind
 
-    Yields:
-        The span object (or None if tracing is disabled).
-
-    Example:
-        with trace_span("process_lot", lot_code="LOT123", auction_code="A1"):
-            # ... processing ...
-    """
-    if not _tracing_enabled or _tracer is None:
-        yield None
-        return
-
-    try:
-        from opentelemetry.trace import SpanKind
-
-        kind_map = {
-            "internal": SpanKind.INTERNAL,
-            "server": SpanKind.SERVER,
-            "client": SpanKind.CLIENT,
-            "producer": SpanKind.PRODUCER,
-            "consumer": SpanKind.CONSUMER,
-        }
-        span_kind = kind_map.get(kind, SpanKind.INTERNAL)
-
-        with _tracer.start_as_current_span(name, kind=span_kind) as span:
-            # Set attributes
-            for key, value in attributes.items():
+            kind_map = {
+                "internal": SpanKind.INTERNAL,
+                "server": SpanKind.SERVER,
+                "client": SpanKind.CLIENT,
+                "producer": SpanKind.PRODUCER,
+                "consumer": SpanKind.CONSUMER,
+            }
+            span_kind = kind_map.get(self.kind, SpanKind.INTERNAL)
+            self.span_ctx = _tracer.start_as_current_span(self.name, kind=span_kind)
+            self.span = self.span_ctx.__enter__()
+            for key, value in self.attributes.items():
                 if value is not None:
-                    span.set_attribute(key, str(value))
-
-            # Update trace context for log correlation
-            ctx = span.get_span_context()
+                    self.span.set_attribute(key, str(value))
+            ctx = self.span.get_span_context()
             if ctx.is_valid:
-                token = _trace_context.set({
-                    "trace_id": format(ctx.trace_id, "032x"),
-                    "span_id": format(ctx.span_id, "016x"),
-                })
-                try:
-                    yield span
-                finally:
-                    _trace_context.reset(token)
-            else:
-                yield span
+                self.ctx_token = _trace_context.set(
+                    {
+                        "trace_id": format(ctx.trace_id, "032x"),
+                        "span_id": format(ctx.span_id, "016x"),
+                    }
+                )
+            return self.span
+        except Exception as e:
+            logger.debug(f"Tracing error: {e}")
+            return None
 
-    except Exception as e:
-        logger.debug(f"Tracing error: {e}")
-        yield None
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.ctx_token is not None:
+            _trace_context.reset(self.ctx_token)
+        if hasattr(self, "span_ctx"):
+            self.span_ctx.__exit__(exc_type, exc_value, traceback)
+        return False
 
 
 def traced(
@@ -246,6 +232,7 @@ def traced(
         def process_lot(lot: Lot) -> None:
             ...
     """
+
     def decorator(func: F) -> F:
         span_name = name or func.__name__
 
@@ -260,6 +247,7 @@ def traced(
                 return await func(*args, **kwargs)
 
         import inspect
+
         if inspect.iscoroutinefunction(func):
             return async_wrapper  # type: ignore
         return sync_wrapper  # type: ignore

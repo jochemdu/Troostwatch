@@ -7,8 +7,9 @@ specific buyer.
 
 from __future__ import annotations
 
-import click
 import json
+
+import click
 
 from troostwatch.services.reporting import ReportingService
 

@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import type { Auction, AuctionUpdateRequest } from '../lib/api';
 import { fetchAuctions as fetchAuctionsApi, updateAuction, deleteAuction, triggerSync } from '../lib/api';
 import { formatDateTime } from '../lib/format';
+import ExampleLotEventConsumer from '../components/ExampleLotEventConsumer';
 
 interface SyncResult {
   auction_code: string;
@@ -68,10 +69,8 @@ export default function AuctionsPage() {
 
   const syncSelected = async () => {
     if (selectedAuctions.size === 0) return;
-    
     setSyncing(true);
     const results = new Map<string, SyncResult>();
-    
     // Initialize all as pending
     selectedAuctions.forEach((code) => {
       results.set(code, { auction_code: code, status: 'pending' });
@@ -81,11 +80,12 @@ export default function AuctionsPage() {
     // Sync each auction sequentially
     for (const code of selectedAuctions) {
       const auction = auctions.find((a) => a.auction_code === code);
-      if (!auction || !auction.url) {
-        results.set(code, { 
-          auction_code: code, 
-          status: 'failed', 
-          error: 'Geen URL beschikbaar' 
+      // Validate URL
+      if (!auction || !auction.url || !/^https?:\/\//.test(auction.url)) {
+        results.set(code, {
+          auction_code: code,
+          status: 'failed',
+          error: 'Ongeldige of ontbrekende URL',
         });
         setSyncResults(new Map(results));
         continue;
@@ -100,7 +100,7 @@ export default function AuctionsPage() {
           auction_url: auction.url,
           dry_run: false,
         });
-        
+
         if (data.status === 'success') {
           results.set(code, {
             auction_code: code,
@@ -204,212 +204,216 @@ export default function AuctionsPage() {
   };
 
   return (
-    <Layout title="Veilingen">
-      <div className="page-container">
-        <div className="page-header">
-          <h1>Veilingen</h1>
-          <div className="header-actions">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={includeInactive}
-                onChange={(e) => setIncludeInactive(e.target.checked)}
-              />
-              Inclusief inactieve
-            </label>
-            <button onClick={loadAuctions} disabled={loading} className="btn btn-secondary">
-              🔄 Vernieuwen
-            </button>
-          </div>
-        </div>
-
-        {error && <div className="error-banner">{error}</div>}
-
-        {/* Sync Controls */}
-        {selectedAuctions.size > 0 && (
-          <div className="selection-bar">
-            <span>{selectedAuctions.size} veiling(en) geselecteerd</span>
-            <button onClick={syncSelected} disabled={syncing} className="btn btn-primary">
-              {syncing ? 'Synchroniseren...' : 'Sync Geselecteerde'}
-            </button>
-          </div>
-        )}
-
-        {/* Edit Modal */}
-        {editingAuction && (
-          <div className="modal-overlay" onClick={cancelEditing}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Veiling bewerken</h2>
-                <button className="btn-close" onClick={cancelEditing}>×</button>
-              </div>
-              <div className="modal-body">
-                <div className="form-row">
-                  <label>Code</label>
-                  <input type="text" value={editingAuction.auction_code} disabled />
-                </div>
-                <div className="form-row">
-                  <label>Titel</label>
-                  <input 
-                    type="text" 
-                    value={editForm.title || ''} 
-                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                  />
-                </div>
-                <div className="form-row">
-                  <label>URL</label>
-                  <input 
-                    type="url" 
-                    value={editForm.url || ''} 
-                    onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
-                  />
-                </div>
-                <div className="form-row">
-                  <label>Start datum</label>
-                  <input 
-                    type="datetime-local" 
-                    value={editForm.starts_at?.slice(0, 16) || ''} 
-                    onChange={(e) => setEditForm({ ...editForm, starts_at: e.target.value })}
-                  />
-                </div>
-                <div className="form-row">
-                  <label>Eind datum</label>
-                  <input 
-                    type="datetime-local" 
-                    value={editForm.ends_at_planned?.slice(0, 16) || ''} 
-                    onChange={(e) => setEditForm({ ...editForm, ends_at_planned: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={cancelEditing}>Annuleren</button>
-                <button className="btn btn-primary" onClick={handleSaveEdit} disabled={saving}>
-                  {saving ? 'Opslaan...' : 'Opslaan'}
-                </button>
-              </div>
+    <>
+      <Layout title="Veilingen">
+        <div className="page-container">
+          <div className="page-header">
+            <h1>Veilingen</h1>
+            <div className="header-actions">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={includeInactive}
+                  onChange={(e) => setIncludeInactive(e.target.checked)}
+                />
+                Inclusief inactieve
+              </label>
+              <button onClick={loadAuctions} disabled={loading} className="btn btn-secondary">
+                🔄 Vernieuwen
+              </button>
             </div>
           </div>
-        )}
 
-        {/* Delete Confirmation Modal */}
-        {deletingAuction && (
-          <div className="modal-overlay" onClick={cancelDeleting}>
-            <div className="modal modal-danger" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Veiling verwijderen</h2>
-                <button className="btn-close" onClick={cancelDeleting}>×</button>
-              </div>
-              <div className="modal-body">
-                <p>Weet je zeker dat je veiling <strong>{deletingAuction.auction_code}</strong> wilt verwijderen?</p>
-                {deletingAuction.title && <p className="muted">{deletingAuction.title}</p>}
-                
-                {deletingAuction.lot_count > 0 && (
-                  <div className="delete-lots-option">
-                    <label className="checkbox-label danger">
-                      <input
-                        type="checkbox"
-                        checked={deleteWithLots}
-                        onChange={(e) => setDeleteWithLots(e.target.checked)}
-                      />
-                      Ook alle {deletingAuction.lot_count} lots verwijderen
-                    </label>
-                    {deleteWithLots && (
-                      <p className="warning-text">
-                        ⚠️ Let op: Dit verwijdert ook alle biedgeschiedenis, referentieprijzen en specificaties van deze lots!
-                      </p>
-                    )}
+          {error && <div className="error-banner">{error}</div>}
+
+          {/* Sync Controls */}
+          {selectedAuctions.size > 0 && (
+            <div className="selection-bar">
+              <span>{selectedAuctions.size} veiling(en) geselecteerd</span>
+              <button onClick={syncSelected} disabled={syncing} className="btn btn-primary">
+                {syncing ? 'Synchroniseren...' : 'Sync Geselecteerde'}
+              </button>
+            </div>
+          )}
+
+          {/* Edit Modal */}
+          {editingAuction && (
+            <div className="modal-overlay" onClick={cancelEditing}>
+              <div className="modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h2>Veiling bewerken</h2>
+                  <button className="btn-close" onClick={cancelEditing}>×</button>
+                </div>
+                <div className="modal-body">
+                  <div className="form-row">
+                    <label>Code</label>
+                    <input type="text" value={editingAuction.auction_code} disabled />
                   </div>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={cancelDeleting}>Annuleren</button>
-                <button className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
-                  {deleting ? 'Verwijderen...' : 'Verwijderen'}
-                </button>
+                  <div className="form-row">
+                    <label>Titel</label>
+                    <input 
+                      type="text" 
+                      value={editForm.title || ''} 
+                      onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-row">
+                    <label>URL</label>
+                    <input 
+                      type="url" 
+                      value={editForm.url || ''} 
+                      onChange={(e) => setEditForm({ ...editForm, url: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-row">
+                    <label>Start datum</label>
+                    <input 
+                      type="datetime-local" 
+                      value={editForm.starts_at?.slice(0, 16) || ''} 
+                      onChange={(e) => setEditForm({ ...editForm, starts_at: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-row">
+                    <label>Eind datum</label>
+                    <input 
+                      type="datetime-local" 
+                      value={editForm.ends_at_planned?.slice(0, 16) || ''} 
+                      onChange={(e) => setEditForm({ ...editForm, ends_at_planned: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={cancelEditing}>Annuleren</button>
+                  <button className="btn btn-primary" onClick={handleSaveEdit} disabled={saving}>
+                    {saving ? 'Opslaan...' : 'Opslaan'}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {loading ? (
-          <p className="loading">Laden...</p>
-        ) : auctions.length === 0 ? (
-          <p className="empty-state">Geen veilingen gevonden.</p>
-        ) : (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th className="col-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectedAuctions.size === auctions.length && auctions.length > 0}
-                      onChange={selectAll}
-                    />
-                  </th>
-                  <th>Code</th>
-                  <th>Titel</th>
-                  <th className="col-center">Actief</th>
-                  <th className="col-center">Totaal</th>
-                  <th>Einde</th>
-                  <th>Sync</th>
-                  <th className="col-actions">Acties</th>
-                </tr>
-              </thead>
-              <tbody>
-                {auctions.map((auction) => (
-                  <tr
-                    key={auction.auction_code}
-                    className={selectedAuctions.has(auction.auction_code) ? 'selected' : ''}
-                  >
-                    <td>
+          {/* Delete Confirmation Modal */}
+          {deletingAuction && (
+            <div className="modal-overlay" onClick={cancelDeleting}>
+              <div className="modal modal-danger" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h2>Veiling verwijderen</h2>
+                  <button className="btn-close" onClick={cancelDeleting}>×</button>
+                </div>
+                <div className="modal-body">
+                  <p>Weet je zeker dat je veiling <strong>{deletingAuction.auction_code}</strong> wilt verwijderen?</p>
+                  {deletingAuction.title && <p className="muted">{deletingAuction.title}</p>}
+                  
+                  {deletingAuction.lot_count > 0 && (
+                    <div className="delete-lots-option">
+                      <label className="checkbox-label danger">
+                        <input
+                          type="checkbox"
+                          checked={deleteWithLots}
+                          onChange={(e) => setDeleteWithLots(e.target.checked)}
+                        />
+                        Ook alle {deletingAuction.lot_count} lots verwijderen
+                      </label>
+                      {deleteWithLots && (
+                        <p className="warning-text">
+                          ⚠️ Let op: Dit verwijdert ook alle biedgeschiedenis, referentieprijzen en specificaties van deze lots!
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-secondary" onClick={cancelDeleting}>Annuleren</button>
+                  <button className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
+                    {deleting ? 'Verwijderen...' : 'Verwijderen'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {loading ? (
+            <p className="loading">Laden...</p>
+          ) : auctions.length === 0 ? (
+            <p className="empty-state">Geen veilingen gevonden.</p>
+          ) : (
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th className="col-checkbox">
                       <input
                         type="checkbox"
-                        checked={selectedAuctions.has(auction.auction_code)}
-                        onChange={() => toggleSelection(auction.auction_code)}
+                        checked={selectedAuctions.size === auctions.length && auctions.length > 0}
+                        onChange={selectAll}
                       />
-                    </td>
-                    <td className="mono">{auction.auction_code}</td>
-                    <td className="truncate" title={auction.title || undefined}>
-                      {auction.url ? (
-                        <a href={auction.url} target="_blank" rel="noopener noreferrer">
-                          {auction.title || auction.auction_code}
-                        </a>
-                      ) : (
-                        auction.title || '—'
-                      )}
-                    </td>
-                    <td className="col-center">
-                      <span className={auction.active_lots > 0 ? 'text-success' : 'text-muted'}>
-                        {auction.active_lots}
-                      </span>
-                    </td>
-                    <td className="col-center text-muted">{auction.lot_count}</td>
-                    <td className="text-muted">{formatDateTime(auction.ends_at_planned)}</td>
-                    <td>{getStatusBadge(syncResults.get(auction.auction_code))}</td>
-                    <td className="col-actions">
-                      <button 
-                        className="btn-icon" 
-                        onClick={() => startEditing(auction)}
-                        title="Bewerken"
-                      >
-                        ✏️
-                      </button>
-                      <button 
-                        className="btn-icon btn-delete" 
-                        onClick={() => startDeleting(auction)}
-                        title="Verwijderen"
-                      >
-                        🗑️
-                      </button>
-                    </td>
+                    </th>
+                    <th>Code</th>
+                    <th>Titel</th>
+                    <th className="col-center">Actief</th>
+                    <th className="col-center">Totaal</th>
+                    <th>Einde</th>
+                    <th>Sync</th>
+                    <th className="col-actions">Acties</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {auctions.map((auction) => (
+                    <tr
+                      key={auction.auction_code}
+                      className={selectedAuctions.has(auction.auction_code) ? 'selected' : ''}
+                    >
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedAuctions.has(auction.auction_code)}
+                          onChange={() => toggleSelection(auction.auction_code)}
+                        />
+                      </td>
+                      <td className="mono">{auction.auction_code}</td>
+                      <td className="truncate" title={auction.title || undefined}>
+                        {auction.url ? (
+                          <a href={auction.url} target="_blank" rel="noopener noreferrer">
+                            {auction.title || auction.auction_code}
+                          </a>
+                        ) : (
+                          auction.title || '—'
+                        )}
+                      </td>
+                      <td className="col-center">
+                        <span className={auction.active_lots > 0 ? 'text-success' : 'text-muted'}>
+                          {auction.active_lots}
+                        </span>
+                      </td>
+                      <td className="col-center text-muted">{auction.lot_count}</td>
+                      <td className="text-muted">{formatDateTime(auction.ends_at_planned)}</td>
+                      <td>{getStatusBadge(syncResults.get(auction.auction_code))}</td>
+                      <td className="col-actions">
+                        <button 
+                          className="btn-icon" 
+                          onClick={() => startEditing(auction)}
+                          title="Bewerken"
+                        >
+                          ✏️
+                        </button>
+                        <button 
+                          className="btn-icon btn-delete" 
+                          onClick={() => startDeleting(auction)}
+                          title="Verwijderen"
+                        >
+                          🗑️
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Layout>
+
+      <ExampleLotEventConsumer />
 
       <style jsx>{`
         .page-container { padding: 24px; }
@@ -482,6 +486,6 @@ export default function AuctionsPage() {
         .delete-lots-option { margin-top: 16px; padding: 12px; background: #252540; border-radius: 6px; }
         .warning-text { color: #fbbf24; font-size: 0.85rem; margin-top: 8px; }
       `}</style>
-    </Layout>
+    </>
   );
 }

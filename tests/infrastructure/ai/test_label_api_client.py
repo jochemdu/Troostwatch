@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from troostwatch.infrastructure.ai.label_api_client import (
     ExtractedCode,
@@ -54,8 +53,10 @@ class TestParseLabelResult:
     def test_create_result_with_codes(self):
         """Test creating a result with codes."""
         codes = [
-            ExtractedCode("ean", "1234567890123", "high"),
-            ExtractedCode("serial_number", "SN123456", "medium"),
+            ExtractedCode(code_type="ean", value="1234567890123", confidence="high"),
+            ExtractedCode(
+                code_type="serial_number", value="SN123456", confidence="medium"
+            ),
         ]
         result = ParseLabelResult(
             codes=codes,
@@ -111,6 +112,7 @@ class TestLabelAPIClient:
 
     def test_context_manager(self):
         """Test using client as context manager."""
+
         async def _test():
             async with LabelAPIClient() as client:
                 assert client._client is not None
@@ -120,6 +122,7 @@ class TestLabelAPIClient:
 
     def test_health_check_success(self):
         """Test successful health check."""
+
         async def _test():
             mock_response = MagicMock()
             mock_response.json.return_value = {
@@ -145,6 +148,7 @@ class TestLabelAPIClient:
 
     def test_is_available_true(self):
         """Test is_available returns True when service is healthy."""
+
         async def _test():
             mock_response = MagicMock()
             mock_response.json.return_value = {
@@ -171,7 +175,9 @@ class TestLabelAPIClient:
 
         async def _test():
             mock_client = AsyncMock()
-            mock_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+            mock_client.get = AsyncMock(
+                side_effect=httpx.ConnectError("Connection refused")
+            )
 
             client = LabelAPIClient()
             client._client = mock_client
@@ -183,6 +189,7 @@ class TestLabelAPIClient:
 
     def test_parse_label_url_success(self):
         """Test successful URL-based label parsing."""
+
         async def _test():
             mock_response = MagicMock()
             mock_response.json.return_value = {
@@ -221,7 +228,9 @@ class TestLabelAPIClient:
 
         async def _test():
             mock_client = AsyncMock()
-            mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+            mock_client.post = AsyncMock(
+                side_effect=httpx.ConnectError("Connection refused")
+            )
 
             client = LabelAPIClient()
             client._client = mock_client
@@ -235,6 +244,7 @@ class TestLabelAPIClient:
 
     def test_parse_label_file_not_found(self):
         """Test file parsing when file does not exist."""
+
         async def _test():
             client = LabelAPIClient()
             result = await client.parse_label_file("/nonexistent/image.jpg")
@@ -247,14 +257,24 @@ class TestLabelAPIClient:
     def test_parse_response_normalizes_code_types(self):
         """Test that unknown code types are normalized to 'other'."""
         client = LabelAPIClient()
-        result = client._parse_response({
-            "codes": [
-                {"code_type": "unknown_type", "value": "ABC123", "confidence": "high"},
-                {"code_type": "ean", "value": "1234567890123", "confidence": "high"},
-            ],
-            "raw_text": "test",
-            "processing_time_ms": 100,
-        })
+        result = client._parse_response(
+            {
+                "codes": [
+                    {
+                        "code_type": "unknown_type",
+                        "value": "ABC123",
+                        "confidence": "high",
+                    },
+                    {
+                        "code_type": "ean",
+                        "value": "1234567890123",
+                        "confidence": "high",
+                    },
+                ],
+                "raw_text": "test",
+                "processing_time_ms": 100,
+            }
+        )
 
         assert result.codes[0].code_type == "other"
         assert result.codes[1].code_type == "ean"
@@ -262,24 +282,32 @@ class TestLabelAPIClient:
     def test_parse_response_normalizes_confidence(self):
         """Test that unknown confidence levels are normalized to 'medium'."""
         client = LabelAPIClient()
-        result = client._parse_response({
-            "codes": [
-                {"code_type": "ean", "value": "1234567890123", "confidence": "very_high"},
-            ],
-            "raw_text": "test",
-            "processing_time_ms": 100,
-        })
+        result = client._parse_response(
+            {
+                "codes": [
+                    {
+                        "code_type": "ean",
+                        "value": "1234567890123",
+                        "confidence": "very_high",
+                    },
+                ],
+                "raw_text": "test",
+                "processing_time_ms": 100,
+            }
+        )
 
         assert result.codes[0].confidence == "medium"
 
     def test_parse_response_handles_empty_codes(self):
         """Test parsing response with no codes."""
         client = LabelAPIClient()
-        result = client._parse_response({
-            "codes": [],
-            "raw_text": "No codes found",
-            "processing_time_ms": 50,
-        })
+        result = client._parse_response(
+            {
+                "codes": [],
+                "raw_text": "No codes found",
+                "processing_time_ms": 50,
+            }
+        )
 
         assert result.codes == []
         assert result.raw_text == "No codes found"

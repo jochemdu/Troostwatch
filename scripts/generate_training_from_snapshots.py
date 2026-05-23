@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# flake8: noqa
 """Generate training data from lot detail HTML snapshots.
 
 This script uses the existing lot detail parser to extract image URLs
@@ -6,16 +7,13 @@ from HTML snapshots, downloads the images, runs OCR, and generates
 training data for the label classifier.
 
 Usage:
-    python scripts/generate_training_from_snapshots.py --snapshot tests/snapshots/live_pages/lot.html
-    python scripts/generate_training_from_snapshots.py --html-dir ./lot_pages/
-    python scripts/generate_training_from_snapshots.py --output training_data/real_labels
+    generate_training_from_snapshots.py --snapshot <snapshot> --html-dir <dir> --output <out>
 """
 
 import argparse
 import asyncio
 import hashlib
 import json
-import os
 import re
 import sys
 from pathlib import Path
@@ -25,13 +23,16 @@ import httpx
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from troostwatch.infrastructure.web.parsers.lot_detail import parse_lot_detail
+from troostwatch.infrastructure.web.parsers.lot_detail import (
+    parse_lot_detail,
+)  # noqa: E402
 
 # Try to import OCR dependencies
 try:
+    import io
+
     import pytesseract
     from PIL import Image
-    import io
 
     HAS_OCR = True
 except ImportError:

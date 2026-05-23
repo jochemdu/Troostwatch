@@ -8,7 +8,9 @@ import json
 import re
 import time
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
+from pydantic import BaseModel
+from pydantic import ConfigDict
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
@@ -38,14 +40,16 @@ from troostwatch.infrastructure.web.parsers import (
 from .fetcher import HttpFetcher, RequestResult
 
 
-@dataclass
-class PageResult:
+class PageResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     url: str
     html: str
 
 
-@dataclass
-class SyncRunResult:
+class SyncRunResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     run_id: int | None
     status: str
     pages_scanned: int
@@ -292,7 +296,10 @@ def compute_listing_hash(card: LotCardData) -> str:
 
 
 def compute_detail_hash(detail: LotDetailData) -> str:
-    payload = asdict(detail)
+    if hasattr(detail, "model_dump"):
+        payload = detail.model_dump()
+    else:
+        payload = asdict(detail)
     return _hash_payload(payload)
 
 
@@ -384,8 +391,6 @@ def sync_auction_to_db(
         auction_repo = AuctionRepository(conn)
         lot_repo = LotRepository(conn)
 
-        def _notes_text() -> str | None:
-            parts: list[str] = []
         def _notes_text() -> str | None:
             parts: list[str] = []
             if errors:
@@ -487,7 +492,10 @@ def sync_auction_to_db(
                     repository=auction_repo,
                 )
                 cur = conn.execute(
-                    "SELECT lot_code, listing_hash, detail_hash FROM lots WHERE auction_id = ?",
+                    (
+                        "SELECT lot_code, listing_hash, detail_hash "
+                        "FROM lots WHERE auction_id = ?"
+                    ),
                     (auction_id,),
                 )
                 for lot_code, listing_hash, detail_hash in cur.fetchall():
@@ -532,8 +540,11 @@ def sync_auction_to_db(
 
                     if not needs_detail and not dry_run and auction_id is not None:
                         conn.execute(
-                            "UPDATE lots SET last_seen_at = ?, listing_hash = COALESCE(listing_hash, ?) "
-                            "WHERE auction_id = ? AND lot_code = ?",
+                            (
+                                "UPDATE lots SET last_seen_at = ?, "
+                                "listing_hash = COALESCE(listing_hash, ?)"
+                                " WHERE auction_id = ? AND lot_code = ?"
+                            ),
                             (now_seen, listing_hash, auction_id, card.lot_code),
                         )
                         continue

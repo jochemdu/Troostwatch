@@ -5,11 +5,13 @@ This script trains a machine learning model to classify OCR tokens
 as product codes (EAN, serial number, model number, etc.) or non-codes.
 
 Usage:
-    python scripts/train_label_classifier.py --input training_data.json --output label_ocr_api/models/label_classifier.pkl
+    python scripts/train_label_classifier.py \
+        --input training_data.json \
+        --output label_ocr_api/models/label_classifier.pkl
 
 Data Format:
     The input JSON file should be exported from the troostwatch CLI:
-    
+
         troostwatch images export-tokens --output training_data.json
 
     Then manually annotate the data with labels using the labeling tool.
@@ -45,6 +47,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import cross_val_score, train_test_split
+
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or restrict to your extension's origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 app = FastAPI()
@@ -89,8 +100,12 @@ def prepare_features(token: str, ocr_conf: float, position_ratio: float) -> list
     # Pattern matches
     features.append(1.0 if re.match(r"^\d{13}$", token) else 0.0)  # EAN-13
     features.append(1.0 if re.match(r"^\d{8}$", token) else 0.0)  # EAN-8
-    features.append(1.0 if re.match(r"^[A-Z]{2,3}\d{6,}", token) else 0.0)  # Serial-like
-    features.append(1.0 if re.match(r"^[A-Z]{2,4}-?\d{3,6}", token) else 0.0)  # Model-like
+    features.append(
+        1.0 if re.match(r"^[A-Z]{2,3}\d{6,}", token) else 0.0
+    )  # Serial-like
+    features.append(
+        1.0 if re.match(r"^[A-Z]{2,4}-?\d{3,6}", token) else 0.0
+    )  # Model-like
     features.append(1.0 if re.match(r"^\d+[A-Z]+\d*$", token) else 0.0)  # Mixed
 
     # OCR confidence
@@ -103,7 +118,6 @@ def prepare_features(token: str, ocr_conf: float, position_ratio: float) -> list
 
 
 def load_training_data(input_path: Path) -> tuple[np.ndarray, np.ndarray, list[str]]:
-
     """Load and process training data from JSON or JSONL file.
 
     Args:
@@ -156,7 +170,9 @@ def load_training_data(input_path: Path) -> tuple[np.ndarray, np.ndarray, list[s
                     conf = float(confs[i]) if i < len(confs) else 0.0
                 except (ValueError, TypeError):
                     conf = 0.0
-                position_ratio = i / max(total_tokens - 1, 1) if total_tokens > 1 else 0.0
+                position_ratio = (
+                    i / max(total_tokens - 1, 1) if total_tokens > 1 else 0.0
+                )
                 label = labels.get(str(i), "none")
                 all_features.append(prepare_features(token, conf, position_ratio))
                 all_labels.append(label)
@@ -236,7 +252,7 @@ def main():
     X, y, tokens = load_training_data(args.input)
 
     print(f"Total tokens: {len(X)}")
-    print(f"Label distribution:")
+    print("Label distribution:")
     unique, counts = np.unique(y, return_counts=True)
     for label, count in zip(unique, counts):
         print(f"  {label}: {count}")

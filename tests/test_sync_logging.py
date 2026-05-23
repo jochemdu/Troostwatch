@@ -1,17 +1,17 @@
 import json
 import sqlite3
-from pathlib import Path
 import sys
+from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.services.sync import RequestResult, sync_auction_to_db
-
 # Import the internal sync module for monkeypatching internals.
 # This is intentional for test purposes – see scripts/check_imports.py exceptions.
-from troostwatch.services.sync import sync as sync_module
+from troostwatch.services.sync import RequestResult  # noqa: E402
+from troostwatch.services.sync import sync_auction_to_db  # noqa: E402
+from troostwatch.services.sync import sync as sync_module  # noqa: E402
 
 
 def test_verbose_navigation_logging(monkeypatch, tmp_path):
@@ -37,7 +37,9 @@ def test_verbose_navigation_logging(monkeypatch, tmp_path):
         lambda *_args, **_kwargs: [base_url, f"{base_url}?page=2"],
     )
     monkeypatch.setattr(sync_module, "parse_auction_page", lambda *_args, **_kwargs: [])
-    monkeypatch.setattr(sync_module, "_iter_lot_card_blocks", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        sync_module, "_iter_lot_card_blocks", lambda *_args, **_kwargs: []
+    )
 
     db_path = tmp_path / "sync_pages.db"
     result = sync_auction_to_db(

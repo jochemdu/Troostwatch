@@ -20,6 +20,7 @@ from .report import report
 from .sync import sync
 from .sync_multi import sync_multi
 from .view import view
+from .products import products
 
 
 @click.group(
@@ -45,6 +46,7 @@ cli.add_command(bid)
 cli.add_command(add_lot)
 cli.add_command(menu)
 cli.add_command(images_cli, name="images")
+cli.add_command(products)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
-from pathlib import Path
 import sqlite3
 import sys
+from pathlib import Path
 from typing import Any
 
 from click.testing import CliRunner
@@ -9,13 +9,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import importlib
+import importlib  # noqa: E402
 
-cli_sync_module = importlib.import_module("troostwatch.interfaces.cli.sync")
-from troostwatch.interfaces.cli.context import build_sync_command_context
-from troostwatch.interfaces.cli.sync import sync
-from troostwatch.services.sync_service import AuctionSelection, SyncRunSummary
-from troostwatch.services.sync import SyncRunResult, _upsert_auction
+cli_sync_module = importlib.import_module(
+    "troostwatch.interfaces.cli.sync"
+)  # noqa: E402
+from troostwatch.interfaces.cli.context import build_sync_command_context  # noqa: E402
+from troostwatch.interfaces.cli.sync import sync  # noqa: E402
+from troostwatch.services.sync import SyncRunResult  # noqa: E402
+from troostwatch.services.sync import _upsert_auction  # noqa: E402
+from troostwatch.services.sync_service import AuctionSelection  # noqa: E402
+from troostwatch.services.sync_service import SyncRunSummary  # noqa: E402
 
 
 def _seed_auction(db_path: Path, code: str, url: str):
@@ -38,7 +42,10 @@ class FakeSyncService:
             resolved_code = self.available[0]["auction_code"]
         resolved_url = auction_url
         if resolved_code and not resolved_url:
-            match = next((a for a in self.available if a.get("auction_code") == resolved_code), None)
+            match = next(
+                (a for a in self.available if a.get("auction_code") == resolved_code),
+                None,
+            )
             resolved_url = match.get("url") if match else None
         return AuctionSelection(
             resolved_code=resolved_code,
@@ -63,7 +70,9 @@ class FakeSyncService:
         )
 
 
-def _mock_service(monkeypatch, available: list[dict[str, Any]], *, auto_resolve: bool = True):
+def _mock_service(
+    monkeypatch, available: list[dict[str, Any]], *, auto_resolve: bool = True
+):
     fake_service = FakeSyncService(available=available, auto_resolve=auto_resolve)
 
     def _factory(*args, **kwargs):
@@ -150,8 +159,16 @@ def test_sync_cli_defaults_preferred_auction(monkeypatch, tmp_path):
 
     service = PreferredService(
         available=[
-            {"auction_code": "A1-ONE", "url": "https://example.com/a/one", "title": "Auction 1"},
-            {"auction_code": "A1-TWO", "url": "https://example.com/a/two", "title": "Auction 2"},
+            {
+                "auction_code": "A1-ONE",
+                "url": "https://example.com/a/one",
+                "title": "Auction 1",
+            },
+            {
+                "auction_code": "A1-TWO",
+                "url": "https://example.com/a/two",
+                "title": "Auction 2",
+            },
         ]
     )
 
@@ -194,7 +211,9 @@ def test_sync_cli_reports_dry_run(monkeypatch, tmp_path):
     )
 
     runner = CliRunner()
-    result = runner.invoke(sync, ["--db", str(db_path), "--dry-run", "--auction-code", "A1-EXIST"])
+    result = runner.invoke(
+        sync, ["--db", str(db_path), "--dry-run", "--auction-code", "A1-EXIST"]
+    )
 
     assert result.exit_code == 0, result.output
     assert service.run_kwargs.get("dry_run") is True
@@ -209,7 +228,9 @@ def test_sync_cli_handles_service_error(monkeypatch, tmp_path):
         async def run_sync(self, **kwargs):
             return SyncRunSummary(status="error", result=None, error="boom")
 
-    service = ErrorService(available=[{"auction_code": "A1-EXIST", "url": "https://example.com/a/exist"}])
+    service = ErrorService(
+        available=[{"auction_code": "A1-EXIST", "url": "https://example.com/a/exist"}]
+    )
     monkeypatch.setattr(cli_sync_module, "SyncService", lambda *args, **kwargs: service)
     monkeypatch.setattr(
         cli_sync_module,

@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
 from contextlib import AbstractContextManager as ContextManager
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeVar
 
-from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.db import (
     ensure_schema,
     get_connection,
@@ -27,6 +26,7 @@ from troostwatch.infrastructure.db.repositories import (
     LotRepository,
 )
 from troostwatch.infrastructure.db.repositories.base import BaseRepository
+from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.services.buyers import BuyerService
 from troostwatch.services.lots import LotManagementService, LotViewService
 
@@ -100,7 +100,10 @@ def get_current_timestamp() -> str:
 
 
 def build_cli_context(db_path: str | Path | None = None) -> CLIContext:
-    """Build the CLI context with resolved configuration paths and connection factory."""
+    """
+    Build the CLI context with resolved configuration paths and
+    connection factory.
+    """
 
     paths = get_path_config()
     resolved_db_path = (

@@ -13,6 +13,7 @@ Prints:
 from __future__ import annotations
 
 import argparse
+import json
 import sqlite3
 import sys
 from pathlib import Path
@@ -20,15 +21,13 @@ from pathlib import Path
 # Ensure package is importable when run as script
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from troostwatch.infrastructure.db.schema import CURRENT_SCHEMA_VERSION
+from troostwatch.infrastructure.db.schema import CURRENT_SCHEMA_VERSION  # noqa: E402
 
 
 def get_db_path() -> Path:
     """Return the default database path from config or fallback."""
     config_path = Path(__file__).resolve().parents[1] / "config.json"
     if config_path.exists():
-        import json
-
         with open(config_path) as f:
             cfg = json.load(f)
             return Path(cfg.get("database", "troostwatch.db"))
@@ -45,7 +44,10 @@ def check_schema(db_path: Path) -> int:
     try:
         # Check schema_version table
         cur = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'"
+            (
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name='schema_version'"
+            )
         )
         has_version_table = cur.fetchone() is not None
 
@@ -81,11 +83,17 @@ def check_schema(db_path: Path) -> int:
 
         # List applied migrations
         cur = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_migrations'"
+            (
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name='schema_migrations'"
+            )
         )
         if cur.fetchone():
             cur = conn.execute(
-                "SELECT name, applied_at, notes FROM schema_migrations ORDER BY applied_at"
+                (
+                    "SELECT name, applied_at, notes FROM schema_migrations "
+                    "ORDER BY applied_at"
+                )
             )
             rows = cur.fetchall()
             if rows:

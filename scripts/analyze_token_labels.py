@@ -22,7 +22,7 @@ def analyze_labels(input_path: Path):
     length_stats = defaultdict(list)
     conf_stats = defaultdict(list)
 
-    with open(input_path, 'r', encoding='utf-8') as fin:
+    with open(input_path, "r", encoding="utf-8") as fin:
         for line in fin:
             if not line.strip():
                 continue
@@ -46,14 +46,25 @@ def analyze_labels(input_path: Path):
     print()
     print("Token length stats per label:")
     for label, lengths in length_stats.items():
-        print(f"  {label}: mean={sum(lengths)/len(lengths):.2f}, min={min(lengths)}, max={max(lengths)}")
+        mean_len = sum(lengths) / len(lengths)
+        min_len = min(lengths)
+        max_len = max(lengths)
+        print(f"  {label}: mean={mean_len:.2f}, min={min_len}, max={max_len}")
     print()
     print("Confidence stats per label:")
     for label, confs in conf_stats.items():
-        print(f"  {label}: mean={sum(confs)/len(confs):.2f}, min={min(confs)}, max={max(confs)}")
+        mean_conf = sum(confs) / len(confs)
+        min_conf = min(confs)
+        max_conf = max(confs)
+        print(f"  {label}: mean={mean_conf:.2f}, min={min_conf}, max={max_conf}")
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Analyze token label distribution and feature statistics')
-    parser.add_argument('--input', '-i', type=Path, required=True, help='Input JSONL file')
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Analyze token label distribution and feature statistics"
+    )
+    parser.add_argument(
+        "--input", "-i", type=Path, required=True, help="Input JSONL file"
+    )
     args = parser.parse_args()
     analyze_labels(args.input)

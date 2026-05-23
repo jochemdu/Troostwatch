@@ -10,7 +10,10 @@ with open(data_path, "r") as f_in, open(output_path, "w") as f_out:
     for line in f_in:
         token = json.loads(line)
         # Enrich logic: RADEON is AMD videokaart
-        if token.get("text", "").strip().upper() == "RADEON" and token.get("brand", "").upper() == "AMD":
+        if (
+            token.get("text", "").strip().upper() == "RADEON"
+            and token.get("brand", "").upper() == "AMD"
+        ):
             token["type"] = "videokaart"
             token["category"] = "computer"
         # Select tokens zonder handmatige label (type/category mag leeg zijn)

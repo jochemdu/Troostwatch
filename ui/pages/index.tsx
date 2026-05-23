@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Layout from '../components/Layout';
 import { fetchDashboardStats, type DashboardStats } from '../lib/api';
+import LabelExtractor from "../components/LabelExtractor";
 
 export default function Home() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -83,6 +84,16 @@ export default function Home() {
           </Link>
         </div>
       </div>
+
+      <div style={{ margin: "32px 0" }}>
+        <Link href="/extract-label">
+          <button style={{ padding: "10px 20px", fontSize: "1rem", background: "#1976d2", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>
+            Ga naar Label Extractor
+          </button>
+        </Link>
+      </div>
+
+      <LabelExtractor />
 
       <style jsx>{`
         .stats-grid {

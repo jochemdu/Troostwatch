@@ -1,19 +1,17 @@
 """Tests for vendor-specific code extraction profiles."""
 
-import pytest
-
 from troostwatch.infrastructure.ai.vendor_profiles import (
+    APPLE_PROFILE,
+    CISCO_PROFILE,
+    DELL_PROFILE,
+    HP_PROFILE,
+    LENOVO_PROFILE,
+    SAMSUNG_PROFILE,
+    UBIQUITI_PROFILE,
     VENDOR_PROFILES,
     detect_vendor,
     extract_vendor_codes,
     get_all_vendor_names,
-    HP_PROFILE,
-    LENOVO_PROFILE,
-    UBIQUITI_PROFILE,
-    DELL_PROFILE,
-    APPLE_PROFILE,
-    SAMSUNG_PROFILE,
-    CISCO_PROFILE,
 )
 
 

@@ -9,12 +9,12 @@ needed.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import json
 import re
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 from urllib.parse import urljoin
 
 import requests
@@ -160,18 +160,22 @@ class TroostwatchHttpClient:
         response = self.session.post(login_url, data=payload, headers=headers)
         if response.status_code >= 400:
             raise AuthenticationError(
-                f"Login failed with status {response.status_code}: {response.text[:200]}"
+                f"Login failed with status {response.status_code}: "
+                f"{response.text[:200]}"
             )
         self.csrf_token = self._extract_csrf(response) or csrf
         self.last_authenticated = time.time()
 
     # -------------------- request helpers --------------------
-    def _prepare_headers(self, extra: dict[str, str | None]) -> dict[str, str]:
+    def _prepare_headers(
+        self, extra: Mapping[str, str | None] | None
+    ) -> dict[str, str]:
         from troostwatch import __version__
 
         headers = {"User-Agent": f"troostwatch-client/{__version__}"}
         if extra:
-            headers.update(extra)
+            # Filter out None values to satisfy mapping value type expectations
+            headers.update({k: v for k, v in extra.items() if v is not None})
         if self.csrf_token:
             headers.setdefault("X-CSRFToken", self.csrf_token)
         return headers

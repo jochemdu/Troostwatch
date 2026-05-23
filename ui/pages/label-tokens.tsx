@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import ExampleLotEventConsumer from '../components/ExampleLotEventConsumer';
 
 interface Token {
   text: string;

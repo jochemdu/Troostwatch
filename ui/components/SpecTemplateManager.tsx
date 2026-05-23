@@ -120,18 +120,18 @@ export default function SpecTemplateManager() {
               <td style={{ padding: 8 }}>{t.id}</td>
               <td style={{ padding: 8 }}>
                 {editId === t.id ? (
-                  <input value={editTemplate.title ?? ''} onChange={e => setEditTemplate(et => ({ ...et, title: e.target.value }))} />
+                  <input value={editTemplate.title ?? ''} onChange={e => setEditTemplate((et: any) => ({ ...et, title: e.target.value }))} />
                 ) : t.title}
               </td>
               <td style={{ padding: 8 }}>{t.parent_id ?? '-'}</td>
               <td style={{ padding: 8 }}>
                 {editId === t.id ? (
-                  <input value={editTemplate.value ?? ''} onChange={e => setEditTemplate(et => ({ ...et, value: e.target.value }))} />
+                  <input value={editTemplate.value ?? ''} onChange={e => setEditTemplate((et: any) => ({ ...et, value: e.target.value }))} />
                 ) : t.value ?? '-'}
               </td>
               <td style={{ padding: 8 }}>
                 {editId === t.id ? (
-                  <input value={editTemplate.category ?? ''} onChange={e => setEditTemplate(et => ({ ...et, category: e.target.value }))} />
+                  <input value={editTemplate.category ?? ''} onChange={e => setEditTemplate((et: any) => ({ ...et, category: e.target.value }))} />
                 ) : t.category ?? '-'}</td>
               <td style={{ padding: 8 }}>
                 {editId === t.id ? (

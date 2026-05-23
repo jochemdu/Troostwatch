@@ -5,20 +5,16 @@
  * and approve/reject actions.
  */
 import { useState, useEffect, useCallback } from 'react';
-import type {
-  PendingCodeResponse,
-  PendingCodesListResponse,
-  ReviewStatsResponse,
-} from '../lib/generated';
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface ReviewQueueProps {
-  onStatsUpdate?: (stats: ReviewStatsResponse) => void;
+  onStatsUpdate?: (stats: any) => void;
 }
 
 export default function ReviewQueue({ onStatsUpdate }: ReviewQueueProps) {
-  const [codes, setCodes] = useState<PendingCodeResponse[]>([]);
+  const [codes, setCodes] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
@@ -26,7 +22,7 @@ export default function ReviewQueue({ onStatsUpdate }: ReviewQueueProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedCodes, setSelectedCodes] = useState<Set<number>>(new Set());
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
-  const [stats, setStats] = useState<ReviewStatsResponse | null>(null);
+  const [stats, setStats] = useState<any | null>(null);
   const [codeTypeFilter, setCodeTypeFilter] = useState<string>('');
 
   const fetchCodes = useCallback(async () => {
@@ -44,8 +40,8 @@ export default function ReviewQueue({ onStatsUpdate }: ReviewQueueProps) {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      const data: PendingCodesListResponse = await response.json();
-      setCodes(data.codes);
+      const data: any = await response.json();
+      setCodes(data.codes || []);
       setTotal(data.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch codes');
@@ -58,7 +54,7 @@ export default function ReviewQueue({ onStatsUpdate }: ReviewQueueProps) {
     try {
       const response = await fetch(`${API_URL}/review/stats`);
       if (response.ok) {
-        const data: ReviewStatsResponse = await response.json();
+        const data: any = await response.json();
         setStats(data);
         onStatsUpdate?.(data);
       }

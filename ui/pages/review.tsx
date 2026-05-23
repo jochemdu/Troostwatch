@@ -8,10 +8,10 @@ import { useState } from 'react';
 import Layout from '../components/Layout';
 import ReviewQueue from '../components/ReviewQueue';
 import ExampleLotEventConsumer from '../components/ExampleLotEventConsumer';
-import type { ReviewStatsResponse } from '../lib/generated';
+
 
 export default function ReviewPage() {
-  const [stats, setStats] = useState<ReviewStatsResponse | null>(null);
+  const [stats, setStats] = useState<any | null>(null);
 
   return (
     <>

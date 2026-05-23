@@ -1,5 +1,8 @@
+# flake8: noqa
 import io
+
 from fastapi.testclient import TestClient
+
 from troostwatch.app.api import app
 
 

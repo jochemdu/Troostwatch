@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from typing import Any
 
-from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.db import (
     ensure_core_schema,
     ensure_schema,
@@ -14,6 +16,7 @@ from troostwatch.infrastructure.db.repositories import (
     AuctionRepository,
     PreferenceRepository,
 )
+from troostwatch.infrastructure.http import TroostwatchHttpClient
 from troostwatch.infrastructure.observability import get_logger
 from troostwatch.services.dto import EventPublisher, noop_event_publisher
 from troostwatch.services.live_runner import (
@@ -24,13 +27,14 @@ from troostwatch.services.live_runner import (
 from troostwatch.services.sync import SyncRunResult, sync_auction_to_db
 
 
-@dataclass(frozen=True)
-class AuctionSelection:
+class AuctionSelection(BaseModel):
     """Result of resolving an auction for synchronization."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     resolved_code: str | None
     resolved_url: str | None
-    available: list[dict[str, str | None]]
+    available: list[dict[str, Any]]
     preferred_index: int | None
 
     @property
@@ -41,9 +45,10 @@ class AuctionSelection:
         return index + 1
 
 
-@dataclass(frozen=True)
-class SyncRunSummary:
+class SyncRunSummary(BaseModel):
     """Structured result for a sync execution."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     status: str
     auction_code: str | None = None
@@ -56,7 +61,10 @@ class SyncRunSummary:
         if code:
             payload["auction_code"] = code
         if self.result:
-            payload["result"] = asdict(self.result)
+            if hasattr(self.result, "model_dump"):
+                payload["result"] = self.result.model_dump()
+            else:
+                payload["result"] = asdict(self.result)
         if self.error:
             payload["error"] = self.error
         return payload
@@ -66,7 +74,10 @@ class SyncRunSummary:
         if self.auction_code:
             payload["auction_code"] = self.auction_code
         if self.result:
-            payload["result"] = asdict(self.result)
+            if hasattr(self.result, "model_dump"):
+                payload["result"] = self.result.model_dump()
+            else:
+                payload["result"] = asdict(self.result)
         if self.error:
             payload["error"] = self.error
         return payload
@@ -151,7 +162,10 @@ class SyncService:
             ),
         )
         self._logger.info(
-            "Sync completed for auction %s: status=%s, lots_scanned=%d, lots_updated=%d",
+            (
+                "Sync completed for auction %s: status=%s, "
+                "lots_scanned=%d, lots_updated=%d"
+            ),
             auction_code,
             result.status,
             result.lots_scanned,

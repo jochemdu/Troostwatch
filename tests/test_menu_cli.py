@@ -5,8 +5,8 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from troostwatch.interfaces.cli.menu import menu
 from troostwatch.infrastructure.db import ensure_schema
+from troostwatch.interfaces.cli.menu import menu
 
 
 def _seed_db(db_path: Path) -> None:

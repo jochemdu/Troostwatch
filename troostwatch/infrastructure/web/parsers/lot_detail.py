@@ -2,30 +2,33 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import json
 import re
 
 from bs4 import BeautifulSoup
+from pydantic import BaseModel, ConfigDict
 
 from troostwatch.infrastructure.observability.logging import get_logger
+
 from . import utils
 
 logger = get_logger(__name__)
 
 
-@dataclass
-class BidHistoryEntry:
+class BidHistoryEntry(BaseModel):
     """A single bid in the lot's bid history."""
+
+    model_config = ConfigDict(extra="forbid")
 
     bidder_label: str
     amount_eur: float
     timestamp: str | None = None
 
 
-@dataclass
-class LotDetailData:
+class LotDetailData(BaseModel):
     """Data extracted from a lot detail page."""
+
+    model_config = ConfigDict(extra="forbid")
 
     lot_code: str
     title: str
@@ -46,8 +49,8 @@ class LotDetailData:
     location_country: str | None = None
     seller_allocation_note: str | None = None
     brand: str | None = None
-    bid_history: list[BidHistoryEntry] = field(default_factory=list)
-    image_urls: list[str] = field(default_factory=list)
+    bid_history: list[BidHistoryEntry] = []
+    image_urls: list[str] = []
 
 
 def _strip_html_tags(text: str) -> str:
@@ -176,7 +179,7 @@ def parse_lot_detail(
         image_urls = _parse_image_urls_from_json(lot) or _parse_image_urls(soup)
 
         # Determine the lot code - prefer displayId from the API data
-        # The displayId contains the full lot code (e.g., "A1-39500-1802" or "03T-SMD-1")
+        # The displayId contains the full lot code (e.g. "A1-39500-1802" or "03T-SMD-1")
         resolved_lot_code = lot.get("displayId") or lot_code
 
         return LotDetailData(

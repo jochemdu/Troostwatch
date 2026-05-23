@@ -5,7 +5,7 @@ from typing import Any
 from troostwatch.infrastructure.db.repositories import BuyerRepository
 from troostwatch.infrastructure.db.repositories.buyers import DuplicateBuyerError
 from troostwatch.infrastructure.observability import get_logger
-from troostwatch.services.dto import BuyerDTO, BuyerCreateDTO, EventPublisher
+from troostwatch.services.dto import BuyerCreateDTO, BuyerDTO, EventPublisher
 
 _logger = get_logger(__name__)
 

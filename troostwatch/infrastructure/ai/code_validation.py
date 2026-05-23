@@ -1,3 +1,4 @@
+# flake8: noqa
 """Code validation utilities for extracted product codes.
 
 This module provides validation for various product code formats:

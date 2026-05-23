@@ -3,10 +3,13 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from ..schema import ensure_schema
-from .base import BaseRepository
 from troostwatch.infrastructure.web.parsers.lot_card import LotCardData
 from troostwatch.infrastructure.web.parsers.lot_detail import LotDetailData
+
+from ..schema import ensure_schema
+from .base import BaseRepository
+
+# flake8: noqa: E501  # SQL-heavy repository; many long SQL strings kept for readability
 
 
 class LotRepository(BaseRepository):
@@ -18,7 +21,7 @@ class LotRepository(BaseRepository):
         query = "SELECT l.id FROM lots l JOIN auctions a ON l.auction_id = a.id WHERE l.lot_code = ?"
 
         def _lookup(code: str) -> int | None:
-            params: list = [code]
+            params: list[Any] = [code]
             local_query = query
             if auction_code is not None:
                 local_query += " AND a.auction_code = ?"
@@ -95,7 +98,7 @@ class LotRepository(BaseRepository):
         """
 
         conditions: list[str] = []
-        params: list = []
+        params: list[Any] = []
         if auction_code:
             conditions.append("a.auction_code = ?")
             params.append(auction_code)

@@ -5,7 +5,9 @@ This script trains a machine learning model to classify OCR tokens
 as product codes (EAN, serial number, model number, etc.) or non-codes.
 
 Usage:
-    python scripts/train_label_classifier.py --input training_data.json --output label_ocr_api/models/label_classifier.pkl
+    python scripts/train_label_classifier.py \
+        --input training_data.json \
+        --output label_ocr_api/models/label_classifier.pkl
 
 Data Format:
     The input JSON file should be exported from the troostwatch CLI:
@@ -45,7 +47,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import cross_val_score, train_test_split
-
 
 app = FastAPI()
 app.add_middleware(

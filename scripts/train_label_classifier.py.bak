@@ -46,7 +46,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import cross_val_score, train_test_split
 
-
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,

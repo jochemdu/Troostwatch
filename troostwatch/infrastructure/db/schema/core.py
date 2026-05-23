@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 _SCHEMA_FILE = Path(__file__).resolve().parents[4] / "schema" / "schema.sql"
 
 

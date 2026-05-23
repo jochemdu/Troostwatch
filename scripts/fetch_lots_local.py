@@ -15,6 +15,7 @@ Usage:
 import argparse
 import json
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -23,7 +24,6 @@ try:
 except ImportError:
     print("Installing requests...")
     import subprocess
-    import sys
 
     subprocess.run([sys.executable, "-m", "pip", "install", "requests"], check=True)
     import requests
@@ -89,7 +89,9 @@ def main():
     session = requests.Session()
     session.headers.update(
         {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " "AppleWebKit/537.36"
+            ),
             "Accept": "text/html,application/xhtml+xml",
             "Accept-Language": "nl-NL,nl;q=0.9",
         }

@@ -57,7 +57,8 @@ IMPORT_RULES: List[ImportRule] = [
             "troostwatch/interfaces/cli/context_helpers.py",
             "troostwatch/interfaces/cli/auth.py",
             "troostwatch/interfaces/cli/debug.py",  # Diagnostics are allowed
-            "troostwatch/interfaces/cli/bid.py",  # Only imports AuthenticationError exception
+            "troostwatch/interfaces/cli/bid.py",
+            # Only imports AuthenticationError exception
         ],
         reason="CLI commands should use services, not infrastructure directly",
     ),
@@ -136,7 +137,10 @@ def check_sync_imports(base_path: Path) -> List[ImportViolation]:
                                 line_number=line_no,
                                 import_statement=module,
                                 forbidden_module=forbidden,
-                                reason="Import sync from troostwatch.services.sync, not submodules",
+                                reason=(
+                                    "Import sync from troostwatch.services.sync, "
+                                    "not submodules"
+                                ),
                             )
                         )
 

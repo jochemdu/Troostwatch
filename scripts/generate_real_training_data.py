@@ -8,7 +8,8 @@ This script:
 4. Saves token data for manual labeling
 
 Usage:
-    python scripts/generate_real_training_data.py --db troostwatch.db --limit 20 --output real_training_data.json
+    python scripts/generate_real_training_data.py \
+        --db troostwatch.db --limit 20 --output real_training_data.json
 """
 
 from __future__ import annotations
@@ -24,9 +25,10 @@ import httpx
 
 # Check for optional dependencies
 try:
+    import io
+
     import pytesseract
     from PIL import Image
-    import io
 
     OCR_AVAILABLE = True
 except ImportError:

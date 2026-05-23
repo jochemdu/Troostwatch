@@ -53,8 +53,10 @@ class TestParseLabelResult:
     def test_create_result_with_codes(self):
         """Test creating a result with codes."""
         codes = [
-            ExtractedCode("ean", "1234567890123", "high"),
-            ExtractedCode("serial_number", "SN123456", "medium"),
+            ExtractedCode(code_type="ean", value="1234567890123", confidence="high"),
+            ExtractedCode(
+                code_type="serial_number", value="SN123456", confidence="medium"
+            ),
         ]
         result = ParseLabelResult(
             codes=codes,

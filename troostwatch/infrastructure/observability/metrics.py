@@ -10,12 +10,11 @@ to use prometheus_client, but currently uses simple dictionaries.
 
 from __future__ import annotations
 
-import time
 import threading
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Mapping
-
 
 # ---------------------------------------------------------------------------
 # Metric storage
@@ -91,7 +90,9 @@ class Histogram:
         with self._lock:
             self._observations[key].append(value)
 
-    def get_stats(self, labels: Mapping[str, str | None] | None = None) -> dict[str, float]:
+    def get_stats(
+        self, labels: Mapping[str, str | None] | None = None
+    ) -> dict[str, float]:
         """Get summary statistics for the histogram."""
         key = self._labels_to_key(labels)
         with self._lock:

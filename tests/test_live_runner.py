@@ -6,8 +6,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from troostwatch.services.live_runner import LiveSyncConfig, LiveSyncRunner
-from troostwatch.services.sync import SyncRunResult
+from troostwatch.services.live_runner import LiveSyncConfig  # noqa: E402
+from troostwatch.services.live_runner import LiveSyncRunner  # noqa: E402
+from troostwatch.services.sync import SyncRunResult  # noqa: E402
 
 
 class StubSync:

@@ -12,7 +12,6 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Any, Iterator
 
-
 # ---------------------------------------------------------------------------
 # Context variables for structured logging
 # ---------------------------------------------------------------------------

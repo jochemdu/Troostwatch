@@ -7,7 +7,7 @@ import pytest
 
 from troostwatch.infrastructure.db import ensure_schema
 from troostwatch.infrastructure.db.repositories import BidRepository
-from troostwatch.services.bidding import BidError, BiddingService
+from troostwatch.services.bidding import BiddingService, BidError
 
 
 class DummyClient:

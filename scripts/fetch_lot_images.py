@@ -6,10 +6,12 @@ with proper authentication, bypassing the 403 blocks.
 
 Usage:
     # With credentials
-    python scripts/fetch_lot_images.py --auction A1-39500 --username YOUR_EMAIL --password YOUR_PASSWORD
+    python scripts/fetch_lot_images.py --auction A1-39500 \
+        --username YOUR_EMAIL --password YOUR_PASSWORD
 
     # With saved token
-    python scripts/fetch_lot_images.py --auction A1-39500 --token-path ~/.troostwatch/session.json
+    python scripts/fetch_lot_images.py --auction A1-39500 \
+        --token-path ~/.troostwatch/session.json
 
     # From environment variables
     export TROOSTWATCH_USERNAME=your@email.com
@@ -22,28 +24,24 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
 import httpx
 
-# Add project root to path
+# Add project root to path so we can import the package when running as a script
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from troostwatch.infrastructure.http import (
-    LoginCredentials,
-    TroostwatchHttpClient,
-)  # noqa: E402
-from troostwatch.infrastructure.web.parsers import (
-    parse_auction_page,
-    parse_lot_detail,
-)  # noqa: E402
+# Import the troostwatch package lazily inside main() (avoids module-level
+# imports after executable statements which flake8 flags as E402)
 
 # OCR imports
 try:
+    import io
+
     import pytesseract
     from PIL import Image
-    import io
 
     HAS_OCR = True
 except ImportError:
@@ -52,7 +50,6 @@ except ImportError:
 
 def classify_token(text: str) -> str:
     """Classify a token based on its content."""
-    import re
 
     text = text.strip().upper()
     if not text:
@@ -137,6 +134,13 @@ def main():
         print("  export TROOSTWATCH_PASSWORD=yourpassword")
         return 1
 
+    # Import package internals after ensuring the project root is on sys.path
+    from troostwatch.infrastructure.http import LoginCredentials, TroostwatchHttpClient
+    from troostwatch.infrastructure.web.parsers import (
+        parse_auction_page,
+        parse_lot_detail,
+    )
+
     # Build authenticated client
     creds = LoginCredentials(
         username=args.username,
@@ -184,9 +188,11 @@ def main():
     stats = {"images": 0, "tokens": 0}
 
     for idx, lot in enumerate(lots[: args.limit]):
-        print(
-            f"\n[{idx+1}/{min(len(lots), args.limit)}] {lot.lot_code}: {lot.title[:50]}..."
+        summary = (
+            f"[{idx+1}/{min(len(lots), args.limit)}] {lot.lot_code}: "
+            f"{lot.title[:50]}..."
         )
+        print("\n" + summary)
 
         # Fetch lot detail
         try:

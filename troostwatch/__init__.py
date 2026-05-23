@@ -1,14 +1,15 @@
 """
 Troostwatch package initializer.
 
-This package provides tools for scraping, analyzing and tracking auctions on the Troostwijk platform.
+This package provides tools for scraping, analyzing and tracking auctions
+on the Troostwijk platform.
 
 The package exposes a ``__version__`` attribute indicating the installed
 version of Troostwatch. The version is read from pyproject.toml via
-importlib.metadata – this is the single source of truth.
+importlib.metadata - this is the single source of truth.
 """
 
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
 
 try:
     __version__ = version("troostwatch")

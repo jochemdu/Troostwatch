@@ -96,9 +96,9 @@ def configure_tracing(
 
     try:
         from opentelemetry import trace
+        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
-        from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 
         # Create resource with service name
         resource = Resource.create({SERVICE_NAME: service_name})
@@ -122,16 +122,18 @@ def configure_tracing(
                 logger.info(f"Tracing exporter configured for {endpoint}")
             except ImportError:
                 logger.warning(
-                    "opentelemetry-exporter-otlp not installed; traces won't be exported"
+                    "opentelemetry-exporter-otlp not installed; "
+                    "traces won't be exported"
                 )
         else:
             # Check for console exporter for debugging
             try:
+                import os
+
                 from opentelemetry.sdk.trace.export import (
                     ConsoleSpanExporter,
                     SimpleSpanProcessor,
                 )
-                import os
 
                 if os.environ.get("OTEL_TRACES_CONSOLE", "").lower() == "true":
                     provider.add_span_processor(

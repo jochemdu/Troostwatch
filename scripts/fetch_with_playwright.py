@@ -19,10 +19,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from playwright.async_api import async_playwright  # noqa: E402
 
-from troostwatch.infrastructure.web.parsers import (
+from troostwatch.infrastructure.web.parsers import (  # noqa: E402
     parse_auction_page,
     parse_lot_detail,
-)  # noqa: E402
+)
 
 
 async def main():
@@ -50,7 +50,11 @@ async def main():
         # Create context with realistic settings
         context = await browser.new_context(
             viewport={"width": 1920, "height": 1080},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
             locale="nl-NL",
         )
 
@@ -99,9 +103,11 @@ async def main():
         all_image_urls = []
 
         for idx, lot in enumerate(lots[: args.limit]):
-            print(
-                f"\n[{idx+1}/{min(len(lots), args.limit)}] {lot.lot_code}: {lot.title[:40]}..."
+            summary = (
+                f"[{idx+1}/{min(len(lots), args.limit)}] {lot.lot_code}: "
+                f"{lot.title[:40]}..."
             )
+            print("\n" + summary)
 
             try:
                 response = await page.goto(
@@ -146,11 +152,13 @@ async def main():
             print("\nNext steps:")
             print("  1. Process HTML files:")
             print(
-                f"     python scripts/process_saved_lot_pages.py --html-dir {args.output}"
+                "     python scripts/process_saved_lot_pages.py --html-dir "
+                f"{args.output}"
             )
             print("  2. Or download images directly:")
             print(
-                f"     python scripts/download_images.py --urls {args.output}/image_urls.json"
+                "     python scripts/download_images.py --urls "
+                f"{args.output}/image_urls.json"
             )
 
         return 0

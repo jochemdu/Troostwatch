@@ -3,7 +3,8 @@
 Bulk label tokens in a JSONL file according to simple rules.
 
 Usage:
-    python scripts/bulk_label_tokens.py --input tokens_to_label.jsonl --output tokens_to_label_labeled.jsonl
+    python scripts/bulk_label_tokens.py --input tokens_to_label.jsonl \
+        --output tokens_to_label_labeled.jsonl
 
 Example rules:
     - If token contains 'RADEON', label as 'model_number'

@@ -7,8 +7,9 @@ to fetch Troostwijk pages, bypassing any IP/bot blocks.
 Setup:
 1. Start Chrome with remote debugging:
 
-   # macOS
-   /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222
+    # macOS
+    /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome
+    --remote-debugging-port=9222
 
    # Windows
    chrome.exe --remote-debugging-port=9222
@@ -17,7 +18,7 @@ Setup:
    google-chrome --remote-debugging-port=9222
 
 2. Run this script:
-   python scripts/fetch_via_browser.py --auction A1-39500
+    python scripts/fetch_via_browser.py --auction A1-39500
 
 The script will use your browser's session (cookies, etc.) to fetch the pages.
 """
@@ -166,9 +167,8 @@ async def main():
         print("\n❌ Could not connect to Chrome!")
         print("\nStart Chrome with remote debugging:")
         print("\n  macOS:")
-        print(
-            "    /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome --remote-debugging-port=9222"
-        )
+        print("    /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome")
+        print("      --remote-debugging-port=9222")
         print("\n  Windows:")
         print("    chrome.exe --remote-debugging-port=9222")
         print("\n  Linux:")

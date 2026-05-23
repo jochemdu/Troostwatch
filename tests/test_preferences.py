@@ -5,8 +5,8 @@ from pathlib import Path
 
 from troostwatch.infrastructure.db import ensure_schema
 from troostwatch.infrastructure.db.repositories import (
-    PreferenceRepository,
     AuctionRepository,
+    PreferenceRepository,
 )
 
 

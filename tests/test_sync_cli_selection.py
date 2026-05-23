@@ -1,6 +1,6 @@
-from pathlib import Path
 import sqlite3
 import sys
+from pathlib import Path
 from typing import Any
 
 from click.testing import CliRunner
@@ -9,13 +9,17 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import importlib
+import importlib  # noqa: E402
 
-cli_sync_module = importlib.import_module("troostwatch.interfaces.cli.sync")
-from troostwatch.interfaces.cli.context import build_sync_command_context
-from troostwatch.interfaces.cli.sync import sync
-from troostwatch.services.sync_service import AuctionSelection, SyncRunSummary
-from troostwatch.services.sync import SyncRunResult, _upsert_auction
+cli_sync_module = importlib.import_module(
+    "troostwatch.interfaces.cli.sync"
+)  # noqa: E402
+from troostwatch.interfaces.cli.context import build_sync_command_context  # noqa: E402
+from troostwatch.interfaces.cli.sync import sync  # noqa: E402
+from troostwatch.services.sync import SyncRunResult  # noqa: E402
+from troostwatch.services.sync import _upsert_auction  # noqa: E402
+from troostwatch.services.sync_service import AuctionSelection  # noqa: E402
+from troostwatch.services.sync_service import SyncRunSummary  # noqa: E402
 
 
 def _seed_auction(db_path: Path, code: str, url: str):

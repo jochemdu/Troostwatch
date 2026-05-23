@@ -21,6 +21,10 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
     status,
+    APIRouter,
+    UploadFile,
+    File,
+    Response,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -2254,6 +2258,7 @@ async def capture_training_data(
     This endpoint receives HTML from the Chrome extension and queues
     the images for download and OCR processing.
     """
+    import hashlib
     from pathlib import Path
 
     # Save HTML to training_data directory

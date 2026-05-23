@@ -58,6 +58,16 @@ app.add_middleware(
 )
 
 
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or restrict to your extension's origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 def prepare_features(token: str, ocr_conf: float, position_ratio: float) -> list[float]:
     """Prepare feature vector for a single token.
 
@@ -168,8 +178,8 @@ def load_training_data(input_path: Path) -> tuple[np.ndarray, np.ndarray, list[s
                 all_labels.append(label)
                 all_tokens.append(token)
 
-    return np.array(all_features), np.array(all_labels), all_tokens
 
+    return np.array(all_features), np.array(all_labels), all_tokens
 
 def train_model(X: np.ndarray, y: np.ndarray) -> RandomForestClassifier:
     X_train, X_test, y_train, y_test = train_test_split(
@@ -199,24 +209,11 @@ def train_model(X: np.ndarray, y: np.ndarray) -> RandomForestClassifier:
     print(confusion_matrix(y_test, y_pred))
     print()
     feature_names = [
-        "length",
-        "length_norm",
-        "digit_ratio",
-        "upper_ratio",
-        "alpha_ratio",
-        "punct_ratio",
-        "is_ean13",
-        "is_ean8",
-        "is_serial",
-        "is_model",
-        "is_mixed",
-        "ocr_conf",
-        "position",
+        "length", "length_norm", "digit_ratio", "upper_ratio", "alpha_ratio", "punct_ratio",
+        "is_ean13", "is_ean8", "is_serial", "is_model", "is_mixed", "ocr_conf", "position"
     ]
     print("Feature importance:")
-    for name, importance in sorted(
-        zip(feature_names, clf.feature_importances_), key=lambda x: -x[1]
-    ):
+    for name, importance in sorted(zip(feature_names, clf.feature_importances_), key=lambda x: -x[1]):
         print(f"  {name}: {importance:.3f}")
     return clf
 
@@ -285,3 +282,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+const API_URL = 'http://localhost:8000/api/upload-tokens';
+// ... use sendTokensToApi as shown earlier ...

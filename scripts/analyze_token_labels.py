@@ -12,8 +12,8 @@ Outputs:
 """
 import argparse
 import json
-from collections import Counter, defaultdict
 from pathlib import Path
+from collections import Counter, defaultdict
 
 
 def analyze_labels(input_path: Path):
@@ -27,9 +27,9 @@ def analyze_labels(input_path: Path):
             if not line.strip():
                 continue
             obj = json.loads(line)
-            label = obj.get("ml_label", "none")
-            text = obj.get("text", "")
-            conf = float(obj.get("confidence", 0))
+            label = obj.get('ml_label', 'none')
+            text = obj.get('text', '')
+            conf = float(obj.get('confidence', 0))
             label_counter[label] += 1
             if len(examples[label]) < 5:
                 examples[label].append(text)

@@ -1,7 +1,6 @@
 import json
-import os
-
 import matplotlib.pyplot as plt
+import os
 
 data_path = "training_data/real_training/type_category_analysis.json"
 output_dir = "training_data/real_training/exports"

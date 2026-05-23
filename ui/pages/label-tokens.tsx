@@ -84,7 +84,7 @@ export default function LabelTokensPage() {
   }
 
   return (
-    <>
+    <div>
       <h2>Token labeling</h2>
       <div>
         <strong>Text:</strong> {token.text}
@@ -120,7 +120,6 @@ export default function LabelTokensPage() {
       </div>
       <input type="file" accept=".jsonl,.json" onChange={handleImportApi} />
       <button onClick={handleExportApi}>Export labeled tokens (API)</button>
-      <ExampleLotEventConsumer />
-    </>
+    </div>
   );
 }

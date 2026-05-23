@@ -4,7 +4,9 @@
 Convert labeled tokens to the training data format expected by train_label_classifier.py.
 
 Usage:
-    convert_tokens_to_training.py --tokens <tokens> --output <output>
+    python scripts/convert_tokens_to_training.py \
+        --tokens training_data/real_training/tokens.labeled.jsonl \
+        --output training_data/training_data.json
 """
 
 import argparse
@@ -15,17 +17,19 @@ from pathlib import Path
 
 def convert_tokens(tokens_path: Path, output_path: Path) -> None:
     """Convert labeled tokens JSONL to training data JSON format."""
-
+    
     # Group tokens by image
-    images_data: dict[str, dict] = defaultdict(
-        lambda: {"tokens": {"text": [], "conf": []}, "labels": {}, "metadata": {}}
-    )
-
+    images_data: dict[str, dict] = defaultdict(lambda: {
+        "tokens": {"text": [], "conf": []},
+        "labels": {},
+        "metadata": {}
+    })
+    
     with open(tokens_path) as f:
         for line in f:
             token = json.loads(line)
             image_file = token["image_file"]
-
+            
             # Add token text and confidence
             idx = len(images_data[image_file]["tokens"]["text"])
             images_data[image_file]["tokens"]["text"].append(token["text"])
@@ -50,7 +54,7 @@ def convert_tokens(tokens_path: Path, output_path: Path) -> None:
                 "path": image_file,
                 "tokens": data["tokens"],
                 "labels": data["labels"],
-                "metadata": data["metadata"],
+                "metadata": data["metadata"]
             }
             for image_file, data in images_data.items()
         ]
@@ -91,7 +95,7 @@ def main():
         "-t",
         type=Path,
         required=True,
-        help="Path to labeled tokens JSONL file",
+        help="Path to labeled tokens JSONL file"
     )
     parser.add_argument(
         "--output",

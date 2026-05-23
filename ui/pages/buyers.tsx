@@ -4,11 +4,11 @@ import type { BuyerResponse, BuyerCreateRequest } from '../lib/api';
 import { createBuyer, deleteBuyer, fetchBuyers } from '../lib/api';
 import ExampleLotEventConsumer from '../components/ExampleLotEventConsumer';
 
-const emptyForm: BuyerCreateRequest = { label: '', name: '', notes: '' };
+const emptyForm: any = { label: '', name: '', notes: '' };
 
 export default function BuyersPage() {
   const [buyers, setBuyers] = useState<BuyerResponse[]>([]);
-  const [form, setForm] = useState<BuyerCreateRequest>(emptyForm);
+  const [form, setForm] = useState<any>(emptyForm);
   const [feedback, setFeedback] = useState<string>('');
 
   useEffect(() => {

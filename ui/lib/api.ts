@@ -925,11 +925,11 @@ export async function fetchBuyerSummary(buyerLabel: string): Promise<BuyerSummar
  * Uses OpenAI Vision API to extract text and codes from lot images.
  * @see POST /images/analyze in troostwatch/app/api.py
  */
-export async function analyzeImages(imageUrls: string[]): Promise<ImageAnalysisResponse> {
+export async function analyzeImages(imageUrls: string[], backend?: string, lot_id?: number): Promise<any> {
   const response = await fetch(`${API_BASE}/images/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image_urls: imageUrls }),
+    body: JSON.stringify({ image_urls: imageUrls, backend: backend || 'local', lot_id: lot_id }),
   });
   return handleResponse<ImageAnalysisResponse>(response);
 }

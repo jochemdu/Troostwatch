@@ -18,6 +18,7 @@ from .report import report
 from .sync import sync
 from .sync_multi import sync_multi
 from .view import view
+from .products import products
 
 __all__ = [
     "add_lot",
@@ -32,4 +33,5 @@ __all__ = [
     "sync",
     "sync_multi",
     "view",
+    "products",
 ]

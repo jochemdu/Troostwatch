@@ -58,4 +58,3 @@ def test_add_lot_command_inserts_record(tmp_path):
         "Amsterdam",
         "NL",
     )
-

@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import type { ImageAnalysisResponse, ExtractedCode, ImageAnalysisBackend } from '../lib/api';
+
 import { analyzeImages } from '../lib/api';
 
 interface ImageAnalyzerProps {
   initialUrls?: string[];
-  onCodeFound?: (code: ExtractedCode) => void;
+  onCodeFound?: (code: any) => void;
 }
 
 const codeTypeLabels: Record<string, string> = {
@@ -21,16 +21,16 @@ const confidenceColors: Record<string, string> = {
   low: '#f87171',
 };
 
-const backendDescriptions: Record<ImageAnalysisBackend, string> = {
+const backendDescriptions: Record<string, string> = {
   local: '🖥️ Lokale OCR (Tesseract) - Gratis, offline',
   openai: '🤖 OpenAI GPT-4 Vision - Slimmer, vereist API key',
 };
 
 export default function ImageAnalyzer({ initialUrls = [], onCodeFound }: ImageAnalyzerProps) {
   const [urlInput, setUrlInput] = useState(initialUrls.join('\n'));
-  const [backend, setBackend] = useState<ImageAnalysisBackend>('local');
+  const [backend, setBackend] = useState<string>('local');
   const [analyzing, setAnalyzing] = useState(false);
-  const [results, setResults] = useState<ImageAnalysisResponse | null>(null);
+  const [results, setResults] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const getUrls = (): string[] => {
@@ -71,7 +71,7 @@ export default function ImageAnalyzer({ initialUrls = [], onCodeFound }: ImageAn
     }
   };
 
-  const totalCodes = results?.results.reduce((sum, r) => sum + r.codes.length, 0) ?? 0;
+  const totalCodes = results?.results.reduce((sum: number, r: any) => sum + r.codes.length, 0) ?? 0;
   const urlCount = getUrls().length;
 
   return (
@@ -142,7 +142,7 @@ export default function ImageAnalyzer({ initialUrls = [], onCodeFound }: ImageAn
             Gevonden codes ({totalCodes})
           </h4>
           
-          {results.results.map((result, idx) => (
+          {results.results.map((result: any, idx: number) => (
             <div key={idx} className="result-item">
               {result.error ? (
                 <div className="result-error">
@@ -155,7 +155,7 @@ export default function ImageAnalyzer({ initialUrls = [], onCodeFound }: ImageAn
               ) : (
                 <div className="result-codes">
                   <div className="result-header">📷 Afbeelding {idx + 1}</div>
-                  {result.codes.map((code, codeIdx) => (
+                  {result.codes.map((code: any, codeIdx: number) => (
                     <div key={codeIdx} className="code-item">
                       <span className="code-type">{codeTypeLabels[code.code_type] || code.code_type}</span>
                       <span className="code-value">{code.value}</span>

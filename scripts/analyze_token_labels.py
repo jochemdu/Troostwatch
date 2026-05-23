@@ -22,14 +22,14 @@ def analyze_labels(input_path: Path):
     length_stats = defaultdict(list)
     conf_stats = defaultdict(list)
 
-    with open(input_path, 'r', encoding='utf-8') as fin:
+    with open(input_path, "r", encoding="utf-8") as fin:
         for line in fin:
             if not line.strip():
                 continue
             obj = json.loads(line)
-            label = obj.get('ml_label', 'none')
-            text = obj.get('text', '')
-            conf = float(obj.get('confidence', 0))
+            label = obj.get("ml_label", "none")
+            text = obj.get("text", "")
+            conf = float(obj.get("confidence", 0))
             label_counter[label] += 1
             if len(examples[label]) < 5:
                 examples[label].append(text)
@@ -46,14 +46,23 @@ def analyze_labels(input_path: Path):
     print()
     print("Token length stats per label:")
     for label, lengths in length_stats.items():
-        print(f"  {label}: mean={sum(lengths)/len(lengths):.2f}, min={min(lengths)}, max={max(lengths)}")
+        print(
+            f"  {label}: mean={sum(lengths)/len(lengths):.2f}, min={min(lengths)}, max={max(lengths)}"
+        )
     print()
     print("Confidence stats per label:")
     for label, confs in conf_stats.items():
-        print(f"  {label}: mean={sum(confs)/len(confs):.2f}, min={min(confs)}, max={max(confs)}")
+        print(
+            f"  {label}: mean={sum(confs)/len(confs):.2f}, min={min(confs)}, max={max(confs)}"
+        )
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Analyze token label distribution and feature statistics')
-    parser.add_argument('--input', '-i', type=Path, required=True, help='Input JSONL file')
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Analyze token label distribution and feature statistics"
+    )
+    parser.add_argument(
+        "--input", "-i", type=Path, required=True, help="Input JSONL file"
+    )
     args = parser.parse_args()
     analyze_labels(args.input)

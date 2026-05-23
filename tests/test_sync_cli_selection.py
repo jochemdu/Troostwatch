@@ -38,7 +38,10 @@ class FakeSyncService:
             resolved_code = self.available[0]["auction_code"]
         resolved_url = auction_url
         if resolved_code and not resolved_url:
-            match = next((a for a in self.available if a.get("auction_code") == resolved_code), None)
+            match = next(
+                (a for a in self.available if a.get("auction_code") == resolved_code),
+                None,
+            )
             resolved_url = match.get("url") if match else None
         return AuctionSelection(
             resolved_code=resolved_code,
@@ -63,7 +66,9 @@ class FakeSyncService:
         )
 
 
-def _mock_service(monkeypatch, available: list[dict[str, Any]], *, auto_resolve: bool = True):
+def _mock_service(
+    monkeypatch, available: list[dict[str, Any]], *, auto_resolve: bool = True
+):
     fake_service = FakeSyncService(available=available, auto_resolve=auto_resolve)
 
     def _factory(*args, **kwargs):
@@ -150,8 +155,16 @@ def test_sync_cli_defaults_preferred_auction(monkeypatch, tmp_path):
 
     service = PreferredService(
         available=[
-            {"auction_code": "A1-ONE", "url": "https://example.com/a/one", "title": "Auction 1"},
-            {"auction_code": "A1-TWO", "url": "https://example.com/a/two", "title": "Auction 2"},
+            {
+                "auction_code": "A1-ONE",
+                "url": "https://example.com/a/one",
+                "title": "Auction 1",
+            },
+            {
+                "auction_code": "A1-TWO",
+                "url": "https://example.com/a/two",
+                "title": "Auction 2",
+            },
         ]
     )
 
@@ -194,7 +207,9 @@ def test_sync_cli_reports_dry_run(monkeypatch, tmp_path):
     )
 
     runner = CliRunner()
-    result = runner.invoke(sync, ["--db", str(db_path), "--dry-run", "--auction-code", "A1-EXIST"])
+    result = runner.invoke(
+        sync, ["--db", str(db_path), "--dry-run", "--auction-code", "A1-EXIST"]
+    )
 
     assert result.exit_code == 0, result.output
     assert service.run_kwargs.get("dry_run") is True
@@ -209,7 +224,9 @@ def test_sync_cli_handles_service_error(monkeypatch, tmp_path):
         async def run_sync(self, **kwargs):
             return SyncRunSummary(status="error", result=None, error="boom")
 
-    service = ErrorService(available=[{"auction_code": "A1-EXIST", "url": "https://example.com/a/exist"}])
+    service = ErrorService(
+        available=[{"auction_code": "A1-EXIST", "url": "https://example.com/a/exist"}]
+    )
     monkeypatch.setattr(cli_sync_module, "SyncService", lambda *args, **kwargs: service)
     monkeypatch.setattr(
         cli_sync_module,

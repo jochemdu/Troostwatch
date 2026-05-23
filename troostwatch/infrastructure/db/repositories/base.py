@@ -52,7 +52,7 @@ class BaseRepository:
 
     def _fetch_one_as_dict(
         self, query: str, params: tuple[Any, ...] | None = None
-    ) -> dict[str, Any | None]:
+    ) -> dict[str, Any | None] | None:
         """Execute query and return first row as dictionary.
 
         Args:
@@ -96,7 +96,7 @@ class BaseRepository:
         row = cur.fetchone()
         return row[0] if row else None
 
-    def _execute_insert(self, query: str, params: tuple[Any, ... | None] = None) -> int:
+    def _execute_insert(self, query: str, params: tuple[Any, ...] | None = None) -> int:
         """Execute INSERT query and return last row ID.
 
         Args:
@@ -118,7 +118,7 @@ class BaseRepository:
         return cur.lastrowid or 0
 
     def _execute(
-        self, query: str, params: tuple[Any, ... | None] = None
+        self, query: str, params: tuple[Any, ...] | None = None
     ) -> sqlite3.Cursor:
         """Execute query and return cursor for custom processing.
 

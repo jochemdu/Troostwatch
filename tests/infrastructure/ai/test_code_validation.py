@@ -4,15 +4,12 @@ import pytest
 
 from troostwatch.infrastructure.ai.code_validation import (
     CodeType,
-    ValidationResult,
     calculate_gs1_check_digit,
     detect_code_type,
     normalize_code,
     validate_and_correct_ean,
-    validate_code,
     validate_ean_13,
     validate_ean_8,
-    validate_gtin_14,
     validate_isbn_10,
     validate_isbn_13,
     validate_mac_address,

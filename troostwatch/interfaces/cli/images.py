@@ -15,7 +15,13 @@ from pathlib import Path
 
 import click
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TaskProgressColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    BarColumn,
+    TextColumn,
+    TaskProgressColumn,
+)
 from rich.table import Table
 import httpx
 
@@ -215,7 +221,9 @@ def analyze_images(
     console.print(f"[bold]Database:[/bold] {db_path}")
     console.print(f"[bold]Save tokens:[/bold] {save_tokens}")
     console.print(f"[bold]Confidence threshold:[/bold] {confidence_threshold}")
-    console.print(f"[bold]Auto-approve:[/bold] {auto_approve} (threshold: {auto_approve_threshold})")
+    console.print(
+        f"[bold]Auto-approve:[/bold] {auto_approve} (threshold: {auto_approve_threshold})"
+    )
     console.print(f"[bold]Limit:[/bold] {limit}")
     console.print()
 
@@ -554,9 +562,15 @@ def show_stats(db_path: str, images_dir: str | None) -> None:
 
     code_table.add_row("Total Codes", str(code_stats.get("total", 0)))
     code_table.add_row("[green]Approved[/green]", str(code_stats.get("approved", 0)))
-    code_table.add_row("[yellow]Pending Approval[/yellow]", str(code_stats.get("pending", 0)))
-    code_table.add_row("[cyan]Auto-approved[/cyan]", str(code_stats.get("auto_approved", 0)))
-    code_table.add_row("[blue]Manually Approved[/blue]", str(code_stats.get("manually_approved", 0)))
+    code_table.add_row(
+        "[yellow]Pending Approval[/yellow]", str(code_stats.get("pending", 0))
+    )
+    code_table.add_row(
+        "[cyan]Auto-approved[/cyan]", str(code_stats.get("auto_approved", 0))
+    )
+    code_table.add_row(
+        "[blue]Manually Approved[/blue]", str(code_stats.get("manually_approved", 0))
+    )
     code_table.add_row("Promoted to Lots", str(code_stats.get("promoted", 0)))
 
     console.print(code_table)
@@ -957,8 +971,11 @@ def export_training_data_cli(api_url, output, include_reviewed, only_mismatches,
         data = response.json()
         with open(output, "w", encoding="utf-8") as f:
             import json
+
             json.dump(data, f, indent=2, ensure_ascii=False)
-        console.print(f"[green]Training data geëxporteerd:[/green] {output} ({data.get('count', 0)} records)")
+        console.print(
+            f"[green]Training data geëxporteerd:[/green] {output} ({data.get('count', 0)} records)"
+        )
     except Exception as e:
         console.print(f"[red]Fout bij exporteren training data:[/red] {e}")
 
@@ -981,7 +998,9 @@ def training_status_cli(api_url):
         last_run = data.get("last_run", {})
         model_info = data.get("model_info", {})
         stats = data.get("stats", {})
-        console.print(f"Laatste run: {last_run.get('started_at')} → {last_run.get('finished_at')}")
+        console.print(
+            f"Laatste run: {last_run.get('started_at')} → {last_run.get('finished_at')}"
+        )
         console.print(f"Status: {last_run.get('status')}")
         console.print(f"Metrics: {last_run.get('metrics')}")
         console.print(f"Model info: {model_info}")

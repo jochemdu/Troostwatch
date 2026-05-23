@@ -2,7 +2,6 @@
   "name": "Troostwatch Dev",
   "image":"mcr.microsoft.com/devcontainers/universal:2",
   "features": {
-    "ghcr.io/devcontainers/features/poetry:1": {}
   },
   "postCreateCommand": "pip install -r requirements.txt -e .[dev]",
   "customizations": {
@@ -10,7 +9,8 @@
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "ms-toolsai.jupyter"
+        "ms-toolsai.jupyter",
+        "ms-vscode-remote.remote-containers"
       ]
     }
   }

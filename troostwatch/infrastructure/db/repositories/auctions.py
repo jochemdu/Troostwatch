@@ -76,7 +76,7 @@ class AuctionRepository(BaseRepository):
             return auctions
         return [a for a in auctions if a["active_lots"] > 0]
 
-    def get_by_code(self, auction_code: str) -> dict[str, Any | None]:
+    def get_by_code(self, auction_code: str) -> dict[str, Any | None] | None:
         """Get a single auction by code."""
         cur = self.conn.execute(
             """

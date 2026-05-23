@@ -1,12 +1,7 @@
 """Tests for WebSocket message types."""
 
-from datetime import datetime, timezone
-
-import pytest
-
 from troostwatch.app.ws_messages import (
     MESSAGE_FORMAT_VERSION,
-    BaseMessage,
     BidPlacedMessage,
     BuyerCreatedMessage,
     BuyerDeletedMessage,

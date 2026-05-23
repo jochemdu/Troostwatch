@@ -27,7 +27,7 @@ readme = "README.md"
 # The minimum Python version required.  Troostwatch uses modern type hints
 # and dataclasses, so Python 3.11 or newer is recommended. Python 3.14 is
 # supported when available.
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 # The project’s license.  If you intend to publish, replace with the
 # appropriate SPDX identifier or a license file.
 license = { text = "MIT" }

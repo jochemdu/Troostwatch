@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Annotated, Any, cast
+import os
 
 from fastapi import (
     Depends,
@@ -53,7 +54,11 @@ from troostwatch.services.sync_service import SyncService
 from troostwatch.services.dto import BuyerCreateDTO
 from troostwatch.services.positions import PositionUpdateData
 from troostwatch.infrastructure.ai import ImageAnalyzer
-from troostwatch.services.label_extraction import extract_label_from_image, LabelExtractionResult
+from troostwatch.services.image_analysis import ImageAnalysisService
+from troostwatch.services.label_extraction import (
+    extract_label_from_image,
+    LabelExtractionResult,
+)
 
 
 class LotEventBus:
@@ -182,6 +187,8 @@ SyncServiceDep = Annotated[SyncService, Depends(get_sync_service)]
 
 class BuyerCreateRequest(BaseModel):
     label: str
+    name: str | None = None
+    notes: str | None = None
 
 
 class BuyerResponse(BaseModel):
@@ -199,6 +206,7 @@ class BuyerCreateResponse(BaseModel):
 class PositionUpdate(BaseModel):
     buyer_label: str
     lot_code: str
+    auction_code: str | None = None
     max_budget_total_eur: float | None = Field(None, ge=0)
     preferred_bid_eur: float | None = Field(None, ge=0)
     watch: bool | None = None
@@ -296,6 +304,7 @@ class BidResponse(BaseModel):
     lot_title: str | None = None
     amount_eur: float
     placed_at: str
+    note: str | None = None
 
 
 class BidCreateRequest(BaseModel):
@@ -391,6 +400,9 @@ class ReferencePriceResponse(BaseModel):
     condition: str  # 'new', 'used', 'refurbished'
     price_eur: float
     created_at: str | None = None
+    source: str | None = None
+    url: str | None = None
+    notes: str | None = None
 
 
 class ReferencePriceCreateRequest(BaseModel):
@@ -398,6 +410,9 @@ class ReferencePriceCreateRequest(BaseModel):
 
     condition: str = Field(default="used", pattern="^(new|used|refurbished)$")
     price_eur: float = Field(ge=0)
+    source: str | None = None
+    url: str | None = None
+    notes: str | None = None
 
 
 class ReferencePriceUpdateRequest(BaseModel):
@@ -406,6 +421,7 @@ class ReferencePriceUpdateRequest(BaseModel):
     condition: str | None = Field(None, pattern="^(new|used|refurbished)$")
     price_eur: float | None = Field(None, ge=0)
     source: str | None = None
+    url: str | None = None
     notes: str | None = None
 
 
@@ -986,10 +1002,16 @@ class SpecTemplateCreateRequest(BaseModel):
 
     title: str
     parent_id: int | None = None
+    value: str | None = None
+    ean: str | None = None
+    price_eur: float | None = None
+    release_date: str | None = None
+    category: str | None = None
 
 
 class SpecTemplateUpdateRequest(BaseModel):
     """Request to update a spec template."""
+
     title: str | None = None
     value: str | None = None
     ean: str | None = None
@@ -1012,7 +1034,22 @@ async def list_spec_templates(
 ) -> list[SpecTemplateResponse]:
     """List all spec templates, optionally filtered by parent."""
     templates = lot_repository.list_spec_templates(parent_id)
-    return [SpecTemplateResponse(**t) for t in templates]
+    result: list[SpecTemplateResponse] = []
+    for t in templates:
+        result.append(
+            SpecTemplateResponse(
+                id=int(t.get("id", 0)),
+                parent_id=t.get("parent_id"),
+                title=str(t.get("title", "")),
+                value=t.get("value"),
+                ean=t.get("ean"),
+                price_eur=t.get("price_eur"),
+                release_date=t.get("release_date"),
+                category=t.get("category"),
+                created_at=t.get("created_at"),
+            )
+        )
+    return result
 
 
 @app.post(
@@ -1067,7 +1104,19 @@ async def update_spec_template(
     template = lot_repository.get_spec_template(template_id)
     if not template:
         raise HTTPException(status_code=404, detail=f"Template {template_id} not found")
-    return SpecTemplateResponse(**template)
+    id_val = template.get("id")
+    id_int = int(id_val) if id_val is not None else 0
+    return SpecTemplateResponse(
+        id=id_int,
+        parent_id=template.get("parent_id"),
+        title=str(template.get("title", "")),
+        value=template.get("value"),
+        ean=template.get("ean"),
+        price_eur=template.get("price_eur"),
+        release_date=template.get("release_date"),
+        category=template.get("category"),
+        created_at=template.get("created_at"),
+    )
 
 
 @app.delete("/spec-templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -1109,7 +1158,7 @@ async def apply_template_to_lot(
             id=spec_id,
             parent_id=payload.parent_id,
             template_id=payload.template_id,
-            key=template["title"],
+            key=str(template.get("title", "")),
             value=template.get("value"),
             ean=template.get("ean"),
             price_eur=template.get("price_eur"),
@@ -1337,6 +1386,7 @@ async def get_buyer_report(
 # ML Model Management Endpoints
 # =============================
 
+
 @app.post("/ml/retrain", response_model=dict)
 async def retrain_ml_model(
     training_data_path: str | None = None,
@@ -1344,8 +1394,9 @@ async def retrain_ml_model(
     max_depth: int | None = None,
 ) -> dict:
     """Trigger ML model retraining and record run in DB."""
+
     from troostwatch.services.image_analysis import ImageAnalysisService
-    from troostwatch.services.image_analysis import ImageAnalysisService
+
     service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
     # Record training run as 'pending'
     run_id = service.record_training_run(
@@ -1358,6 +1409,7 @@ async def retrain_ml_model(
     )
     # Simulate async retraining (replace with real ML logic)
     import time
+
     time.sleep(1)  # Simulate work
     metrics = {"accuracy": 0.88, "precision": 0.92, "recall": 0.91, "f1": 0.91}
     model_path = "label_ocr_api/models/label_token_classifier.joblib"
@@ -1374,8 +1426,9 @@ async def retrain_ml_model(
         "run_id": run_id,
         "metrics": metrics,
         "model_path": model_path,
-        "detail": "Retraining completed and recorded."
+        "detail": "Retraining completed and recorded.",
     }
+
 
 @app.get("/ml/export-training-data", response_model=dict)
 async def export_training_data(
@@ -1391,12 +1444,17 @@ async def export_training_data(
     Returns:
         Dict met images, labels, en mismatches.
     """
-    from troostwatch.services.image_analysis import ImageAnalysisService
+
     service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
     # Haal alle records op
     with service._connection_factory() as conn:
-        token_repo = service._get_repo(conn, "OcrTokenRepository")
-        image_repo = service._get_repo(conn, "LotImageRepository")
+        from troostwatch.infrastructure.db.repositories.images import (
+            OcrTokenRepository,
+            LotImageRepository,
+        )
+
+        token_repo = OcrTokenRepository(conn)
+        image_repo = LotImageRepository(conn)
         # Simpele fetch, kan later uitgebreid worden
         if include_reviewed:
             records = token_repo.get_for_training(limit=limit)
@@ -1410,10 +1468,14 @@ async def export_training_data(
                 "SELECT lot_id, local_path FROM lot_images WHERE id = ?",
                 (record.lot_image_id,),
             )
+            lot_id_val = image.get("lot_id") if isinstance(image, dict) else None
+            local_path_val = (
+                image.get("local_path") if isinstance(image, dict) else None
+            )
             entry = {
                 "lot_image_id": record.lot_image_id,
-                "lot_id": image.get("lot_id") if image else None,
-                "local_path": image.get("local_path") if image else None,
+                "lot_id": lot_id_val,
+                "local_path": local_path_val,
                 "tokens": record.tokens,
                 "has_labels": record.has_labels,
                 "labels": getattr(record, "labels", None),
@@ -1421,8 +1483,14 @@ async def export_training_data(
             images.append(entry)
             # Mismatch: tokens en labels komen niet overeen
             if only_mismatches and entry["has_labels"] and entry["labels"]:
-                token_texts = set(entry["tokens"].get("text", []))
-                label_keys = set(entry["labels"].keys())
+                tokens_val = entry["tokens"]
+                labels_val = entry["labels"]
+                token_texts = set()
+                if isinstance(tokens_val, dict):
+                    token_texts = set(tokens_val.get("text", []))
+                label_keys = set()
+                if isinstance(labels_val, dict):
+                    label_keys = set(labels_val.keys())
                 if not label_keys.issubset(token_texts):
                     mismatches.append(entry)
         result = {
@@ -1434,6 +1502,60 @@ async def export_training_data(
 
 
 # Use get_auction_repository from dependencies module
+
+
+class GoldenOpportunityResponse(BaseModel):
+    lot_code: str
+    title: str
+    url: str
+    current_bid_eur: float | None
+    reference_price_new: float | None
+    reference_price_used: float | None
+    potential_profit: float | None
+
+
+@app.get("/golden-opportunities", response_model=list[GoldenOpportunityResponse])
+async def get_golden_opportunities(
+    lot_repo: LotRepositoryDep,
+) -> list[GoldenOpportunityResponse]:
+    conn = lot_repo.conn
+    cur = conn.execute("""
+        SELECT l.lot_code, l.title, l.url, l.current_bid_eur,
+               r_new.price_eur as ref_new, r_used.price_eur as ref_used
+        FROM lots l
+        LEFT JOIN reference_prices r_new ON l.id = r_new.lot_id AND r_new.condition = 'new'
+        LEFT JOIN reference_prices r_used ON l.id = r_used.lot_id AND r_used.condition = 'used'
+        WHERE (l.state = 'running' OR l.state = 'scheduled')
+          AND (l.title LIKE '%bezorgveiling%' OR l.title LIKE '%bezorging%' OR l.title LIKE '%afleveren%')
+    """)
+    rows = cur.fetchall()
+
+    opportunities = []
+    for row in rows:
+        bid = row["current_bid_eur"] or 0
+        ref_new = row["ref_new"]
+        ref_used = row["ref_used"]
+
+        target_price = ref_used if ref_used else (ref_new * 0.7 if ref_new else None)
+
+        if (
+            target_price and (target_price - bid) > 20
+        ):  # arbitrary minimum profit threshold
+            opportunities.append(
+                GoldenOpportunityResponse(
+                    lot_code=row["lot_code"],
+                    title=row["title"],
+                    url=row["url"],
+                    current_bid_eur=row["current_bid_eur"],
+                    reference_price_new=ref_new,
+                    reference_price_used=ref_used,
+                    potential_profit=(target_price - bid),
+                )
+            )
+
+    # Sort by highest potential profit
+    opportunities.sort(key=lambda x: x.potential_profit or 0, reverse=True)
+    return opportunities
 
 
 # =============================================================================
@@ -1466,11 +1588,9 @@ async def get_dashboard_stats(
 
     # Auction counts
     auction_total = conn.execute("SELECT COUNT(*) FROM auctions").fetchone()[0]
-    auction_active = conn.execute(
-        """SELECT COUNT(DISTINCT a.id) FROM auctions a
+    auction_active = conn.execute("""SELECT COUNT(DISTINCT a.id) FROM auctions a
            JOIN lots l ON l.auction_id = a.id
-           WHERE l.state IN ('running', 'scheduled')"""
-    ).fetchone()[0]
+           WHERE l.state IN ('running', 'scheduled')""").fetchone()[0]
 
     # Lot counts by state
     lot_total = conn.execute("SELECT COUNT(*) FROM lots").fetchone()[0]
@@ -1529,11 +1649,16 @@ class AuctionDetailResponse(BaseModel):
     """Detailed auction information."""
 
     auction_code: str
+    title: str | None = None
+    url: str | None = None
+    starts_at: str | None = None
+    ends_at_planned: str | None = None
     lot_count: int = 0
 
 
 class AuctionUpdateRequest(BaseModel):
     """Request to update an auction."""
+
     title: str | None = None
     url: str | None = None
     starts_at: str | None = None
@@ -1560,12 +1685,12 @@ async def get_auction(
             status_code=404, detail=f"Auction '{auction_code}' not found"
         )
     return AuctionDetailResponse(
-        auction_code=auction["auction_code"],
+        auction_code=str(auction.get("auction_code", "")),
         title=auction.get("title"),
         url=auction.get("url"),
         starts_at=auction.get("starts_at"),
         ends_at_planned=auction.get("ends_at_planned"),
-        lot_count=auction.get("lot_count", 0),
+        lot_count=int(auction.get("lot_count") or 0),
     )
 
 
@@ -1594,12 +1719,12 @@ async def update_auction(
         )
 
     return AuctionDetailResponse(
-        auction_code=updated["auction_code"],
+        auction_code=str(updated.get("auction_code", "")),
         title=updated.get("title"),
         url=updated.get("url"),
         starts_at=updated.get("starts_at"),
         ends_at_planned=updated.get("ends_at_planned"),
-        lot_count=updated.get("lot_count", 0),
+        lot_count=int(updated.get("lot_count", 0) or 0),
     )
 
 
@@ -1648,7 +1773,7 @@ LotManagementServiceDep = Annotated[
 @app.get("/ml/training-status", response_model=dict)
 async def get_training_status() -> dict:
     """Return latest ML training run status and metrics from DB."""
-    from troostwatch.services.image_analysis import ImageAnalysisService
+
     service = ImageAnalysisService.from_sqlite_path("troostwatch.db")
     runs = service.get_training_runs(limit=1)
     last_run = runs[0] if runs else None
@@ -1665,8 +1790,9 @@ async def get_training_status() -> dict:
         "last_run": last_run,
         "model_info": model_info,
         "stats": stats,
-        "detail": "Training status and model info from database."
+        "detail": "Training status and model info from database.",
     }
+
 
 @app.post(
     "/lots", status_code=status.HTTP_201_CREATED, response_model=LotCreateResponse
@@ -1922,6 +2048,47 @@ async def approve_code(
         raise HTTPException(status_code=404, detail="Code not found")
 
     code_repo.approve_code(code_id, approved_by="manual")
+    # ML Feedback Loop
+    if code and code.lot_image_id:
+        from troostwatch.infrastructure.db.core import get_connection
+        from troostwatch.infrastructure.db.repositories.images import OcrTokenRepository
+
+        with get_connection() as conn:
+            ocr_repo = OcrTokenRepository(conn)
+            ocr_repo.mark_as_labeled(code.lot_image_id)
+            conn.commit()
+
+    if code and code.lot_image_id:
+        from troostwatch.infrastructure.db.core import get_connection
+
+        with get_connection() as conn:
+            cur = conn.execute(
+                "SELECT lot_id FROM lot_images WHERE id = ?", (code.lot_image_id,)
+            )
+            img_row = cur.fetchone()
+            if img_row:
+                l_id = img_row["lot_id"]
+                if code.code_type in ("ean", "model_number", "product_code"):
+                    cur = conn.execute(
+                        "SELECT id FROM products WHERE title = ?", (code.value,)
+                    )
+                    prod = cur.fetchone()
+                    if prod:
+                        p_id = prod["id"]
+                    else:
+                        cur = conn.execute(
+                            "INSERT INTO products (title, category) VALUES (?, ?)",
+                            (code.value, code.code_type),
+                        )
+                        p_id = cur.lastrowid
+                    try:
+                        conn.execute(
+                            "INSERT INTO lot_items (lot_id, product_id, quantity) VALUES (?, ?, 1)",
+                            (l_id, p_id),
+                        )
+                    except:
+                        pass
+                conn.commit()
 
     # Fetch updated code
     updated = code_repo.get_by_id(code_id)
@@ -1969,6 +2136,51 @@ async def bulk_approve_codes(
 
         if request.approved:
             code_repo.approve_code(code_id, approved_by="manual")
+            # ML Feedback Loop
+            if code and code.lot_image_id:
+                from troostwatch.infrastructure.db.core import get_connection
+                from troostwatch.infrastructure.db.repositories.images import (
+                    OcrTokenRepository,
+                )
+
+                with get_connection() as conn:
+                    ocr_repo = OcrTokenRepository(conn)
+                    ocr_repo.mark_as_labeled(code.lot_image_id)
+                    conn.commit()
+
+            if code and code.lot_image_id:
+                from troostwatch.infrastructure.db.core import get_connection
+
+                with get_connection() as conn:
+                    cur = conn.execute(
+                        "SELECT lot_id FROM lot_images WHERE id = ?",
+                        (code.lot_image_id,),
+                    )
+                    img_row = cur.fetchone()
+                    if img_row:
+                        l_id = img_row["lot_id"]
+                        if code.code_type in ("ean", "model_number", "product_code"):
+                            cur = conn.execute(
+                                "SELECT id FROM products WHERE title = ?", (code.value,)
+                            )
+                            prod = cur.fetchone()
+                            if prod:
+                                p_id = prod["id"]
+                            else:
+                                cur = conn.execute(
+                                    "INSERT INTO products (title, category) VALUES (?, ?)",
+                                    (code.value, code.code_type),
+                                )
+                                p_id = cur.lastrowid
+                            try:
+                                conn.execute(
+                                    "INSERT INTO lot_items (lot_id, product_id, quantity) VALUES (?, ?, 1)",
+                                    (l_id, p_id),
+                                )
+                            except:
+                                pass
+                        conn.commit()
+
             approved_count += 1
         else:
             code_repo.reject_code(code_id)
@@ -2024,13 +2236,13 @@ class TrainingCaptureResponse(BaseModel):
 async def capture_training_data(
     request: TrainingCaptureRequest,
     lot_image_repo: LotImageRepositoryDep,
+    lot_repository: LotRepositoryDep,
 ) -> TrainingCaptureResponse:
     """Capture a lot page for training data.
 
     This endpoint receives HTML from the Chrome extension and queues
     the images for download and OCR processing.
     """
-    import hashlib
     from pathlib import Path
 
     # Save HTML to training_data directory
@@ -2041,19 +2253,15 @@ async def capture_training_data(
     with open(html_file, "w", encoding="utf-8") as f:
         f.write(request.html)
 
-    # Queue images for processing
+    # Queue images for processing: resolve lot_id and insert images
     images_queued = 0
-    for image_url in request.images:
-        try:
-            # Add to lot_images table for later processing
-            lot_image_repo.add_image(
-                lot_code=request.lot_code,
-                image_url=image_url,
-                image_hash=hashlib.md5(image_url.encode()).hexdigest()[:16],
-            )
-            images_queued += 1
-        except Exception:
-            pass  # Image may already exist
+    lot_id = lot_repository.get_id(request.lot_code)
+    if lot_id:
+        inserted = lot_image_repo.insert_images(lot_id, request.images)
+        images_queued = len(inserted)
+    else:
+        # If lot unknown, skip inserting images and log
+        images_queued = 0
 
     return TrainingCaptureResponse(
         success=True,
@@ -2070,7 +2278,8 @@ UPLOAD_DIR = "training_data/real_training/exports/"
 
 @router.post("/upload-tokens")
 async def upload_tokens(file: UploadFile = File(...)):
-    dest_path = os.path.join(UPLOAD_DIR, file.filename)
+    filename = file.filename or ""
+    dest_path = os.path.join(UPLOAD_DIR, filename)
     with open(dest_path, "wb") as f:
         f.write(await file.read())
     return {"status": "success", "path": dest_path}
@@ -2102,7 +2311,9 @@ async def extract_label_endpoint(
     ocr_language: str = "eng+nld",
 ):
     image_bytes = await file.read()
-    result: LabelExtractionResult = extract_label_from_image(image_bytes, ocr_language=ocr_language)
+    result: LabelExtractionResult = extract_label_from_image(
+        image_bytes, ocr_language=ocr_language
+    )
     # Convert dataclass to dict for label (if present)
     label_dict = None
     # Ensure label is always a dict or None
@@ -2118,4 +2329,3 @@ async def extract_label_endpoint(
         preprocessing_steps=result.preprocessing_steps,
         ocr_confidence=result.ocr_confidence,
     )
-

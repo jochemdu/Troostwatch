@@ -23,11 +23,18 @@ def test_sync_records_discovered_pages(monkeypatch, tmp_path):
     ]
 
     def fake_collect_pages(*_args, **_kwargs):
-        return [PageResult(url=base_url, html="<html><title>Test</title></html>")], [], discovered_pages, None
+        return (
+            [PageResult(url=base_url, html="<html><title>Test</title></html>")],
+            [],
+            discovered_pages,
+            None,
+        )
 
     monkeypatch.setattr(sync_module, "_collect_pages", fake_collect_pages)
     monkeypatch.setattr(sync_module, "parse_auction_page", lambda *_args, **_kwargs: [])
-    monkeypatch.setattr(sync_module, "_iter_lot_card_blocks", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        sync_module, "_iter_lot_card_blocks", lambda *_args, **_kwargs: []
+    )
 
     db_path = tmp_path / "sync_pages.db"
     result = sync_auction_to_db(
